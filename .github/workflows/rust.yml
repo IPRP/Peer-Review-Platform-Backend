@@ -1,0 +1,107 @@
+name: Rust
+
+on:
+  push:
+    branches: [ main, development, actions ]
+  pull_request:
+    branches: [ main, development, actions ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Install mysql (Windows Requirement)
+        if: matrix.os == 'windows-latest'
+        shell: cmd
+        run: |
+          choco install mysql
+          "C:\tools\mysql\current\bin\mysql" -e "create database diesel_test; create database diesel_unit_test; grant all on `diesel_%`.* to 'root'@'localhost';" -uroot
+
+      - name: Set variables for mysql (Windows Requirement)
+        if: matrix.os == 'windows-latest'
+        shell: bash
+        run: |
+          echo "MYSQL_DATABASE_URL=mysql://root@localhost/diesel_test" >> $GITHUB_ENV
+          echo "MYSQL_EXAMPLE_DATABASE_URL=mysql://root@localhost/diesel_example" >> $GITHUB_ENV
+          echo "MYSQL_UNIT_TEST_DATABASE_URL=mysql://root@localhost/diesel_unit_test" >> $GITHUB_ENV
+          echo "MYSQLCLIENT_LIB_DIR=C:\tools\mysql\current\lib" >> $GITHUB_ENV
+
+      - name: Install latest rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          default: true
+          override: true
+
+      - name: Build (Windows)
+        if: matrix.os == 'windows-latest'
+        run: >
+          cargo build --all --release &&
+          mkdir release &&
+          move target/release/iprp-backend.exe, target/release/Rocket.toml, target/release/resources release &&
+          cd release && dir && cd .. &&
+          7z.exe a -tzip windows-build.zip release
+
+      - name: Build (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: >
+          cargo build --all --release &&
+          strip target/release/iprp-backend &&
+          mv target/release/iprp-backend target/release/iprp-backend_amd64 &&
+          mkdir release &&
+          mv target/release/iprp-backend_amd64 target/release/Rocket.toml target/release/resources release &&
+          cd release && echo $(ls) && cd .. &&
+          zip -r ubuntu-build.zip release
+
+      # Upload the end-user binary artifact
+      - uses: actions/upload-artifact@v2
+        with:
+          name: build-${{ matrix.os }}
+          path: ./*.zip
+          retention-days: 1
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      # We don't need the repo, grab all artifacts from the build stage
+      # The plugin puts each artifact in a folder of `artifactname`
+      - uses: actions/download-artifact@v2
+      - name: Display fetched artifacts
+        run: ls -R
+
+      - name: Development Release
+        if: github.ref == 'refs/heads/development'
+        uses: "marvinpinto/action-automatic-releases@latest"
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          automatic_release_tag: "latest-dev"
+          prerelease: true
+          title: "Development Builds"
+          files: |
+            build-windows-latest/*.zip
+            build-ubuntu-latest/*.zip
+
+      - name: Stable Release
+        if: github.ref == 'refs/heads/main'
+        uses: "marvinpinto/action-automatic-releases@latest"
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          automatic_release_tag: "latest-stable"
+          prerelease: true
+          title: "Stable Builds"
+          files: |
+            build-windows-latest/*.zip
+            build-ubuntu-latest/*.zip
