@@ -27,6 +27,8 @@ pub fn create_event(conn: TestDB) -> String {
 #[derive(FromForm, Deserialize)]
 pub struct CreateInfo {
     username: String,
+    firstname: String,
+    lastname: String,
     password: String,
 }
 
@@ -36,7 +38,13 @@ pub fn create_user(
     create_info: json::Json<CreateInfo>,
 ) -> Result<json::Json<u64>, Status> {
     let hashed_password = crate::auth::crypto::hash_password(&create_info.0.password);
-    let user = db::users::create_user(&*conn, create_info.0.username, hashed_password);
+    let user = db::users::create_user(
+        &*conn,
+        create_info.0.username,
+        create_info.0.firstname,
+        create_info.0.lastname,
+        hashed_password,
+    );
     return match user {
         Ok(user) => Ok(json::Json(user.id)),
         Err(_) => Err(Status::Conflict),

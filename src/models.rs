@@ -20,6 +20,8 @@ pub struct NewPost<'a> {
 pub struct User {
     pub id: u64,
     pub username: String,
+    pub firstname: String,
+    pub lastname: String,
     pub password: String,
     pub role: String,
     pub unit: Option<String>,
@@ -29,16 +31,26 @@ pub struct User {
 #[table_name = "users"]
 pub struct NewStudent {
     pub username: String,
+    pub firstname: String,
+    pub lastname: String,
     pub password: String,
     pub role: String,
     pub unit: String,
 }
 
 impl NewStudent {
-    pub fn new(username: String, password: String, unit: String) -> Self {
+    pub fn new(
+        username: String,
+        firstname: String,
+        lastname: String,
+        password: String,
+        unit: String,
+    ) -> Self {
         let role = String::from("student");
         NewStudent {
             username,
+            firstname,
+            lastname,
             password,
             role,
             unit,
@@ -50,15 +62,19 @@ impl NewStudent {
 #[table_name = "users"]
 pub struct NewTeacher {
     pub username: String,
+    pub firstname: String,
+    pub lastname: String,
     pub password: String,
     pub role: String,
 }
 
 impl NewTeacher {
-    pub fn new(username: String, password: String) -> Self {
+    pub fn new(username: String, firstname: String, lastname: String, password: String) -> Self {
         let role = String::from("teacher");
         NewTeacher {
             username,
+            firstname,
+            lastname,
             password,
             role,
         }

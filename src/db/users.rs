@@ -6,6 +6,8 @@ use diesel::result::Error;
 pub fn create_user<'a>(
     conn: &MysqlConnection,
     username: String,
+    firstname: String,
+    lastname: String,
     password: String,
 ) -> Result<User, &'static str> {
     let exists: Result<User, _> = users.filter(dsl_username.eq(&username)).first(conn);
@@ -15,7 +17,7 @@ pub fn create_user<'a>(
 
     // TODO get unit from params?
     let unit = String::from("3A2");
-    let new_user = NewStudent::new(username, password, unit);
+    let new_user = NewStudent::new(username, firstname, lastname, password, unit);
 
     diesel::insert_into(users)
         .values(&new_user)

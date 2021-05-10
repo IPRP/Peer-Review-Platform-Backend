@@ -25,7 +25,7 @@ pub fn image() -> Result<NamedFile, NotFound<String>> {
 #[post("/form", data = "<data>")]
 pub fn form(content_type: &ContentType, data: Data) -> &'static str {
     // See: https://docs.rs/rocket-multipart-form-data/0.9.6/rocket_multipart_form_data/
-    let mut options = MultipartFormDataOptions::with_multipart_form_data_fields(vec![
+    let options = MultipartFormDataOptions::with_multipart_form_data_fields(vec![
         MultipartFormDataField::text("title"),
         MultipartFormDataField::file("file")
             .content_type_by_string(Some(mime::TEXT_PLAIN))
