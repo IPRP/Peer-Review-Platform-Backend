@@ -7,14 +7,32 @@ use rocket::request::{FromRequest, Outcome};
 use rocket::Request;
 use std::string::FromUtf8Error;
 
+#[derive(Copy, Clone)]
 pub struct AuthenticatedUser {
     pub(crate) user_id: u64,
+    pub(crate) role: Role,
+}
+
+#[derive(Copy, Clone)]
+pub enum Role {
+    Student,
+    Teacher,
+}
+
+impl Role {
+    fn determine(role: String) -> Role {
+        if role == "teacher" {
+            Role::Teacher
+        } else {
+            Role::Student
+        }
+    }
 }
 
 #[derive(Debug)]
 pub enum LoginError {
     InvalidData,
-    UsernameDoesNotExist,
+    UserDoesNotExist,
     WrongPassword,
 }
 
@@ -35,13 +53,18 @@ impl<'a, 'r> FromRequest<'a, 'r> for AuthenticatedUser {
                         request.local_cache(|| match request.guard::<IprpDB>().succeeded() {
                             None => Err("No db connection"),
                             Some(conn) => {
-                                let user = crate::db::users::get_user(&*conn, &u);
+                                let user = crate::db::users::get_by_name(&*conn, &u);
                                 match user {
                                     Ok(user) => {
                                         let hashed_password =
                                             crate::auth::crypto::hash_password(&p.to_string());
                                         if user.password == hashed_password {
-                                            Ok(user.id)
+                                            let user_id = user.id;
+                                            //let username = user.username;
+                                            let role = Role::determine(user.role);
+                                            //let unit = user.unit;
+                                            let auth_user = AuthenticatedUser { user_id, role };
+                                            Ok(auth_user)
                                         } else {
                                             Err("Mismatched passwords")
                                         }
@@ -51,8 +74,8 @@ impl<'a, 'r> FromRequest<'a, 'r> for AuthenticatedUser {
                             }
                         });
                     match auth_result {
-                        Ok(id) => Outcome::Success(AuthenticatedUser { user_id: *id }),
-                        Err(_) => Outcome::Failure((Status::BadRequest, LoginError::InvalidData)),
+                        Ok(auth_user) => Outcome::Success(*auth_user),
+                        Err(_) => Outcome::Failure((Status::BadRequest, LoginError::WrongPassword)),
                     }
                 }
                 Err(_) => {
@@ -63,7 +86,26 @@ impl<'a, 'r> FromRequest<'a, 'r> for AuthenticatedUser {
         // Auth via Cookie
         else if let Some(cookie) = request.cookies().get_private("user_id") {
             let user_id = cookie.value().parse::<u64>().unwrap();
-            Outcome::Success(AuthenticatedUser { user_id })
+            let auth_result = request.local_cache(|| match request.guard::<IprpDB>().succeeded() {
+                None => Err("No db connection"),
+                Some(conn) => {
+                    let user = crate::db::users::get_by_id(&*conn, user_id);
+                    match user {
+                        Ok(user) => {
+                            //let username = user.username;
+                            let role = Role::determine(user.role);
+                            //let unit = user.unit;
+                            let auth_user = AuthenticatedUser { user_id, role };
+                            Ok(auth_user)
+                        }
+                        Err(_) => Err("No such user"),
+                    }
+                }
+            });
+            match auth_result {
+                Ok(auth_user) => Outcome::Success(*auth_user),
+                Err(_) => Outcome::Failure((Status::BadRequest, LoginError::UserDoesNotExist)),
+            }
         }
         // Bad request
         else {
