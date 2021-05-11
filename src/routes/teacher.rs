@@ -1,3 +1,4 @@
+use crate::models::User;
 use crate::{db, IprpDB};
 use rocket::http::Status;
 use rocket_contrib::json;
@@ -8,24 +9,23 @@ pub struct SearchStudent {
     lastname: String,
 }
 
-#[post("/teachers/search/student", format = "json", data = "<create_info>")]
-pub fn create_user(
+#[get("/teachers/search/student", format = "json", data = "<search_info>")]
+pub fn search_student(
+    _user: User,
     conn: IprpDB,
-    create_info: json::Json<SearchStudent>,
+    search_info: json::Json<SearchStudent>,
 ) -> Result<json::Json<u64>, Status> {
+    // TODO role check
+
     // TODO db search
-    /*
-    let hashed_password = crate::auth::crypto::hash_password(&create_info.0.password);
-    let user = db::users::create_user(
+    let user = db::users::get_by_firstname_lastname(
         &*conn,
-        create_info.0.username,
-        create_info.0.firstname,
-        create_info.0.lastname,
-        hashed_password,
+        &*search_info.firstname,
+        &*search_info.lastname,
     );
-    return match user {
+
+    match user {
         Ok(user) => Ok(json::Json(user.id)),
-        Err(_) => Err(Status::Conflict),
-    };*/
-    Err(Status::NotFound)
+        Err(_) => Err(Status::NotFound),
+    }
 }

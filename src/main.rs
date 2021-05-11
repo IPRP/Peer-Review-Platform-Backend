@@ -53,6 +53,7 @@ fn main() {
                 routes::test::login,
                 routes::test::logout,
                 routes::db::create_user,
+                routes::teacher::search_student,
             ],
         )
         .launch();
