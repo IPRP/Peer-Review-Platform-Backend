@@ -10,6 +10,7 @@ edition = "2018"
 rocket = "0.4.7"
 diesel = { version = "1.4.4", features = ["mysql"] }
 diesel_migrations = "1.4.0"
+diesel-derive-enum = { version = "1.1.1", features  = ["mysql"] }
 rocket-multipart-form-data = "0.9.6"
 rust-crypto = "0.2.36"
 serde = "1.0.125"

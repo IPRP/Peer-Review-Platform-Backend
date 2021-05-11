@@ -1,4 +1,4 @@
-use crate::auth::auth::AuthenticatedUser;
+use crate::models::User;
 use crate::utils::res_path;
 use rocket::http::{ContentType, Cookie, Cookies, Status};
 use rocket::response::status::NotFound;
@@ -49,14 +49,14 @@ pub fn form(content_type: &ContentType, data: Data) -> &'static str {
 /// Use Basic Auth header to trigger this.
 /// Using cookies will resend the cookie.
 #[post("/users/login")]
-pub fn login(user: AuthenticatedUser, mut cookies: Cookies) -> Status {
-    cookies.add_private(Cookie::new("user_id", user.user_id.to_string()));
+pub fn login(user: User, mut cookies: Cookies) -> Status {
+    cookies.add_private(Cookie::new("user_id", user.id.to_string()));
     Status::Ok
 }
 
 /// Removes set cookie.
 #[post("/users/logout")]
-pub fn logout(_user: AuthenticatedUser, mut cookies: Cookies) -> Status {
+pub fn logout(_user: User, mut cookies: Cookies) -> Status {
     cookies.remove_private(Cookie::named("user_id"));
     Status::Ok
 }
@@ -64,6 +64,6 @@ pub fn logout(_user: AuthenticatedUser, mut cookies: Cookies) -> Status {
 /// Test authentication.
 /// Will work with basic auth or cookie.
 #[get("/users/test")]
-pub fn auth_test(user: AuthenticatedUser) -> &'static str {
+pub fn auth_test(_user: User) -> &'static str {
     "Hi!"
 }

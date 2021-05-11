@@ -1,4 +1,4 @@
-use crate::models::User;
+use crate::models::{Role, User};
 use crate::IprpDB;
 use base64::DecodeError;
 use diesel::result::Error;
@@ -7,6 +7,7 @@ use rocket::request::{FromRequest, Outcome};
 use rocket::Request;
 use std::string::FromUtf8Error;
 
+/*
 #[derive(Copy, Clone)]
 pub struct AuthenticatedUser {
     pub(crate) user_id: u64,
@@ -27,7 +28,7 @@ impl Role {
             Role::Student
         }
     }
-}
+}*/
 
 #[derive(Debug)]
 pub enum LoginError {
@@ -40,9 +41,9 @@ pub enum LoginError {
 /// Is invoked when an endpoint contains `AuthenticatedUser` as parameter.
 /// Supports Basic Authorization and Authorization via Cookie.
 /// For Authorization via Cookie the endpoint `/users/login` needs to be invoked first.
-impl<'a, 'r> FromRequest<'a, 'r> for AuthenticatedUser {
+impl<'a, 'r> FromRequest<'a, 'r> for User {
     type Error = LoginError;
-    fn from_request(request: &'a Request<'r>) -> Outcome<AuthenticatedUser, LoginError> {
+    fn from_request(request: &'a Request<'r>) -> Outcome<User, LoginError> {
         // Basic Auth
         if let Some(auth_header) = request.headers().get_one("authorization") {
             match get_basic_auth_info(auth_header) {
@@ -59,12 +60,7 @@ impl<'a, 'r> FromRequest<'a, 'r> for AuthenticatedUser {
                                         let hashed_password =
                                             crate::auth::crypto::hash_password(&p.to_string());
                                         if user.password == hashed_password {
-                                            let user_id = user.id;
-                                            //let username = user.username;
-                                            let role = Role::determine(user.role);
-                                            //let unit = user.unit;
-                                            let auth_user = AuthenticatedUser { user_id, role };
-                                            Ok(auth_user)
+                                            Ok(user)
                                         } else {
                                             Err("Mismatched passwords")
                                         }
@@ -74,7 +70,7 @@ impl<'a, 'r> FromRequest<'a, 'r> for AuthenticatedUser {
                             }
                         });
                     match auth_result {
-                        Ok(auth_user) => Outcome::Success(*auth_user),
+                        Ok(user) => Outcome::Success(user.clone()),
                         Err(_) => Outcome::Failure((Status::BadRequest, LoginError::WrongPassword)),
                     }
                 }
@@ -91,19 +87,13 @@ impl<'a, 'r> FromRequest<'a, 'r> for AuthenticatedUser {
                 Some(conn) => {
                     let user = crate::db::users::get_by_id(&*conn, user_id);
                     match user {
-                        Ok(user) => {
-                            //let username = user.username;
-                            let role = Role::determine(user.role);
-                            //let unit = user.unit;
-                            let auth_user = AuthenticatedUser { user_id, role };
-                            Ok(auth_user)
-                        }
+                        Ok(user) => Ok(user),
                         Err(_) => Err("No such user"),
                     }
                 }
             });
             match auth_result {
-                Ok(auth_user) => Outcome::Success(*auth_user),
+                Ok(user) => Outcome::Success(user.clone()),
                 Err(_) => Outcome::Failure((Status::BadRequest, LoginError::UserDoesNotExist)),
             }
         }
