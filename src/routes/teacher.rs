@@ -100,9 +100,23 @@ pub fn create_workshop(
     _user: User,
     conn: IprpDB,
     new_workshop: json::Json<NewWorkshop>,
-) -> Result<content::Json<String>, Status> {
+) -> Result<json::Json<u64>, Status> {
+    println!("{:?}", new_workshop.end.0);
     println!("{:?}", new_workshop.students.0);
     println!("{:?}", new_workshop.criteria.0);
+
+    let workshop = db::workshops::create_workshop(
+        &*conn,
+        new_workshop.0.title,
+        new_workshop.0.content,
+        new_workshop.0.end.0,
+        new_workshop.0.anonymous,
+    );
+    return match workshop {
+        Ok(workshop) => Ok(json::Json(workshop.id)),
+        Err(_) => Err(Status::Conflict),
+    };
+
     Err(Status::ImATeapot)
 }
 
@@ -110,6 +124,11 @@ pub fn create_workshop(
 impl<'v> FromFormValue<'v> for Date {
     type Error = &'v RawStr;
 
+    fn from_form_value(form_value: &'v RawStr) -> Result<Self, Self::Error> {
+        unimplemented!()
+    }
+
+    /*
     fn from_form_value(form_value: &'v RawStr) -> Result<Date, &'v RawStr> {
         // See: https://docs.rs/chrono/0.4.19/chrono/naive/struct.NaiveDate.html#method.parse_from_str
         let date = chrono::NaiveDate::parse_from_str("2015-09-05", "%Y-%m-%d");
@@ -119,7 +138,7 @@ impl<'v> FromFormValue<'v> for Date {
                 "Date should be formatted `%Y-%m-%d` like `2015-09-05`",
             )),
         }
-    }
+    }*/
 }
 
 // See: https://stackoverflow.com/a/26370894/12347616
@@ -130,7 +149,11 @@ fn parse_str_to_u64(input: &&str) -> Result<u64, ParseIntError> {
 impl<'v> FromFormValue<'v> for NumberVec {
     type Error = &'v RawStr;
 
-    fn from_form_value(form_value: &'v RawStr) -> Result<NumberVec, &'v RawStr> {
+    fn from_form_value(form_value: &'v RawStr) -> Result<Self, Self::Error> {
+        unimplemented!()
+    }
+
+    /*fn from_form_value(form_value: &'v RawStr) -> Result<NumberVec, &'v RawStr> {
         let mut str = form_value.to_string();
         str = str
             .replace("[", "")
@@ -145,7 +168,7 @@ impl<'v> FromFormValue<'v> for NumberVec {
                 "Integer array contains unsupported values",
             )),
         }
-    }
+    }*/
 }
 
 // See: https://stackoverflow.com/a/38447886/12347616
@@ -217,6 +240,6 @@ impl<'v> FromFormValue<'v> for CriterionVec {
     // It seems that a dummy implementation is sufficient?
     // Serde is triggered internally?
     fn from_form_value(form_value: &'v RawStr) -> Result<CriterionVec, &'v RawStr> {
-        Ok(CriterionVec(Vec::new()))
+        unimplemented!()
     }
 }

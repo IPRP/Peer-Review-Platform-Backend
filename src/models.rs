@@ -1,4 +1,4 @@
-use crate::schema::users;
+use crate::schema::*;
 
 /**
 #[derive(Queryable)]
@@ -95,6 +95,15 @@ impl NewTeacher {
 #[derive(Queryable, Clone)]
 pub struct Workshop {
     pub id: u64,
+    pub title: String,
+    pub content: String,
+    pub end: chrono::NaiveDate,
+    pub anonymous: bool,
+}
+
+#[derive(Insertable)]
+#[table_name = "workshops"]
+pub struct NewWorkshop {
     pub title: String,
     pub content: String,
     pub end: chrono::NaiveDate,
