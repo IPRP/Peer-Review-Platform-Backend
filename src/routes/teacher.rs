@@ -4,6 +4,7 @@ use rocket::http::{RawStr, Status};
 use rocket::request::FromFormValue;
 use rocket::response::content;
 use rocket_contrib::json;
+use std::num::ParseIntError;
 
 #[derive(FromForm, Deserialize)]
 pub struct SearchStudent {
@@ -68,12 +69,17 @@ pub fn search_student(
 #[derive(Deserialize)]
 pub struct Date(chrono::NaiveDate);
 
+#[derive(Deserialize)]
+pub struct NumberVec(Vec<u64>);
+
 #[derive(FromForm, Deserialize)]
 pub struct NewWorkshop {
     title: String,
     content: String,
     end: Date,
     anonymous: bool,
+    teachers: NumberVec,
+    students: NumberVec,
 }
 
 #[post("/teachers/workshop", format = "json", data = "<new_workshop>")]
@@ -82,6 +88,7 @@ pub fn create_workshop(
     conn: IprpDB,
     new_workshop: json::Json<NewWorkshop>,
 ) -> Result<content::Json<String>, Status> {
+    println!("{:?}", new_workshop.students.0);
     Err(Status::ImATeapot)
 }
 
@@ -96,6 +103,28 @@ impl<'v> FromFormValue<'v> for Date {
             Ok(date) => Ok(Date(date)),
             _ => Err(RawStr::from_str(
                 "Date should be formatted `%Y-%m-%d` like `2015-09-05`",
+            )),
+        }
+    }
+}
+
+// See: https://stackoverflow.com/a/26370894/12347616
+fn parse_str_to_u64(input: &&str) -> Result<u64, ParseIntError> {
+    input.parse::<u64>()
+}
+
+impl<'v> FromFormValue<'v> for NumberVec {
+    type Error = &'v RawStr;
+
+    fn from_form_value(form_value: &'v RawStr) -> Result<NumberVec, &'v RawStr> {
+        let mut str = form_value.to_string();
+        str = str.replace("[", "").replace("]", "").replace(" ", "");
+        let raw_ids = str.split(",").collect::<Vec<&str>>();
+        let ids: Result<Vec<_>, _> = raw_ids.iter().map(parse_str_to_u64).collect();
+        match ids {
+            Ok(ids) => Ok(NumberVec(ids)),
+            _ => Err(RawStr::from_str(
+                "Integer array contains unsupported values",
             )),
         }
     }
