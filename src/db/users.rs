@@ -1,7 +1,7 @@
-use crate::models::{NewStudent, User};
+use crate::models::{NewStudent, Role, User};
 use crate::schema::users::dsl::{
-    firstname as dsl_firstname, id as dsl_id, lastname as dsl_lastname, username as dsl_username,
-    users,
+    firstname as dsl_firstname, id as dsl_id, lastname as dsl_lastname, role as dls_role,
+    username as dsl_username, users,
 };
 use diesel::prelude::*;
 use diesel::result::Error;
@@ -38,13 +38,18 @@ pub fn get_by_name(conn: &MysqlConnection, username: &str) -> Result<User, Error
     users.filter(dsl_username.eq(username)).first(conn)
 }
 
-pub fn get_by_firstname_lastname(
+pub fn get_student_by_firstname_lastname(
     conn: &MysqlConnection,
     firstname: &str,
     lastname: &str,
 ) -> Result<User, Error> {
     // Make query with multiple WHERE statements
     users
-        .filter(dsl_lastname.eq(lastname).and(dsl_firstname.eq(firstname)))
+        .filter(
+            dsl_lastname
+                .eq(lastname)
+                .and(dsl_firstname.eq(firstname))
+                .and(dls_role.eq(Role::Student)),
+        )
         .first(conn)
 }
