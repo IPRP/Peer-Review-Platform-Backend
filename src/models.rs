@@ -91,3 +91,42 @@ impl NewTeacher {
         }
     }
 }
+
+#[derive(Queryable, Clone)]
+pub struct Workshop {
+    pub id: u64,
+    pub title: String,
+    pub content: String,
+    pub end: chrono::NaiveDate,
+    pub anonymous: bool,
+}
+
+#[derive(Queryable, Clone)]
+pub struct Criteria {
+    pub workshop: u64,
+    pub criterion: u64,
+}
+
+#[derive(DbEnum, Clone, Debug, PartialEq)]
+pub enum Kind {
+    Point,
+    Grade,
+    Percentage,
+    Truefalse,
+}
+
+#[derive(Queryable, Clone)]
+pub struct Criterion {
+    pub id: u64,
+    pub title: String,
+    pub content: String,
+    pub weight: f64,
+    pub kind: Kind,
+}
+
+#[derive(Queryable, Clone)]
+pub struct Workshoplist {
+    pub workshop: u64,
+    pub user: u64,
+    pub role: Role,
+}
