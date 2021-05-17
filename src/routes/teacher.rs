@@ -20,21 +20,45 @@ pub fn search_student(
     // TODO role check
 
     if search_info.firstname.is_some() && search_info.lastname.is_some() {
-        println!("{}", &*search_info.lastname.as_ref().unwrap());
-        println!("{}", &*search_info.firstname.as_ref().unwrap());
-        let user = db::users::get_student_by_firstname_lastname(
-            &*conn,
-            &*search_info.firstname.as_ref().unwrap(),
-            &*search_info.lastname.as_ref().unwrap(),
-        );
+        let firstname = &*search_info.firstname.as_ref().unwrap();
+        let lastname = &*search_info.lastname.as_ref().unwrap();
+
+        let user = db::users::get_student_by_firstname_lastname(&*conn, firstname, lastname);
 
         match user {
-            Ok(user) => Ok(content::Json(format!("{{ 'id': {} }}", user.id))),
+            Ok(user) => Ok(content::Json(format!(
+                r#"
+{{ 
+    'ok': true,
+    'id': {} 
+}}
+                "#,
+                user.id
+            ))),
             Err(_) => Err(Status::NotFound),
         }
     } else if search_info.group.is_some() {
-        println!("{}", &*search_info.group.as_ref().unwrap());
-        Ok(content::Json(format!("{{ 'id': {} }}", 10)))
+        let unit = &*search_info.group.as_ref().unwrap();
+        let users = db::users::get_students_by_unit(&*conn, unit);
+
+        match users {
+            Ok(users) => {
+                let mut ids: Vec<u64> = Vec::new();
+                for user in users {
+                    ids.push(user.id);
+                }
+                Ok(content::Json(format!(
+                    r#"
+{{
+    'ok': true,
+    'id': {:?}
+}}
+                "#,
+                    ids
+                )))
+            }
+            Err(_) => Err(Status::NotFound),
+        }
     } else {
         Err(Status::BadRequest)
     }

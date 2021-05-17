@@ -1,7 +1,7 @@
 use crate::models::{NewStudent, Role, User};
 use crate::schema::users::dsl::{
     firstname as dsl_firstname, id as dsl_id, lastname as dsl_lastname, role as dls_role,
-    username as dsl_username, users,
+    unit as dsl_unit, username as dsl_username, users,
 };
 use diesel::prelude::*;
 use diesel::result::Error;
@@ -52,4 +52,10 @@ pub fn get_student_by_firstname_lastname(
                 .and(dls_role.eq(Role::Student)),
         )
         .first(conn)
+}
+
+pub fn get_students_by_unit(conn: &MysqlConnection, unit: &str) -> Result<Vec<User>, Error> {
+    users
+        .filter(dsl_unit.eq(unit).and(dls_role.eq(Role::Student)))
+        .get_results::<User>(conn)
 }
