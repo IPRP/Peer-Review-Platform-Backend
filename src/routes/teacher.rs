@@ -1,6 +1,7 @@
 use crate::models::User;
 use crate::{db, IprpDB};
-use rocket::http::Status;
+use rocket::http::{RawStr, Status};
+use rocket::request::FromFormValue;
 use rocket::response::content;
 use rocket_contrib::json;
 
@@ -61,5 +62,41 @@ pub fn search_student(
         }
     } else {
         Err(Status::BadRequest)
+    }
+}
+
+#[derive(Deserialize)]
+pub struct Date(chrono::NaiveDate);
+
+#[derive(FromForm, Deserialize)]
+pub struct NewWorkshop {
+    title: String,
+    content: String,
+    end: Date,
+    anonymous: bool,
+}
+
+#[post("/teachers/workshop", format = "json", data = "<new_workshop>")]
+pub fn create_workshop(
+    _user: User,
+    conn: IprpDB,
+    new_workshop: json::Json<NewWorkshop>,
+) -> Result<content::Json<String>, Status> {
+    Err(Status::ImATeapot)
+}
+
+// See: https://api.rocket.rs/v0.4/rocket/request/trait.FromFormValue.html#example
+impl<'v> FromFormValue<'v> for Date {
+    type Error = &'v RawStr;
+
+    fn from_form_value(form_value: &'v RawStr) -> Result<Date, &'v RawStr> {
+        // See: https://docs.rs/chrono/0.4.19/chrono/naive/struct.NaiveDate.html#method.parse_from_str
+        let date = chrono::NaiveDate::parse_from_str("2015-09-05", "%Y-%m-%d");
+        match date {
+            Ok(date) => Ok(Date(date)),
+            _ => Err(RawStr::from_str(
+                "Date should be formatted `%Y-%m-%d` like `2015-09-05`",
+            )),
+        }
     }
 }

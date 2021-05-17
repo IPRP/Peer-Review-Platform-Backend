@@ -54,6 +54,7 @@ fn main() {
                 routes::test::logout,
                 routes::db::create_user,
                 routes::teacher::search_student,
+                routes::teacher::create_workshop,
             ],
         )
         .launch();
