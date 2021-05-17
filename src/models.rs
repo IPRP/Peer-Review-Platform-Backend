@@ -107,12 +107,30 @@ pub struct Criteria {
     pub criterion: u64,
 }
 
-#[derive(DbEnum, Clone, Debug, PartialEq)]
+#[derive(DbEnum, Clone, Debug, PartialEq, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Kind {
     Point,
     Grade,
     Percentage,
     Truefalse,
+}
+
+impl Kind {
+    pub fn from(str: &str) -> Result<Self, String> {
+        let input = str.to_lowercase();
+        if input.eq("point") {
+            Ok(Kind::Point)
+        } else if input.eq("grade") {
+            Ok(Kind::Grade)
+        } else if input.eq("percentage") {
+            Ok(Kind::Percentage)
+        } else if input.eq("truefalse") {
+            Ok(Kind::Truefalse)
+        } else {
+            Err(String::new())
+        }
+    }
 }
 
 #[derive(Queryable, Clone)]
