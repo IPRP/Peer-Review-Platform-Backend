@@ -1,4 +1,4 @@
-use crate::models::{Kind, Role, User};
+use crate::models::{Kind, NewCriterion, Role, User};
 use crate::routes::model::ApiResponse;
 use crate::{db, IprpDB};
 use diesel::result::Error;
@@ -87,6 +87,33 @@ pub struct Criterion {
     kind: Kind,
 }
 
+impl From<Criterion> for NewCriterion {
+    fn from(item: Criterion) -> Self {
+        NewCriterion {
+            title: item.title,
+            content: item.content,
+            weight: item.weight,
+            kind: item.kind,
+        }
+    }
+}
+
+impl From<CriterionVec> for Vec<NewCriterion> {
+    fn from(items: CriterionVec) -> Self {
+        items
+            .0
+            .into_iter()
+            .map(|item| NewCriterion::from(item))
+            .collect()
+    }
+}
+
+impl From<NumberVec> for Vec<u64> {
+    fn from(items: NumberVec) -> Self {
+        items.0
+    }
+}
+
 #[derive(Deserialize)]
 pub struct CriterionVec(Vec<Criterion>);
 
@@ -121,6 +148,9 @@ pub fn create_workshop(
         new_workshop.0.content,
         new_workshop.0.end.0,
         new_workshop.0.anonymous,
+        Vec::from(new_workshop.0.teachers),
+        Vec::from(new_workshop.0.students),
+        Vec::from(new_workshop.0.criteria),
     );
     match workshop {
         Ok(workshop) => Ok(Json(workshop.id)),

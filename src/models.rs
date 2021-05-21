@@ -36,7 +36,7 @@ impl Role {
     }
 }
 
-#[derive(Queryable, Clone)]
+#[derive(Debug, Queryable, Clone)]
 pub struct User {
     pub id: u64,
     pub username: String,
@@ -154,6 +154,15 @@ impl Kind {
 #[derive(Queryable, Clone)]
 pub struct Criterion {
     pub id: u64,
+    pub title: String,
+    pub content: String,
+    pub weight: f64,
+    pub kind: Kind,
+}
+
+#[derive(Insertable)]
+#[table_name = "criterion"]
+pub struct NewCriterion {
     pub title: String,
     pub content: String,
     pub weight: f64,
