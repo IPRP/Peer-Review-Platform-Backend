@@ -10,6 +10,7 @@ use std::num::{ParseFloatError, ParseIntError};
 
 #[derive(FromForm, Deserialize)]
 pub struct SearchStudent {
+    id: Option<u64>,
     firstname: Option<String>,
     lastname: Option<String>,
     group: Option<String>,
@@ -22,11 +23,21 @@ pub fn search_student(
     search_info: Json<SearchStudent>,
 ) -> Result<Json<JsonValue>, ApiResponse> {
     // TODO role check
+    if search_info.id.is_some() {
+        let id = search_info.id.unwrap();
+        let user = db::users::get_student_by_id(&*conn, id);
 
-    if search_info.firstname.is_some() && search_info.lastname.is_some() {
+        match user {
+            Ok(user) => Ok(Json(json!({
+                "ok": true,
+                "firstname": user.firstname,
+                "lastname": user.lastname
+            }))),
+            Err(_) => Err(ApiResponse::bad_request()),
+        }
+    } else if search_info.firstname.is_some() && search_info.lastname.is_some() {
         let firstname = &*search_info.firstname.as_ref().unwrap();
         let lastname = &*search_info.lastname.as_ref().unwrap();
-
         let user = db::users::get_student_by_firstname_lastname(&*conn, firstname, lastname);
 
         match user {

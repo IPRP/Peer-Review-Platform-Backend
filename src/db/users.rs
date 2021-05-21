@@ -38,6 +38,13 @@ pub fn get_by_name(conn: &MysqlConnection, username: &str) -> Result<User, Error
     users.filter(dsl_username.eq(username)).first(conn)
 }
 
+pub fn get_student_by_id(conn: &MysqlConnection, id: u64) -> Result<User, Error> {
+    // Make query with multiple WHERE statements
+    users
+        .filter(dsl_id.eq(id).and(dls_role.eq(Role::Student)))
+        .first(conn)
+}
+
 pub fn get_student_by_firstname_lastname(
     conn: &MysqlConnection,
     firstname: &str,

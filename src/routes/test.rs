@@ -1,9 +1,11 @@
 use crate::models::User;
+use crate::routes::model::ApiResponse;
 use crate::utils::res_path;
 use rocket::http::{ContentType, Cookie, Cookies, Status};
 use rocket::response::status::NotFound;
 use rocket::response::NamedFile;
 use rocket::Data;
+use rocket_contrib::json::{Json, JsonValue};
 use rocket_multipart_form_data::{
     mime, MultipartFormData, MultipartFormDataField, MultipartFormDataOptions,
 };
@@ -49,9 +51,10 @@ pub fn form(content_type: &ContentType, data: Data) -> &'static str {
 /// Use Basic Auth header to trigger this.
 /// Using cookies will resend the cookie.
 #[post("/users/login")]
-pub fn login(user: User, mut cookies: Cookies) -> Status {
+pub fn login(user: User, mut cookies: Cookies) -> Json<JsonValue> {
     cookies.add_private(Cookie::new("user_id", user.id.to_string()));
-    Status::Ok
+    let role = user.role.to_string();
+    Json(json!({ "id": user.id, "role": role }))
 }
 
 /// Removes set cookie.

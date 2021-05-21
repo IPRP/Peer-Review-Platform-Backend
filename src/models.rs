@@ -27,6 +27,15 @@ pub enum Role {
     Teacher,
 }
 
+impl Role {
+    pub fn to_string(&self) -> String {
+        match self {
+            Role::Student => String::from("student"),
+            Role::Teacher => String::from("teacher"),
+        }
+    }
+}
+
 #[derive(Queryable, Clone)]
 pub struct User {
     pub id: u64,
