@@ -1,9 +1,11 @@
 use crate::models::{Kind, Role, User};
+use crate::routes::model::ApiResponse;
 use crate::{db, IprpDB};
+use diesel::result::Error;
 use rocket::http::{RawStr, Status};
 use rocket::request::FromFormValue;
 use rocket::response::content;
-use rocket_contrib::json;
+use rocket_contrib::json::{Json, JsonValue};
 use std::num::{ParseFloatError, ParseIntError};
 
 #[derive(FromForm, Deserialize)]
@@ -17,8 +19,8 @@ pub struct SearchStudent {
 pub fn search_student(
     _user: User,
     conn: IprpDB,
-    search_info: json::Json<SearchStudent>,
-) -> Result<content::Json<String>, Status> {
+    search_info: Json<SearchStudent>,
+) -> Result<Json<JsonValue>, ApiResponse> {
     // TODO role check
 
     if search_info.firstname.is_some() && search_info.lastname.is_some() {
@@ -28,16 +30,11 @@ pub fn search_student(
         let user = db::users::get_student_by_firstname_lastname(&*conn, firstname, lastname);
 
         match user {
-            Ok(user) => Ok(content::Json(format!(
-                r#"
-{{ 
-    'ok': true,
-    'id': {} 
-}}
-                "#,
-                user.id
-            ))),
-            Err(_) => Err(Status::NotFound),
+            Ok(user) => Ok(Json(json!({
+                "ok": true,
+                "id": user.id
+            }))),
+            Err(_) => Err(ApiResponse::bad_request()),
         }
     } else if search_info.group.is_some() {
         let unit = &*search_info.group.as_ref().unwrap();
@@ -49,20 +46,15 @@ pub fn search_student(
                 for user in users {
                     ids.push(user.id);
                 }
-                Ok(content::Json(format!(
-                    r#"
-{{
-    'ok': true,
-    'id': {:?}
-}}
-                "#,
-                    ids
-                )))
+                Ok(Json(json!({
+                    "ok": true,
+                    "ids": ids
+                })))
             }
-            Err(_) => Err(Status::NotFound),
+            Err(_) => Err(ApiResponse::bad_request()),
         }
     } else {
-        Err(Status::BadRequest)
+        Err(ApiResponse::bad_request())
     }
 }
 
@@ -99,8 +91,8 @@ pub struct NewWorkshop {
 pub fn create_workshop(
     _user: User,
     conn: IprpDB,
-    new_workshop: json::Json<NewWorkshop>,
-) -> Result<json::Json<u64>, Status> {
+    new_workshop: Json<NewWorkshop>,
+) -> Result<Json<u64>, ApiResponse> {
     println!("{:?}", new_workshop.end.0);
     println!("{:?}", new_workshop.students.0);
     println!("{:?}", new_workshop.criteria.0);
@@ -112,12 +104,10 @@ pub fn create_workshop(
         new_workshop.0.end.0,
         new_workshop.0.anonymous,
     );
-    return match workshop {
-        Ok(workshop) => Ok(json::Json(workshop.id)),
-        Err(_) => Err(Status::Conflict),
-    };
-
-    Err(Status::ImATeapot)
+    match workshop {
+        Ok(workshop) => Ok(Json(workshop.id)),
+        Err(_) => Err(ApiResponse::conflict()),
+    }
 }
 
 // See: https://api.rocket.rs/v0.4/rocket/request/trait.FromFormValue.html#example
