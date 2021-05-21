@@ -76,7 +76,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\r\n    \"username\": \"admin\",\r\n    \"firstname\": \"Max\",\r\n    \"lastname\": \"Mustermann\",\r\n    \"password\": \"admin\"\r\n}",
+					"raw": "{\r\n    \"username\": \"admi\",\r\n    \"firstname\": \"Max\",\r\n    \"lastname\": \"Mustermann\",\r\n    \"password\": \"1234\"\r\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -99,7 +99,7 @@
 			"response": []
 		},
 		{
-			"name": "Login",
+			"name": "Login Teacher",
 			"request": {
 				"auth": {
 					"type": "basic",
@@ -112,6 +112,41 @@
 						{
 							"key": "username",
 							"value": "admin",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8000/users/login",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"users",
+						"login"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Login Student",
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "1234",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "s1",
 							"type": "string"
 						}
 					]
@@ -222,6 +257,134 @@
 					"path": [
 						"users",
 						"test"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/teachers/search/student Id",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"id\": 5\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8000/teachers/search/student",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"teachers",
+						"search",
+						"student"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/teachers/search/student Name",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"firstname\": \"Max\",\r\n    \"lastname\": \"Mustermann\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8000/teachers/search/student",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"teachers",
+						"search",
+						"student"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/teachers/search/student Group",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"group\": \"4A\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8000/teachers/search/student",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"teachers",
+						"search",
+						"student"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/teachers/workshop",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"title\": \"WS\",\r\n    \"content\": \"Hey!\",\r\n    \"end\": \"2022-12-01\",\r\n    \"anonymous\": true,\r\n    \"students\": [1],\r\n    \"teachers\": [1],\r\n    \"criteria\": [{\r\n        \"title\": \"Criterion\", \r\n        \"content\": \"True/False\",\r\n        \"type\": \"truefalse\",\r\n        \"weight\": 10.0\r\n    }]\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8000/teachers/workshop",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"teachers",
+						"workshop"
 					]
 				}
 			},

@@ -18,11 +18,14 @@ pub struct SearchStudent {
 
 #[get("/teachers/search/student", format = "json", data = "<search_info>")]
 pub fn search_student(
-    _user: User,
+    user: User,
     conn: IprpDB,
     search_info: Json<SearchStudent>,
 ) -> Result<Json<JsonValue>, ApiResponse> {
-    // TODO role check
+    if user.role == Role::Student {
+        return Err(ApiResponse::forbidden());
+    }
+
     if search_info.id.is_some() {
         let id = search_info.id.unwrap();
         let user = db::users::get_student_by_id(&*conn, id);
@@ -100,10 +103,14 @@ pub struct NewWorkshop {
 
 #[post("/teachers/workshop", format = "json", data = "<new_workshop>")]
 pub fn create_workshop(
-    _user: User,
+    user: User,
     conn: IprpDB,
     new_workshop: Json<NewWorkshop>,
 ) -> Result<Json<u64>, ApiResponse> {
+    if user.role == Role::Student {
+        return Err(ApiResponse::forbidden());
+    }
+
     println!("{:?}", new_workshop.end.0);
     println!("{:?}", new_workshop.students.0);
     println!("{:?}", new_workshop.criteria.0);

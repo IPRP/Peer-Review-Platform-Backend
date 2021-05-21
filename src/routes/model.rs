@@ -27,6 +27,14 @@ impl ApiResponse {
         let status = Status::Conflict;
         ApiResponse { json, status }
     }
+
+    pub fn forbidden() -> Self {
+        let json = json!({
+            "ok": false
+        });
+        let status = Status::Forbidden;
+        ApiResponse { json, status }
+    }
 }
 
 impl<'r> Responder<'r> for ApiResponse {
