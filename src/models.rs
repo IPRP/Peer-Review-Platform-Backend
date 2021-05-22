@@ -119,7 +119,8 @@ pub struct NewWorkshop {
     pub anonymous: bool,
 }
 
-#[derive(Queryable, Clone)]
+#[derive(Insertable, Queryable, Clone)]
+#[table_name = "criteria"]
 pub struct Criteria {
     pub workshop: u64,
     pub criterion: u64,
@@ -169,7 +170,8 @@ pub struct NewCriterion {
     pub kind: Kind,
 }
 
-#[derive(Queryable, Clone)]
+#[derive(Insertable, Queryable, Clone)]
+#[table_name = "workshoplist"]
 pub struct Workshoplist {
     pub workshop: u64,
     pub user: u64,
