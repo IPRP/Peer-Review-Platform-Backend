@@ -133,7 +133,7 @@ pub fn create_workshop(
     user: User,
     conn: IprpDB,
     new_workshop: Json<NewWorkshop>,
-) -> Result<Json<u64>, ApiResponse> {
+) -> Result<Json<JsonValue>, ApiResponse> {
     if user.role == Role::Student {
         return Err(ApiResponse::forbidden());
     }
@@ -153,7 +153,10 @@ pub fn create_workshop(
         Vec::from(new_workshop.0.criteria),
     );
     match workshop {
-        Ok(workshop) => Ok(Json(workshop.id)),
+        Ok(workshop) => Ok(Json(json!({
+            "ok": true,
+            "id": workshop.id
+        }))),
         Err(_) => Err(ApiResponse::conflict()),
     }
 }
