@@ -35,6 +35,14 @@ impl ApiResponse {
         let status = Status::Forbidden;
         ApiResponse { json, status }
     }
+
+    pub fn not_found() -> Self {
+        let json = json!({
+            "ok": false
+        });
+        let status = Status::NotFound;
+        ApiResponse { json, status }
+    }
 }
 
 impl<'r> Responder<'r> for ApiResponse {

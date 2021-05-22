@@ -1,5 +1,5 @@
 use crate::models::{Kind, NewCriterion, Role, User};
-use crate::routes::model::ApiResponse;
+use crate::routes::models::ApiResponse;
 use crate::{db, IprpDB};
 use diesel::result::Error;
 use rocket::http::{RawStr, Status};
@@ -142,7 +142,7 @@ pub fn create_workshop(
     println!("{:?}", new_workshop.students.0);
     println!("{:?}", new_workshop.criteria.0);
 
-    let workshop = db::workshops::create_workshop(
+    let workshop = db::workshops::create(
         &*conn,
         new_workshop.0.title,
         new_workshop.0.content,
@@ -158,6 +158,19 @@ pub fn create_workshop(
             "id": workshop.id
         }))),
         Err(_) => Err(ApiResponse::conflict()),
+    }
+}
+
+#[delete("/teachers/workshop/<id>")]
+pub fn delete_workshop(user: User, conn: IprpDB, id: u64) -> Result<Json<JsonValue>, ApiResponse> {
+    if user.role == Role::Student {
+        return Err(ApiResponse::forbidden());
+    }
+
+    let result = db::workshops::delete(&*conn, id);
+    match result {
+        Ok(_) => Ok(Json(json!({"ok": true}))),
+        Err(_) => Err(ApiResponse::not_found()),
     }
 }
 

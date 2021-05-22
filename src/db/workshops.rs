@@ -13,7 +13,7 @@ use crate::schema::workshops::dsl::{
 use diesel::prelude::*;
 use diesel::result::Error;
 
-pub fn create_workshop<'a>(
+pub fn create<'a>(
     conn: &MysqlConnection,
     title: String,
     content: String,
@@ -96,5 +96,16 @@ pub fn create_workshop<'a>(
     match ws {
         Ok(ws) => Ok(ws),
         Err(_) => Err(()),
+    }
+}
+
+pub fn delete(conn: &MysqlConnection, id: u64) -> Result<(), ()> {
+    let workshop: Result<Workshop, diesel::result::Error> =
+        workshops_t.filter(ws_id.eq(id)).first(conn);
+    if workshop.is_ok() {
+        diesel::delete(workshops_t.filter(ws_id.eq(id))).execute(conn);
+        Ok(())
+    } else {
+        Err(())
     }
 }

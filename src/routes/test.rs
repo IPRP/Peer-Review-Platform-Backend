@@ -1,5 +1,5 @@
 use crate::models::User;
-use crate::routes::model::ApiResponse;
+use crate::routes::models::ApiResponse;
 use crate::utils::res_path;
 use rocket::http::{ContentType, Cookie, Cookies, Status};
 use rocket::response::status::NotFound;

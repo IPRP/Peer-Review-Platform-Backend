@@ -55,6 +55,7 @@ fn main() {
                 routes::db::create_user,
                 routes::teacher::search_student,
                 routes::teacher::create_workshop,
+                routes::teacher::delete_workshop,
             ],
         )
         .launch();
