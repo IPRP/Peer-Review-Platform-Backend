@@ -53,9 +53,10 @@ fn main() {
                 routes::test::login,
                 routes::test::logout,
                 routes::db::create_user,
-                routes::teacher::search_student,
-                routes::teacher::create_workshop,
-                routes::teacher::delete_workshop,
+                routes::teachers::search_student,
+                routes::teachers::create_workshop,
+                routes::teachers::delete_workshop,
+                routes::attachments::upload,
             ],
         )
         .launch();

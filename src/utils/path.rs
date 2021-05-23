@@ -12,3 +12,7 @@ pub fn res_path() -> PathBuf {
     // See: https://stackoverflow.com/a/46749415/12347616
     current_exe().unwrap().parent().unwrap().join("resources")
 }
+
+pub fn attachment_path() -> PathBuf {
+    current_exe().unwrap().parent().unwrap().join("attachments")
+}
