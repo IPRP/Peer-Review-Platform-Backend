@@ -177,3 +177,17 @@ pub struct Workshoplist {
     pub user: u64,
     pub role: Role,
 }
+
+#[derive(Queryable, Clone)]
+pub struct Attachment {
+    pub id: u64,
+    pub title: String,
+    pub owner: Option<u64>,
+}
+
+#[derive(Insertable, Queryable, Clone)]
+#[table_name = "attachments"]
+pub struct NewAttachment {
+    pub title: String,
+    pub owner: u64,
+}

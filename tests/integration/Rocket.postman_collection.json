@@ -368,7 +368,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\r\n    \"title\": \"WS\",\r\n    \"content\": \"Hey!\",\r\n    \"end\": \"2022-12-01\",\r\n    \"anonymous\": true,\r\n    \"students\": [1],\r\n    \"teachers\": [1],\r\n    \"criteria\": [{\r\n        \"title\": \"Criterion\", \r\n        \"content\": \"True/False\",\r\n        \"type\": \"truefalse\",\r\n        \"weight\": 10.0\r\n    }]\r\n}",
+					"raw": "{\r\n    \"title\": \"WS\",\r\n    \"content\": \"Hey!\",\r\n    \"end\": \"2022-12-01\",\r\n    \"anonymous\": true,\r\n    \"students\": [4, 5],\r\n    \"teachers\": [1],\r\n    \"criteria\": [{\r\n        \"title\": \"Criterion\", \r\n        \"content\": \"True/False\",\r\n        \"type\": \"truefalse\",\r\n        \"weight\": 10.0\r\n    }, {\r\n        \"title\": \"Other Criterion\", \r\n        \"content\": \"True/False\",\r\n        \"type\": \"truefalse\",\r\n        \"weight\": 10.0\r\n    }]\r\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -385,6 +385,77 @@
 					"path": [
 						"teachers",
 						"workshop"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/teachers/workshop",
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8000/teachers/workshop/1",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"teachers",
+						"workshop",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Upload Attachment (add file in form data !!!)",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"type": "text",
+						"value": "",
+						"disabled": true
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "title",
+							"value": "test",
+							"type": "text"
+						},
+						{
+							"key": "file",
+							"type": "file",
+							"src": "/C:/Arbeit/INN1/Peer-Review/Backend/src/test/kotlin/com/iprp/backend/Integration/Hi.txt"
+						}
+					],
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8000/submission/upload",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"submission",
+						"upload"
 					]
 				}
 			},

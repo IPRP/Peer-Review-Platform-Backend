@@ -1,6 +1,10 @@
+use crate::models::{Attachment, User};
+use crate::routes::models::ApiResponse;
 use crate::utils::attachment_path;
+use crate::{db, IprpDB};
 use rocket::http::ContentType;
 use rocket::Data;
+use rocket_contrib::json::{Json, JsonValue};
 use rocket_multipart_form_data::{
     MultipartFormData, MultipartFormDataField, MultipartFormDataOptions,
 };
@@ -9,7 +13,12 @@ use std::fs;
 const FILE_LIMIT: u64 = 50 * 1024 * 1024;
 
 #[post("/submission/upload", data = "<data>")]
-pub fn upload(content_type: &ContentType, data: Data) -> &'static str {
+pub fn upload(
+    user: User,
+    conn: IprpDB,
+    content_type: &ContentType,
+    data: Data,
+) -> Result<Json<JsonValue>, ApiResponse> {
     // See: https://docs.rs/rocket-multipart-form-data/0.9.6/rocket_multipart_form_data/
     let options = MultipartFormDataOptions::with_multipart_form_data_fields(vec![
         MultipartFormDataField::text("title"),
@@ -35,15 +44,27 @@ pub fn upload(content_type: &ContentType, data: Data) -> &'static str {
             backup_title
         };
 
-        println!("{}", &file_name);
-        println!("{}", &file.path.to_str().unwrap());
-        let content = fs::read_to_string(&file.path).unwrap();
-        println!("{}", content);
-
-        // Copy file to attachments folder
-        fs::copy(&file.path, &attachment_path().join(file_name));
-
-        return "Ok";
+        match db::attachments::create(&*conn, file_name, user.id) {
+            Ok(att) => {
+                // Copy file to attachments folder
+                fs::create_dir_all(&attachment_path().join(att.id.to_string()));
+                fs::copy(
+                    &file.path,
+                    &attachment_path()
+                        .join(att.id.to_string())
+                        .join(att.title.clone()),
+                );
+                Ok(Json(json!({
+                    "ok": true,
+                    "attachment": {
+                        "id": att.id,
+                        "title": att.title
+                    }
+                })))
+            }
+            Err(_) => Err(ApiResponse::bad_request()),
+        }
+    } else {
+        Err(ApiResponse::bad_request())
     }
-    "Not Ok"
 }
