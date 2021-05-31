@@ -106,7 +106,7 @@ pub struct Workshop {
     pub id: u64,
     pub title: String,
     pub content: String,
-    pub end: chrono::NaiveDate,
+    pub end: chrono::NaiveDateTime,
     pub anonymous: bool,
 }
 
@@ -115,7 +115,7 @@ pub struct Workshop {
 pub struct NewWorkshop {
     pub title: String,
     pub content: String,
-    pub end: chrono::NaiveDate,
+    pub end: chrono::NaiveDateTime,
     pub anonymous: bool,
 }
 

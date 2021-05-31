@@ -53,7 +53,7 @@ table! {
         reviewer -> Nullable<Unsigned<Bigint>>,
         submission -> Unsigned<Bigint>,
         workshop -> Unsigned<Bigint>,
-        deadline -> Date,
+        deadline -> Datetime,
         done -> Bool,
         locked -> Bool,
         error -> Bool,
@@ -90,7 +90,7 @@ table! {
         comment -> Text,
         student -> Nullable<Unsigned<Bigint>>,
         workshop -> Unsigned<Bigint>,
-        date -> Date,
+        date -> Datetime,
         locked -> Bool,
         reviewsdone -> Bool,
         error -> Bool,
@@ -133,7 +133,7 @@ table! {
         id -> Unsigned<Bigint>,
         title -> Varchar,
         content -> Text,
-        end -> Date,
+        end -> Datetime,
         anonymous -> Bool,
     }
 }

@@ -17,7 +17,7 @@ pub fn create<'a>(
     conn: &MysqlConnection,
     title: String,
     content: String,
-    end: chrono::NaiveDate,
+    end: chrono::NaiveDateTime,
     anonymous: bool,
     teachers: Vec<u64>,
     students: Vec<u64>,

@@ -4,7 +4,7 @@ CREATE TABLE workshops
     id        SERIAL PRIMARY KEY,
     title     VARCHAR(100) NOT NULL,
     content   TEXT         NOT NULL,
-    end       DATE         NOT NULL,
+    end       DATETIME     NOT NULL,
     anonymous BOOLEAN      NOT NULL
 );
 

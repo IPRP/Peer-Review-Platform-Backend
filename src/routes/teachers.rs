@@ -1,12 +1,16 @@
 use crate::models::{Kind, NewCriterion, Role, User};
 use crate::routes::models::ApiResponse;
 use crate::{db, IprpDB};
+use chrono::Utc;
 use diesel::result::Error;
 use rocket::http::{RawStr, Status};
 use rocket::request::FromFormValue;
 use rocket::response::content;
 use rocket_contrib::json::{Json, JsonValue};
+use serde::{de, Deserialize, Deserializer};
+use std::fmt::Display;
 use std::num::{ParseFloatError, ParseIntError};
+use std::str::FromStr;
 
 #[derive(FromForm, Deserialize)]
 pub struct SearchStudent {
@@ -72,8 +76,24 @@ pub fn search_student(
     }
 }
 
+// You can use this deserializer for any type that implements FromStr
+// and the FromStr::Err implements Display
+fn deserialize_from_str<'de, S, D>(deserializer: D) -> Result<S, D::Error>
+where
+    S: FromStr,      // Required for S::from_str...
+    S::Err: Display, // Required for .map_err(de::Error::custom)
+    D: Deserializer<'de>,
+{
+    let s: String = Deserialize::deserialize(deserializer)?;
+    println!("{} s", &s);
+    S::from_str(&s).map_err(de::Error::custom)
+}
+
+// Expected format is ISO 8601 combined date and time without timezone like `2007-04-05T14:30:30`
+// In JS that would mean creating a Date like this `(new Date()).toISOString().split(".")[0]`
+// https://github.com/serde-rs/json/issues/531#issuecomment-479738561
 #[derive(Deserialize)]
-pub struct Date(chrono::NaiveDate);
+pub struct Date(chrono::NaiveDateTime);
 
 #[derive(Deserialize)]
 pub struct NumberVec(Vec<u64>);
