@@ -19,3 +19,7 @@ pub fn create<'a>(conn: &MysqlConnection, title: String, owner: u64) -> Result<A
         Err(_) => Err(()),
     }
 }
+
+pub fn get_by_id(conn: &MysqlConnection, id: u64) -> Result<Attachment, Error> {
+    attachments_t.filter(att_id.eq(id)).first(conn)
+}

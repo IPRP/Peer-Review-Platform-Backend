@@ -2,6 +2,7 @@ use crate::models::{Attachment, User};
 use crate::routes::models::ApiResponse;
 use crate::utils::attachment_path;
 use crate::{db, IprpDB};
+use diesel::result::Error;
 use rocket::http::ContentType;
 use rocket::response::NamedFile;
 use rocket::Data;
@@ -71,7 +72,15 @@ pub fn upload(
 }
 
 #[get("/submission/download/<id>")]
-pub fn download(user: User, conn: IprpDB, id: u64) -> Result<NamedFile, ApiResponse> {
-    let path = attachment_path().join("1").join("Hi.txt");
-    NamedFile::open(&path).map_err(|_| ApiResponse::not_found())
+pub fn download(_user: User, conn: IprpDB, id: u64) -> Result<NamedFile, ApiResponse> {
+    let attachment = db::attachments::get_by_id(&*conn, id);
+    match attachment {
+        Ok(attachment) => {
+            let path = attachment_path()
+                .join(attachment.id.to_string())
+                .join(attachment.title);
+            NamedFile::open(&path).map_err(|_| ApiResponse::not_found())
+        }
+        Err(_) => Err(ApiResponse::not_found()),
+    }
 }
