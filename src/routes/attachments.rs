@@ -3,6 +3,7 @@ use crate::routes::models::ApiResponse;
 use crate::utils::attachment_path;
 use crate::{db, IprpDB};
 use rocket::http::ContentType;
+use rocket::response::NamedFile;
 use rocket::Data;
 use rocket_contrib::json::{Json, JsonValue};
 use rocket_multipart_form_data::{
@@ -67,4 +68,10 @@ pub fn upload(
     } else {
         Err(ApiResponse::bad_request())
     }
+}
+
+#[get("/submission/download/<id>")]
+pub fn download(user: User, conn: IprpDB, id: u64) -> Result<NamedFile, ApiResponse> {
+    let path = attachment_path().join("1").join("Hi.txt");
+    NamedFile::open(&path).map_err(|_| ApiResponse::not_found())
 }
