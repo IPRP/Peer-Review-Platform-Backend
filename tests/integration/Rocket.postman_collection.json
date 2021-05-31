@@ -263,7 +263,7 @@
 			"response": []
 		},
 		{
-			"name": "/teachers/search/student Id",
+			"name": "/teacher/search/student Id",
 			"protocolProfileBehavior": {
 				"disableBodyPruning": true
 			},
@@ -280,14 +280,14 @@
 					}
 				},
 				"url": {
-					"raw": "http://localhost:8000/teachers/search/student",
+					"raw": "http://localhost:8000/teacher/search/student",
 					"protocol": "http",
 					"host": [
 						"localhost"
 					],
 					"port": "8000",
 					"path": [
-						"teachers",
+						"teacher",
 						"search",
 						"student"
 					]
@@ -296,7 +296,7 @@
 			"response": []
 		},
 		{
-			"name": "/teachers/search/student Name",
+			"name": "/teacher/search/student Name",
 			"protocolProfileBehavior": {
 				"disableBodyPruning": true
 			},
@@ -313,14 +313,14 @@
 					}
 				},
 				"url": {
-					"raw": "http://localhost:8000/teachers/search/student",
+					"raw": "http://localhost:8000/teacher/search/student",
 					"protocol": "http",
 					"host": [
 						"localhost"
 					],
 					"port": "8000",
 					"path": [
-						"teachers",
+						"teacher",
 						"search",
 						"student"
 					]
@@ -329,7 +329,7 @@
 			"response": []
 		},
 		{
-			"name": "/teachers/search/student Group",
+			"name": "/teacher/search/student Group",
 			"protocolProfileBehavior": {
 				"disableBodyPruning": true
 			},
@@ -346,14 +346,14 @@
 					}
 				},
 				"url": {
-					"raw": "http://localhost:8000/teachers/search/student",
+					"raw": "http://localhost:8000/teacher/search/student",
 					"protocol": "http",
 					"host": [
 						"localhost"
 					],
 					"port": "8000",
 					"path": [
-						"teachers",
+						"teacher",
 						"search",
 						"student"
 					]
@@ -362,13 +362,33 @@
 			"response": []
 		},
 		{
-			"name": "/teachers/workshop",
+			"name": "/teacher/workshops",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8000/teacher/workshops",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"teacher",
+						"workshops"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/teacher/workshop",
 			"request": {
 				"method": "POST",
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\r\n    \"title\": \"WS\",\r\n    \"content\": \"Hey!\",\r\n    \"end\": \"2022-12-01\",\r\n    \"anonymous\": true,\r\n    \"students\": [4, 5],\r\n    \"teachers\": [1],\r\n    \"criteria\": [{\r\n        \"title\": \"Criterion\", \r\n        \"content\": \"True/False\",\r\n        \"type\": \"truefalse\",\r\n        \"weight\": 10.0\r\n    }, {\r\n        \"title\": \"Other Criterion\", \r\n        \"content\": \"True/False\",\r\n        \"type\": \"truefalse\",\r\n        \"weight\": 10.0\r\n    }]\r\n}",
+					"raw": "{\r\n    \"title\": \"WS\",\r\n    \"content\": \"Hey!\",\r\n    \"end\": \"2021-05-31T16:26:00\",\r\n    \"anonymous\": true,\r\n    \"students\": [4, 5],\r\n    \"teachers\": [1],\r\n    \"criteria\": [{\r\n        \"title\": \"Criterion\", \r\n        \"content\": \"True/False\",\r\n        \"type\": \"truefalse\",\r\n        \"weight\": 10.0\r\n    }, {\r\n        \"title\": \"Other Criterion\", \r\n        \"content\": \"True/False\",\r\n        \"type\": \"truefalse\",\r\n        \"weight\": 10.0\r\n    }]\r\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -376,14 +396,14 @@
 					}
 				},
 				"url": {
-					"raw": "http://localhost:8000/teachers/workshop",
+					"raw": "http://localhost:8000/teacher/workshop",
 					"protocol": "http",
 					"host": [
 						"localhost"
 					],
 					"port": "8000",
 					"path": [
-						"teachers",
+						"teacher",
 						"workshop"
 					]
 				}
@@ -391,21 +411,41 @@
 			"response": []
 		},
 		{
-			"name": "/teachers/workshop",
+			"name": "/teacher/workshop",
 			"request": {
 				"method": "DELETE",
 				"header": [],
 				"url": {
-					"raw": "http://localhost:8000/teachers/workshop/1",
+					"raw": "http://localhost:8000/teacher/workshop/1",
 					"protocol": "http",
 					"host": [
 						"localhost"
 					],
 					"port": "8000",
 					"path": [
-						"teachers",
+						"teacher",
 						"workshop",
 						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/student/workshops",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8000/student/workshops",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"student",
+						"workshops"
 					]
 				}
 			},
@@ -456,6 +496,37 @@
 					"path": [
 						"submission",
 						"upload"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Download Attachment",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"type": "text",
+						"value": "",
+						"disabled": true
+					}
+				],
+				"url": {
+					"raw": "http://localhost:8000/submission/download/1",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"submission",
+						"download",
+						"1"
 					]
 				}
 			},

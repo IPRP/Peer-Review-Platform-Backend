@@ -1,5 +1,5 @@
 use crate::models::{Kind, NewCriterion, Role, User};
-use crate::routes::models::ApiResponse;
+use crate::routes::models::{ApiResponse, WorkshopResponse};
 use crate::{db, IprpDB};
 use chrono::Utc;
 use diesel::result::Error;
@@ -12,13 +12,7 @@ use std::fmt::Display;
 use std::num::{ParseFloatError, ParseIntError};
 use std::str::FromStr;
 
-#[derive(Serialize)]
-pub struct WorkshopResponse {
-    id: u64,
-    title: String,
-}
-
-#[get("/teachers/workshops")]
+#[get("/teacher/workshops")]
 pub fn workshops(user: User, conn: IprpDB) -> Result<Json<JsonValue>, ApiResponse> {
     if user.role == Role::Student {
         return Err(ApiResponse::forbidden());
@@ -97,7 +91,7 @@ pub struct NewWorkshop {
     criteria: CriterionVec,
 }
 
-#[post("/teachers/workshop", format = "json", data = "<new_workshop>")]
+#[post("/teacher/workshop", format = "json", data = "<new_workshop>")]
 pub fn create_workshop(
     user: User,
     conn: IprpDB,
@@ -130,7 +124,7 @@ pub fn create_workshop(
     }
 }
 
-#[delete("/teachers/workshop/<id>")]
+#[delete("/teacher/workshop/<id>")]
 pub fn delete_workshop(user: User, conn: IprpDB, id: u64) -> Result<Json<JsonValue>, ApiResponse> {
     if user.role == Role::Student {
         return Err(ApiResponse::forbidden());
@@ -151,7 +145,7 @@ pub struct SearchStudent {
     group: Option<String>,
 }
 
-#[get("/teachers/search/student", format = "json", data = "<search_info>")]
+#[get("/teacher/search/student", format = "json", data = "<search_info>")]
 pub fn search_student(
     user: User,
     conn: IprpDB,

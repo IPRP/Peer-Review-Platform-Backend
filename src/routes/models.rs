@@ -4,6 +4,16 @@ use rocket::response;
 use rocket::response::{Responder, Response};
 use rocket_contrib::json::{Json, JsonValue};
 
+/// Structs used throughout routes
+
+#[derive(Serialize)]
+pub struct WorkshopResponse {
+    pub(crate) id: u64,
+    pub(crate) title: String,
+}
+
+/// JSON response with custom status
+
 // Based on: https://stackoverflow.com/a/54867136/12347616
 #[derive(Debug)]
 pub struct ApiResponse {
