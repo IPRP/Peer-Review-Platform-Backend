@@ -12,68 +12,30 @@ use std::fmt::Display;
 use std::num::{ParseFloatError, ParseIntError};
 use std::str::FromStr;
 
-#[derive(FromForm, Deserialize)]
-pub struct SearchStudent {
-    id: Option<u64>,
-    firstname: Option<String>,
-    lastname: Option<String>,
-    group: Option<String>,
+#[derive(Serialize)]
+pub struct WorkshopResponse {
+    id: u64,
+    title: String,
 }
 
-#[get("/teachers/search/student", format = "json", data = "<search_info>")]
-pub fn search_student(
-    user: User,
-    conn: IprpDB,
-    search_info: Json<SearchStudent>,
-) -> Result<Json<JsonValue>, ApiResponse> {
+#[get("/teachers/workshops")]
+pub fn workshops(user: User, conn: IprpDB) -> Result<Json<JsonValue>, ApiResponse> {
     if user.role == Role::Student {
         return Err(ApiResponse::forbidden());
     }
 
-    if search_info.id.is_some() {
-        let id = search_info.id.unwrap();
-        let user = db::users::get_student_by_id(&*conn, id);
-
-        match user {
-            Ok(user) => Ok(Json(json!({
-                "ok": true,
-                "firstname": user.firstname,
-                "lastname": user.lastname
-            }))),
-            Err(_) => Err(ApiResponse::bad_request()),
-        }
-    } else if search_info.firstname.is_some() && search_info.lastname.is_some() {
-        let firstname = &*search_info.firstname.as_ref().unwrap();
-        let lastname = &*search_info.lastname.as_ref().unwrap();
-        let user = db::users::get_student_by_firstname_lastname(&*conn, firstname, lastname);
-
-        match user {
-            Ok(user) => Ok(Json(json!({
-                "ok": true,
-                "id": user.id
-            }))),
-            Err(_) => Err(ApiResponse::bad_request()),
-        }
-    } else if search_info.group.is_some() {
-        let unit = &*search_info.group.as_ref().unwrap();
-        let users = db::users::get_students_by_unit(&*conn, unit);
-
-        match users {
-            Ok(users) => {
-                let mut ids: Vec<u64> = Vec::new();
-                for user in users {
-                    ids.push(user.id);
-                }
-                Ok(Json(json!({
-                    "ok": true,
-                    "ids": ids
-                })))
-            }
-            Err(_) => Err(ApiResponse::bad_request()),
-        }
-    } else {
-        Err(ApiResponse::bad_request())
-    }
+    let workshops = db::workshops::get_by_user(&*conn, user.id);
+    let workshop_infos = workshops
+        .into_iter()
+        .map(|ws| WorkshopResponse {
+            id: ws.id,
+            title: ws.title,
+        })
+        .collect::<Vec<WorkshopResponse>>();
+    Ok(Json(json!({
+        "ok": true,
+        "workshops": workshop_infos
+    })))
 }
 
 // Expected format is ISO 8601 combined date and time without timezone like `2007-04-05T14:30:30`
@@ -178,6 +140,70 @@ pub fn delete_workshop(user: User, conn: IprpDB, id: u64) -> Result<Json<JsonVal
     match result {
         Ok(_) => Ok(Json(json!({"ok": true}))),
         Err(_) => Err(ApiResponse::not_found()),
+    }
+}
+
+#[derive(FromForm, Deserialize)]
+pub struct SearchStudent {
+    id: Option<u64>,
+    firstname: Option<String>,
+    lastname: Option<String>,
+    group: Option<String>,
+}
+
+#[get("/teachers/search/student", format = "json", data = "<search_info>")]
+pub fn search_student(
+    user: User,
+    conn: IprpDB,
+    search_info: Json<SearchStudent>,
+) -> Result<Json<JsonValue>, ApiResponse> {
+    if user.role == Role::Student {
+        return Err(ApiResponse::forbidden());
+    }
+
+    if search_info.id.is_some() {
+        let id = search_info.id.unwrap();
+        let user = db::users::get_student_by_id(&*conn, id);
+
+        match user {
+            Ok(user) => Ok(Json(json!({
+                "ok": true,
+                "firstname": user.firstname,
+                "lastname": user.lastname
+            }))),
+            Err(_) => Err(ApiResponse::bad_request()),
+        }
+    } else if search_info.firstname.is_some() && search_info.lastname.is_some() {
+        let firstname = &*search_info.firstname.as_ref().unwrap();
+        let lastname = &*search_info.lastname.as_ref().unwrap();
+        let user = db::users::get_student_by_firstname_lastname(&*conn, firstname, lastname);
+
+        match user {
+            Ok(user) => Ok(Json(json!({
+                "ok": true,
+                "id": user.id
+            }))),
+            Err(_) => Err(ApiResponse::bad_request()),
+        }
+    } else if search_info.group.is_some() {
+        let unit = &*search_info.group.as_ref().unwrap();
+        let users = db::users::get_students_by_unit(&*conn, unit);
+
+        match users {
+            Ok(users) => {
+                let mut ids: Vec<u64> = Vec::new();
+                for user in users {
+                    ids.push(user.id);
+                }
+                Ok(Json(json!({
+                    "ok": true,
+                    "ids": ids
+                })))
+            }
+            Err(_) => Err(ApiResponse::bad_request()),
+        }
+    } else {
+        Err(ApiResponse::bad_request())
     }
 }
 

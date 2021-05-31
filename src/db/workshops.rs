@@ -5,13 +5,34 @@ use crate::models::{
 use crate::schema::criteria::dsl::criteria as criteria_t;
 use crate::schema::criterion::dsl::{criterion as criterion_t, id as c_id};
 use crate::schema::users::dsl::{id as u_id, role as u_role, users as users_t};
-use crate::schema::workshoplist::dsl::workshoplist as workshoplist_t;
+use crate::schema::workshoplist::dsl::{
+    user as wsl_user, workshop as wsl_ws, workshoplist as workshoplist_t,
+};
 use crate::schema::workshops::dsl::{
     anonymous as ws_anonymous, content as ws_content, end as ws_end, id as ws_id,
     title as ws_title, workshops as workshops_t,
 };
 use diesel::prelude::*;
 use diesel::result::Error;
+
+pub fn get_by_user(conn: &MysqlConnection, id: u64) -> Vec<Workshop> {
+    let workshop_ids = workshoplist_t
+        .select(wsl_ws)
+        .filter(wsl_user.eq(id))
+        .get_results::<u64>(conn);
+    match workshop_ids {
+        Ok(workshop_ids) => {
+            let workshops = workshops_t
+                .filter(ws_id.eq_any(workshop_ids))
+                .get_results::<Workshop>(conn);
+            match workshops {
+                Ok(workshops) => workshops,
+                Err(_) => Vec::with_capacity(0),
+            }
+        }
+        Err(_) => Vec::with_capacity(0),
+    }
+}
 
 pub fn create<'a>(
     conn: &MysqlConnection,
