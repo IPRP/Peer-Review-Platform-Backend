@@ -6,7 +6,7 @@ use crate::schema::criteria::dsl::criteria as criteria_t;
 use crate::schema::criterion::dsl::{criterion as criterion_t, id as c_id};
 use crate::schema::users::dsl::{id as u_id, role as u_role, users as users_t};
 use crate::schema::workshoplist::dsl::{
-    user as wsl_user, workshop as wsl_ws, workshoplist as workshoplist_t,
+    role as wsl_role, user as wsl_user, workshop as wsl_ws, workshoplist as workshoplist_t,
 };
 use crate::schema::workshops::dsl::{
     anonymous as ws_anonymous, content as ws_content, end as ws_end, id as ws_id,
@@ -128,5 +128,20 @@ pub fn delete(conn: &MysqlConnection, id: u64) -> Result<(), ()> {
         Ok(())
     } else {
         Err(())
+    }
+}
+
+pub fn student_in_workshop(conn: &MysqlConnection, student_id: u64, workshop_id: u64) -> bool {
+    let exists: Result<Workshoplist, diesel::result::Error> = workshoplist_t
+        .filter(
+            wsl_ws
+                .eq(workshop_id)
+                .and(wsl_user.eq(student_id).and(wsl_role.eq(Role::Student))),
+        )
+        .first(conn);
+    if exists.is_ok() {
+        true
+    } else {
+        false
     }
 }
