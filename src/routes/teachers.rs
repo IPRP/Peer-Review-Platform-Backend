@@ -1,5 +1,5 @@
 use crate::models::{Kind, NewCriterion, Role, User};
-use crate::routes::models::{ApiResponse, WorkshopResponse};
+use crate::routes::models::{ApiResponse, NumberVec, WorkshopResponse};
 use crate::{db, IprpDB};
 use chrono::Utc;
 use diesel::result::Error;
@@ -38,9 +38,6 @@ pub fn workshops(user: User, conn: IprpDB) -> Result<Json<JsonValue>, ApiRespons
 #[derive(Deserialize)]
 pub struct Date(chrono::NaiveDateTime);
 
-#[derive(Deserialize)]
-pub struct NumberVec(Vec<u64>);
-
 #[derive(Debug, Deserialize)]
 pub struct Criterion {
     title: String,
@@ -68,12 +65,6 @@ impl From<CriterionVec> for Vec<NewCriterion> {
             .into_iter()
             .map(|item| NewCriterion::from(item))
             .collect()
-    }
-}
-
-impl From<NumberVec> for Vec<u64> {
-    fn from(items: NumberVec) -> Self {
-        items.0
     }
 }
 

@@ -12,6 +12,15 @@ pub struct WorkshopResponse {
     pub(crate) title: String,
 }
 
+#[derive(Deserialize)]
+pub struct NumberVec(pub(crate) Vec<u64>);
+
+impl From<NumberVec> for Vec<u64> {
+    fn from(items: NumberVec) -> Self {
+        items.0
+    }
+}
+
 /// JSON response with custom status
 
 // Based on: https://stackoverflow.com/a/54867136/12347616

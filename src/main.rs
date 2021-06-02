@@ -59,7 +59,8 @@ fn main() {
                 routes::teachers::delete_workshop,
                 routes::attachments::upload,
                 routes::attachments::download,
-                routes::students::workshops
+                routes::students::workshops,
+                routes::students::create_submission,
             ],
         )
         .launch();

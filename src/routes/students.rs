@@ -1,7 +1,7 @@
 use crate::models::{Kind, NewCriterion, Role, User};
-use crate::routes::models::{ApiResponse, WorkshopResponse};
+use crate::routes::models::{ApiResponse, NumberVec, WorkshopResponse};
 use crate::{db, IprpDB};
-use chrono::Utc;
+use chrono::{Local, Utc};
 use diesel::result::Error;
 use rocket::http::{RawStr, Status};
 use rocket::request::FromFormValue;
@@ -14,6 +14,10 @@ use std::str::FromStr;
 
 #[get("/student/workshops")]
 pub fn workshops(user: User, conn: IprpDB) -> Result<Json<JsonValue>, ApiResponse> {
+    if user.role == Role::Teacher {
+        return Err(ApiResponse::forbidden());
+    }
+
     let workshops = db::workshops::get_by_user(&*conn, user.id);
     let workshop_infos = workshops
         .into_iter()
@@ -26,4 +30,49 @@ pub fn workshops(user: User, conn: IprpDB) -> Result<Json<JsonValue>, ApiRespons
         "ok": true,
         "workshops": workshop_infos
     })))
+}
+
+#[derive(FromForm, Deserialize)]
+pub struct NewSubmission {
+    title: String,
+    comment: String,
+    attachments: NumberVec,
+}
+
+#[post(
+    "/submission/<workshop_id>",
+    format = "json",
+    data = "<new_submission>"
+)]
+pub fn create_submission(
+    user: User,
+    conn: IprpDB,
+    workshop_id: u64,
+    new_submission: Json<NewSubmission>,
+) -> Result<Json<JsonValue>, ApiResponse> {
+    if user.role == Role::Teacher {
+        return Err(ApiResponse::forbidden());
+    }
+    // Get current date
+    // See: https://stackoverflow.com/a/48237707/12347616
+    // And: https://stackoverflow.com/q/28747694/12347616
+    let date = Local::now().naive_local();
+
+    let submission = db::submissions::create(
+        &*conn,
+        new_submission.0.title,
+        new_submission.0.comment,
+        Vec::from(new_submission.0.attachments),
+        date,
+        user.id,
+        workshop_id,
+    );
+
+    match submission {
+        Ok(submission) => Ok(Json(json!({
+            "ok": true,
+            "id": submission.id
+        }))),
+        Err(_) => Err(ApiResponse::conflict()),
+    }
 }
