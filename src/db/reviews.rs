@@ -15,6 +15,7 @@ pub fn assign(
     conn: &MysqlConnection,
     date: chrono::NaiveDateTime,
     submission_id: u64,
+    submission_student_id: u64,
     workshop_id: u64,
 ) -> Result<(), ()> {
     // Calculate deadline
@@ -34,16 +35,24 @@ pub fn assign(
     let count_reviewer = diesel::dsl::sql::<diesel::sql_types::Unsigned<BigInt>>("count(reviewer)");
     let reviews = workshoplist_t
         .left_outer_join(reviews_t.on(reviewer.nullable().eq(wsl_user.nullable())))
-        .filter(wsl_ws.eq(workshop_id).and(wsl_role.eq(Role::Student)))
+        .filter(
+            wsl_ws.eq(workshop_id).and(
+                wsl_role
+                    .eq(Role::Student)
+                    .and(wsl_user.ne(submission_student_id)),
+            ),
+        )
         .group_by(wsl_user)
         .order((count_reviewer.clone().desc(), wsl_user))
         .select((wsl_user, count_reviewer))
+        .limit(3)
         .get_results::<(u64, u64)>(conn);
     if reviews.is_err() {
         return Err(());
     }
     let reviews = reviews.unwrap();
     println!("Reviews: {:?}", reviews);
+
     // Assign reviews to them
 
     // Create events that close reviews

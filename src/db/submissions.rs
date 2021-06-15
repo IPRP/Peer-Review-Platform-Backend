@@ -82,6 +82,7 @@ pub fn create<'a>(
             .execute(conn);
 
         // Assign reviews
+        db::reviews::assign(conn, date, submission.id, student_id, workshop_id);
 
         Ok(submission)
     });
