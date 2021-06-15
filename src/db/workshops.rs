@@ -2,7 +2,9 @@ use crate::models::{
     Criteria as NewCriteria, NewCriterion, NewStudent, NewWorkshop, Role, User, Workshop,
     Workshoplist,
 };
-use crate::schema::criteria::dsl::criteria as criteria_t;
+use crate::schema::criteria::dsl::{
+    criteria as criteria_t, criterion as criteria_criterion, workshop as criteria_workshop,
+};
 use crate::schema::criterion::dsl::{criterion as criterion_t, id as c_id};
 use crate::schema::users::dsl::{id as u_id, role as u_role, users as users_t};
 use crate::schema::workshoplist::dsl::{
@@ -144,4 +146,11 @@ pub fn student_in_workshop(conn: &MysqlConnection, student_id: u64, workshop_id:
     } else {
         false
     }
+}
+
+pub fn get_criteria(conn: &MysqlConnection, workshop_id: u64) -> Result<Vec<u64>, Error> {
+    criteria_t
+        .select(criteria_criterion)
+        .filter(criteria_workshop.eq(workshop_id))
+        .get_results::<u64>(conn)
 }

@@ -263,6 +263,13 @@ pub struct Submissionattachment {
     pub attachment: u64,
 }
 
+#[derive(Insertable, Queryable, Clone)]
+#[table_name = "submissioncriteria"]
+pub struct Submissioncriteria {
+    pub submission: u64,
+    pub criterion: u64,
+}
+
 /*
 CREATE TABLE reviews
 (

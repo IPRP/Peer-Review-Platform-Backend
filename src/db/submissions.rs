@@ -1,9 +1,10 @@
 use crate::db;
-use crate::models::{NewSubmission, Submission, Submissionattachment};
+use crate::models::{NewSubmission, Submission, Submissionattachment, Submissioncriteria};
 use crate::schema::criteria::dsl::workshop;
 use crate::schema::submissionattachments::dsl::{
     attachment as subatt_att, submission as subatt_sub, submissionattachments as subatt_t,
 };
+use crate::schema::submissioncriteria::dsl::submissioncriteria as subcrit_t;
 use crate::schema::submissions::dsl::{id as sub_id, submissions as submissions_t};
 use diesel::prelude::*;
 use diesel::result::Error;
@@ -64,6 +65,21 @@ pub fn create<'a>(
             .execute(conn);
 
         // Relate criteria to submission
+        let workshop_criteria = db::workshops::get_criteria(conn, workshop_id);
+        if workshop_criteria.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
+        let workshop_criteria = workshop_criteria.unwrap();
+        let submission_criteria: Vec<Submissioncriteria> = workshop_criteria
+            .into_iter()
+            .map(|criterion| Submissioncriteria {
+                submission: submission.id,
+                criterion,
+            })
+            .collect();
+        diesel::insert_into(subcrit_t)
+            .values(&submission_criteria)
+            .execute(conn);
 
         // Assign reviews
 
