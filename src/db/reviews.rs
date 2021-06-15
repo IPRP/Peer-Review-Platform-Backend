@@ -23,7 +23,7 @@ pub fn assign(
     // Calculate deadline
     // TODO set correct deadline
     //let deadline = date + Duration::days(7);
-    let deadline = date + Duration::minutes(2);
+    let deadline = date + Duration::minutes(1);
 
     // Get (at max) 3 users who have the least count of reviews for this particular workshop
     /* Based on: https://stackoverflow.com/a/2838527/12347616
@@ -86,22 +86,20 @@ pub fn assign(
 
     // Create events that close reviews
     // TODO error handling, calculating mean points
-    // https://stackoverflow.com/a/8763381/12347616
+    // See: https://docs.rs/chrono/0.4.0/chrono/naive/struct.NaiveDateTime.html#example-14
+    // And: https://dev.mysql.com/doc/refman/8.0/en/create-event.html
+    // And: https://stackoverflow.com/a/8763381/12347616
+
+    // Convert local time to UTC
+    // Why? MySQL Events use internally UTC time to determine when to trigger them...
+    // See: https://dba.stackexchange.com/a/255569
+    // And: https://stackoverflow.com/a/65830964/12347616
+    let deadline = Local.from_local_datetime(&deadline).unwrap();
+    let deadline = deadline.with_timezone(&Utc);
+    let timestamp = deadline.format("%Y-%m-%d %H:%M:%S").to_string();
+    println!("{}", timestamp);
+
     for review in reviews {
-        // See: https://docs.rs/chrono/0.4.0/chrono/naive/struct.NaiveDateTime.html#example-14
-        // And: https://dev.mysql.com/doc/refman/8.0/en/create-event.html
-        let id = review.id;
-        // Convert local time to UTC
-        // Why? MySQL Events use internally UTC time to determine when to trigger them...
-        // See: https://dba.stackexchange.com/a/255569
-        // And: https://stackoverflow.com/a/65830964/12347616
-        let timestamp = Local.from_local_datetime(&review.deadline).unwrap();
-        let timestamp = date_time.with_timezone(&Utc);
-        let timestamp = date_time.format("%Y-%m-%d %H:%M:%S").to_string();
-        /*let timestamp = (DateTime::<Utc>::from_utc(review.deadline, Utc))
-        .format("%Y-%m-%d %H:%M:%S")
-        .to_string();*/
-        println!("{}", timestamp);
         let res = conn.batch_execute(&*format!(
             r#"
         DROP EVENT IF EXISTS close_review_{id};
@@ -109,10 +107,14 @@ pub fn assign(
         ON SCHEDULE AT '{timestamp}'
         DO
           UPDATE reviews
-          SET done = 1, locked = 1
+          SET done = 1, locked = 1, 
+          error = CASE
+            WHEN exists(select * from reviewpoints where review={id}) THEN 0
+            ELSE 1
+          END
           WHERE id = {id};
     "#,
-            id = id,
+            id = review.id,
             timestamp = timestamp
         ));
         if res.is_err() {
@@ -120,5 +122,31 @@ pub fn assign(
             return Err(());
         }
     }
+
+    // Create event that closes submission
+    let deadline = deadline + Duration::seconds(5);
+    let timestamp = deadline.format("%Y-%m-%d %H:%M:%S").to_string();
+    let res = conn.batch_execute(&*format!(
+        r#"
+        DROP EVENT IF EXISTS close_submission_{id};
+        CREATE EVENT close_submission_{id}
+        ON SCHEDULE AT '{timestamp}'
+        DO
+          UPDATE submissions
+          SET reviewsdone = 1, locked = 1, 
+          error = CASE
+            WHEN exists(select * from reviews where submission={id} and error=0) THEN 0
+            ELSE 1
+          END
+          WHERE id = {id};
+    "#,
+        id = submission_id,
+        timestamp = timestamp
+    ));
+    if res.is_err() {
+        println!("{}", res.err().unwrap());
+        return Err(());
+    }
+
     Ok(())
 }
