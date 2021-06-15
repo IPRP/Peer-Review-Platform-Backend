@@ -297,3 +297,29 @@ CREATE TABLE reviewpoints
     FOREIGN KEY (criterion) REFERENCES criterion (id) ON DELETE CASCADE
 );
  */
+
+#[derive(Queryable, Clone)]
+pub struct Review {
+    pub id: u64,
+    pub feedback: String,
+    pub reviewer: Option<u64>,
+    pub submission: u64,
+    pub workshop: u64,
+    pub deadline: chrono::NaiveDateTime,
+    pub done: bool,
+    pub locked: bool,
+    pub error: bool,
+}
+
+#[derive(Insertable, Queryable, Clone)]
+#[table_name = "reviews"]
+pub struct NewReview {
+    pub feedback: String,
+    pub reviewer: Option<u64>,
+    pub submission: u64,
+    pub workshop: u64,
+    pub deadline: chrono::NaiveDateTime,
+    pub done: bool,
+    pub locked: bool,
+    pub error: bool,
+}
