@@ -256,6 +256,13 @@ pub struct NewSubmission {
     pub error: bool,
 }
 
+#[derive(Insertable, Queryable, Clone)]
+#[table_name = "submissionattachments"]
+pub struct Submissionattachment {
+    pub submission: u64,
+    pub attachment: u64,
+}
+
 /*
 CREATE TABLE reviews
 (
