@@ -1,4 +1,4 @@
-use crate::db::workshops::student_in_workshop;
+use crate::db;
 use crate::models::{NewSubmission, Submission, Submissionattachment};
 use crate::schema::criteria::dsl::workshop;
 use crate::schema::submissionattachments::dsl::{
@@ -18,7 +18,7 @@ pub fn create<'a>(
     workshop_id: u64,
 ) -> Result<Submission, ()> {
     // Check if student is part of the workshop
-    if !student_in_workshop(conn, student_id, workshop_id) {
+    if !db::workshops::student_in_workshop(conn, student_id, workshop_id) {
         return Err(());
     }
 
@@ -41,14 +41,27 @@ pub fn create<'a>(
         let submission: Submission = submissions_t.order(sub_id.desc()).first(conn).unwrap();
 
         // Relate attachments to submission
-        let subatt: Vec<Submissionattachment> = attachments
+        let all_student_attachments = db::attachments::get_ids_by_user_id(conn, student_id);
+        if all_student_attachments.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
+        let all_student_attachments = all_student_attachments.unwrap();
+        let submission_attachments: Vec<Submissionattachment> = attachments
             .into_iter()
-            .map(|att_id| Submissionattachment {
-                submission: submission.id,
-                attachment: att_id,
+            .filter_map(|att_id| {
+                if all_student_attachments.contains(&att_id) {
+                    Some(Submissionattachment {
+                        submission: submission.id,
+                        attachment: att_id,
+                    })
+                } else {
+                    None
+                }
             })
             .collect();
-        diesel::insert_into(subatt_t).values(&subatt).execute(conn);
+        diesel::insert_into(subatt_t)
+            .values(&submission_attachments)
+            .execute(conn);
 
         // Relate criteria to submission
 
