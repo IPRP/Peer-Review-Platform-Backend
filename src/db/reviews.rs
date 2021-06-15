@@ -147,6 +147,31 @@ pub fn assign(
         println!("{}", res.err().unwrap());
         return Err(());
     }
+    /*
+    select r.id, r.done, r.deadline, s.id, s.student, s.workshop
+        from reviews r
+        inner join submissions s on r.submission=s.id
+        where s.student=4;
+
+    select r.id, r.done, r.deadline, s.id, s.student, w.title
+        from reviews r
+        inner join submissions s on r.submission=s.id
+        inner join workshops w on s.workshop=w.id
+        where s.student=4;
+
+    select r.id, r.done, r.deadline, s.id, s.student, w.title
+        from reviews r
+        inner join submissions s on r.submission=s.id
+        inner join workshops w on s.workshop=w.id
+        where s.student=4;
+
+    select r.id, r.done, r.deadline, s.id, u.firstname, u.lastname, w.title
+        from reviews r
+        inner join submissions s on r.submission=s.id
+        inner join workshops w on s.workshop=w.id
+        inner join users u on s.student=u.id
+        where s.student=4;
+     */
 
     Ok(())
 }
