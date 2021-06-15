@@ -14,36 +14,46 @@ use crate::schema::workshops::dsl::{id as ws_id, title as ws_title, workshops as
 use diesel::prelude::*;
 use diesel::result::Error;
 
-#[derive(Deserialize)]
+#[derive(Serialize)]
 pub struct TodoReview {
-    id: u64,
-    done: bool,
-    deadline: chrono::NaiveDateTime,
-    title: String,
-    firstname: String,
-    lastname: String,
-    submission: u64,
+    pub id: u64,
+    pub done: bool,
+    pub deadline: chrono::NaiveDateTime,
+    pub title: String,
+    pub firstname: String,
+    pub lastname: String,
+    pub submission: u64,
     #[serde(rename(serialize = "workshopName"))]
-    workshop_name: u64,
+    pub workshop_name: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize)]
 pub struct TodoSubmission {
-    id: u64,
+    pub id: u64,
     #[serde(rename(serialize = "workshopName"))]
-    workshop_name: u64,
+    pub workshop_name: u64,
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize)]
 pub struct Todo {
-    reviews: Vec<TodoReview>,
-    submissions: Vec<TodoSubmission>,
+    pub reviews: Vec<TodoReview>,
+    pub submissions: Vec<TodoSubmission>,
 }
 
-pub fn get(conn: &MysqlConnection, student_id: u64) -> Result<(), ()> {
+pub fn get(conn: &MysqlConnection, student_id: u64) -> Result<Todo, ()> {
     // TODO filter by deadline
     // TODO remove name if workshop is anonymous
-    let reviews = reviews_t
+
+    /*
+    select r.id, r.done, r.deadline, s.id, u.firstname, u.lastname, w.title
+         from reviews r
+         inner join submissions s on r.submission=s.id
+         inner join workshops w on s.workshop=w.id
+         inner join users u on s.student=u.id
+         where s.student=4;
+     */
+
+    let raw_reviews = reviews_t
         .inner_join(submissions_t.on(sub_id.eq(review_submission)))
         .inner_join(workshops_t.on(ws_id.eq(sub_ws)))
         .inner_join(users_t.on(user_id.nullable().eq(sub_student.nullable())))
@@ -55,6 +65,7 @@ pub fn get(conn: &MysqlConnection, student_id: u64) -> Result<(), ()> {
             sub_title,
             user_firstname,
             user_lastname,
+            sub_id,
             ws_title,
         ))
         .get_results::<(
@@ -64,19 +75,33 @@ pub fn get(conn: &MysqlConnection, student_id: u64) -> Result<(), ()> {
             String,
             String,
             String,
+            u64,
             String,
         )>(conn);
 
-    // Iterate + map
+    if raw_reviews.is_err() {
+        return Err(());
+    }
+    let raw_reviews = raw_reviews.unwrap();
 
-    /*
-    select r.id, r.done, r.deadline, s.id, u.firstname, u.lastname, w.title
-         from reviews r
-         inner join submissions s on r.submission=s.id
-         inner join workshops w on s.workshop=w.id
-         inner join users u on s.student=u.id
-         where s.student=4;
-     */
+    let reviews: Vec<TodoReview> = raw_reviews
+        .into_iter()
+        .map(|review| TodoReview {
+            id: review.0,
+            done: review.1,
+            deadline: review.2,
+            title: review.3,
+            firstname: review.4,
+            lastname: review.5,
+            submission: review.6,
+            workshop_name: review.7,
+        })
+        .collect();
 
-    Ok(())
+    // TODO submissions
+
+    Ok(Todo {
+        reviews,
+        submissions: vec![],
+    })
 }

@@ -60,6 +60,7 @@ fn main() {
                 routes::attachments::upload,
                 routes::attachments::download,
                 routes::students::workshops,
+                routes::students::todos,
                 routes::students::create_submission,
             ],
         )

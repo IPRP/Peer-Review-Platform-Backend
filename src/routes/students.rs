@@ -9,6 +9,7 @@ use rocket::response::content;
 use rocket_contrib::json::{Json, JsonValue};
 use serde::{de, Deserialize, Deserializer};
 use std::fmt::Display;
+use std::fs::read;
 use std::num::{ParseFloatError, ParseIntError};
 use std::str::FromStr;
 
@@ -29,6 +30,24 @@ pub fn workshops(user: User, conn: IprpDB) -> Result<Json<JsonValue>, ApiRespons
     Ok(Json(json!({
         "ok": true,
         "workshops": workshop_infos
+    })))
+}
+
+#[get("/student/todos")]
+pub fn todos(user: User, conn: IprpDB) -> Result<Json<JsonValue>, ApiResponse> {
+    if user.role == Role::Teacher {
+        return Err(ApiResponse::forbidden());
+    }
+
+    let todos = db::todos::get(&*conn, user.id);
+    if todos.is_err() {
+        return Err(ApiResponse::bad_request());
+    }
+    let todos = todos.unwrap();
+
+    Ok(Json(json!({
+        "ok": true,
+        "reviews": todos.reviews
     })))
 }
 
