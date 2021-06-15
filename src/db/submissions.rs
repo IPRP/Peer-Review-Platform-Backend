@@ -82,7 +82,10 @@ pub fn create<'a>(
             .execute(conn);
 
         // Assign reviews
-        db::reviews::assign(conn, date, submission.id, student_id, workshop_id);
+        let assign = db::reviews::assign(conn, date, submission.id, student_id, workshop_id);
+        if assign.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
 
         Ok(submission)
     });

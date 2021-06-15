@@ -21,6 +21,7 @@ pub fn run_db_migration(rocket: Rocket) -> Result<Rocket, Rocket> {
             // See: https://stackoverflow.com/a/5452798/12347616
             let res = conn.batch_execute(
                 r#"
+select concat('drop event if exists ', event_name, ';') from information_schema.events;
 SET FOREIGN_KEY_CHECKS = 0;
 truncate criteria;
 truncate criterion;

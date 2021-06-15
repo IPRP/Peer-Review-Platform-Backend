@@ -1,14 +1,16 @@
 use crate::db;
-use crate::models::{NewReview, Role};
-use crate::schema::reviews::dsl::{reviewer, reviews as reviews_t};
+use crate::models::{NewReview, Review, Role};
+use crate::schema::reviews::dsl::{id as reviews_id, reviewer, reviews as reviews_t};
 use crate::schema::workshoplist::dsl::{
     role as wsl_role, user as wsl_user, workshop as wsl_ws, workshoplist as workshoplist_t,
 };
 use chrono::Duration;
+use diesel::connection::SimpleConnection;
 use diesel::dsl::count;
 use diesel::prelude::*;
 use diesel::result::Error;
 use diesel::sql_types::BigInt;
+use std::convert::TryInto;
 use std::ops::Add;
 
 pub fn assign(
@@ -19,7 +21,10 @@ pub fn assign(
     workshop_id: u64,
 ) -> Result<(), ()> {
     // Calculate deadline
-    let deadline = date + Duration::days(7);
+    //let deadline = date + Duration::days(7);
+    //let deadline = date + Duration::minutes(2);
+    let deadline = date + Duration::seconds(30);
+
     // Get (at max) 3 users who have the least count of reviews for this particular workshop
     /* Based on: https://stackoverflow.com/a/2838527/12347616
            select user, count(reviewer)
@@ -50,6 +55,7 @@ pub fn assign(
         return Err(());
     }
     let reviews: Vec<(u64, u64)> = reviews.unwrap();
+    let review_count = reviews.len();
     //println!("Reviews: {:?}", reviews);
 
     // Assign reviews to them
@@ -69,18 +75,40 @@ pub fn assign(
     diesel::insert_into(reviews_t)
         .values(&reviews)
         .execute(conn);
+    let reviews = reviews_t
+        .order(reviews_id.desc())
+        .limit(review_count.try_into().unwrap())
+        .get_results::<Review>(conn);
+    if reviews.is_err() {
+        return Err(());
+    }
+    let reviews = reviews.unwrap();
 
     // Create events that close reviews
-    /**
-    let _ = conn.batch_execute(
-        r#"
-        CREATE EVENT IF NOT EXISTS test_event_01
-        ON SCHEDULE AT CURRENT_TIMESTAMP
+    // TODO error handling, calculating mean points
+    // https://stackoverflow.com/a/8763381/12347616
+    for review in reviews {
+        // See: https://docs.rs/chrono/0.4.0/chrono/naive/struct.NaiveDateTime.html#example-14
+        // And: https://dev.mysql.com/doc/refman/8.0/en/create-event.html
+        let id = review.id;
+        let timestamp = review.deadline.format("%Y-%m-%d %H:%M:%S").to_string();
+        let res = conn.batch_execute(&*format!(
+            r#"
+        DROP EVENT IF EXISTS close_review_{id};
+        CREATE EVENT close_review_{id}
+        ON SCHEDULE AT  current_timestamp
         DO
-          UPDATE posts
-          SET title = 'TestRocket!', body = 'Greater'
-          WHERE id = '2';
+          UPDATE reviews
+          SET done = 1, locked = 1
+          WHERE id = {id};
     "#,
-    );*/
+            id = id,
+            //timestamp = timestamp
+        ));
+        if res.is_err() {
+            println!("{}", res.err().unwrap());
+            return Err(());
+        }
+    }
     Ok(())
 }
