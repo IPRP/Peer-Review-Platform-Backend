@@ -4,7 +4,7 @@ use crate::schema::reviews::dsl::{id as reviews_id, reviewer, reviews as reviews
 use crate::schema::workshoplist::dsl::{
     role as wsl_role, user as wsl_user, workshop as wsl_ws, workshoplist as workshoplist_t,
 };
-use chrono::Duration;
+use chrono::{DateTime, Duration, Local, NaiveDateTime, TimeZone, Utc};
 use diesel::connection::SimpleConnection;
 use diesel::dsl::count;
 use diesel::prelude::*;
@@ -21,9 +21,9 @@ pub fn assign(
     workshop_id: u64,
 ) -> Result<(), ()> {
     // Calculate deadline
+    // TODO set correct deadline
     //let deadline = date + Duration::days(7);
-    //let deadline = date + Duration::minutes(2);
-    let deadline = date + Duration::seconds(30);
+    let deadline = date + Duration::minutes(2);
 
     // Get (at max) 3 users who have the least count of reviews for this particular workshop
     /* Based on: https://stackoverflow.com/a/2838527/12347616
@@ -82,7 +82,7 @@ pub fn assign(
     if reviews.is_err() {
         return Err(());
     }
-    let reviews = reviews.unwrap();
+    let reviews: Vec<Review> = reviews.unwrap();
 
     // Create events that close reviews
     // TODO error handling, calculating mean points
@@ -91,19 +91,29 @@ pub fn assign(
         // See: https://docs.rs/chrono/0.4.0/chrono/naive/struct.NaiveDateTime.html#example-14
         // And: https://dev.mysql.com/doc/refman/8.0/en/create-event.html
         let id = review.id;
-        let timestamp = review.deadline.format("%Y-%m-%d %H:%M:%S").to_string();
+        // Convert local time to UTC
+        // Why? MySQL Events use internally UTC time to determine when to trigger them...
+        // See: https://dba.stackexchange.com/a/255569
+        // And: https://stackoverflow.com/a/65830964/12347616
+        let timestamp = Local.from_local_datetime(&review.deadline).unwrap();
+        let timestamp = date_time.with_timezone(&Utc);
+        let timestamp = date_time.format("%Y-%m-%d %H:%M:%S").to_string();
+        /*let timestamp = (DateTime::<Utc>::from_utc(review.deadline, Utc))
+        .format("%Y-%m-%d %H:%M:%S")
+        .to_string();*/
+        println!("{}", timestamp);
         let res = conn.batch_execute(&*format!(
             r#"
         DROP EVENT IF EXISTS close_review_{id};
         CREATE EVENT close_review_{id}
-        ON SCHEDULE AT  current_timestamp
+        ON SCHEDULE AT '{timestamp}'
         DO
           UPDATE reviews
           SET done = 1, locked = 1
           WHERE id = {id};
     "#,
             id = id,
-            //timestamp = timestamp
+            timestamp = timestamp
         ));
         if res.is_err() {
             println!("{}", res.err().unwrap());
