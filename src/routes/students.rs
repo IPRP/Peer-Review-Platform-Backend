@@ -47,7 +47,8 @@ pub fn todos(user: User, conn: IprpDB) -> Result<Json<JsonValue>, ApiResponse> {
 
     Ok(Json(json!({
         "ok": true,
-        "reviews": todos.reviews
+        "reviews": todos.reviews,
+        "submissions": todos.submissions
     })))
 }
 

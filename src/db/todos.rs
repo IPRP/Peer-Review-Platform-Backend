@@ -10,7 +10,12 @@ use crate::schema::submissions::dsl::{
 use crate::schema::users::dsl::{
     firstname as user_firstname, id as user_id, lastname as user_lastname, users as users_t,
 };
+use crate::schema::workshoplist::dsl::{
+    role as wsl_role, user as wsl_user, workshop as wsl_ws, workshoplist as workshoplist_t,
+};
 use crate::schema::workshops::dsl::{id as ws_id, title as ws_title, workshops as workshops_t};
+use diesel::dsl::exists;
+use diesel::dsl::not;
 use diesel::prelude::*;
 use diesel::result::Error;
 
@@ -31,7 +36,7 @@ pub struct TodoReview {
 pub struct TodoSubmission {
     pub id: u64,
     #[serde(rename(serialize = "workshopName"))]
-    pub workshop_name: u64,
+    pub workshop_name: String,
 }
 
 #[derive(Serialize)]
@@ -98,11 +103,37 @@ pub fn get(conn: &MysqlConnection, student_id: u64) -> Result<Todo, ()> {
         })
         .collect();
 
-    // TODO submissions
+    let raw_submissions = workshops_t
+        .left_outer_join(workshoplist_t.on(ws_id.eq(wsl_ws)))
+        .left_outer_join(users_t.on(user_id.eq(wsl_user)))
+        .filter(wsl_user.eq(student_id).and(not(exists(
+            submissions_t.filter(sub_student.eq(student_id)),
+        ))))
+        .select((ws_id, ws_title))
+        .get_results::<(u64, String)>(conn);
+
+    if raw_submissions.is_err() {
+        return Err(());
+    }
+    let raw_submissions = raw_submissions.unwrap();
+
+    let submissions: Vec<TodoSubmission> = raw_submissions
+        .into_iter()
+        .map(|workshop| TodoSubmission {
+            id: workshop.0,
+            workshop_name: workshop.1,
+        })
+        .collect();
 
     /*
 
     // This is it
+    select w.title, u.username
+        from workshops w
+        left outer join workshoplist wl on w.id=wl.workshop
+        left outer join users u on wl.user=u.id
+        where wl.user=5 and not exists(select * from submissions where student=5);
+
     select w.title, u.username
         from workshops w
         left outer join workshoplist wl on w.id=wl.workshop
@@ -151,6 +182,6 @@ pub fn get(conn: &MysqlConnection, student_id: u64) -> Result<Todo, ()> {
 
     Ok(Todo {
         reviews,
-        submissions: vec![],
+        submissions,
     })
 }
