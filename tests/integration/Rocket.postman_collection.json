@@ -388,7 +388,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\r\n    \"title\": \"WS\",\r\n    \"content\": \"Hey!\",\r\n    \"end\": \"2021-05-31T16:26:00\",\r\n    \"anonymous\": true,\r\n    \"students\": [4, 5],\r\n    \"teachers\": [1],\r\n    \"criteria\": [{\r\n        \"title\": \"Criterion\", \r\n        \"content\": \"True/False\",\r\n        \"type\": \"truefalse\",\r\n        \"weight\": 10.0\r\n    }, {\r\n        \"title\": \"Other Criterion\", \r\n        \"content\": \"True/False\",\r\n        \"type\": \"truefalse\",\r\n        \"weight\": 10.0\r\n    }]\r\n}",
+					"raw": "{\r\n    \"title\": \"WS\",\r\n    \"content\": \"Hey!\",\r\n    \"end\": \"2021-07-31T16:26:00\",\r\n    \"anonymous\": true,\r\n    \"students\": [4, 5],\r\n    \"teachers\": [1],\r\n    \"criteria\": [{\r\n        \"title\": \"Criterion\", \r\n        \"content\": \"True/False\",\r\n        \"type\": \"truefalse\",\r\n        \"weight\": 10.0\r\n    }, {\r\n        \"title\": \"Other Criterion\", \r\n        \"content\": \"True/False\",\r\n        \"type\": \"truefalse\",\r\n        \"weight\": 10.0\r\n    }]\r\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -446,6 +446,61 @@
 					"path": [
 						"student",
 						"workshops"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/student/todos",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8000/student/todos",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"student",
+						"todos"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/student/todos User s2",
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "username",
+							"value": "s2",
+							"type": "string"
+						},
+						{
+							"key": "password",
+							"value": "1234",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8000/student/todos",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"student",
+						"todos"
 					]
 				}
 			},
@@ -526,6 +581,35 @@
 					"path": [
 						"submission",
 						"download",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/submission/",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"title\": \"WS-Sub\",\r\n    \"comment\": \"Hey!\",\r\n    \"attachments\": [1]\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8000/submission/1",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"submission",
 						"1"
 					]
 				}

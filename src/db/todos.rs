@@ -100,6 +100,55 @@ pub fn get(conn: &MysqlConnection, student_id: u64) -> Result<Todo, ()> {
 
     // TODO submissions
 
+    /*
+
+    // This is it
+    select w.title, u.username
+        from workshops w
+        left outer join workshoplist wl on w.id=wl.workshop
+        right outer join users u on wl.user=u.id
+        where wl.user=5 and not exists(select * from submissions where student=5);
+
+    select w.title, u.username
+        from workshops w
+        left outer join workshoplist wl on w.id=wl.workshop
+        right outer join users u on wl.user=u.id;
+
+
+    select w.title, u.username, count(s.student) as count
+        from workshops w
+        left outer join submissions s on w.id=s.workshop
+        right outer join users u on s.student=u.id
+        group by w.title, u.username;
+
+    select w.title, u.username, count(s.student) as count
+       from submissions s
+       right outer join users u on u.id=s.student
+       left outer join workshops w on w.id=s.workshop
+       group by w.title, u.username;
+
+    select w.title, u.username, (
+        select count(*)
+        from submissions
+        where s.workshop=w.id and s.student=u.id
+    ) as count
+    from submissions s
+    right outer join workshops w on s.workshop=w.id
+    right outer join users u on s.student=u.id;
+
+
+    select u.username, count(s.student) as count
+       from submissions s
+       right outer join users u on u.id=s.student
+       group by u.username;
+
+       select u.username, count(s.student) as count
+       from submissions s
+       right outer join users u on u.id=s.student
+       group by u.username;
+
+    */
+
     Ok(Todo {
         reviews,
         submissions: vec![],
