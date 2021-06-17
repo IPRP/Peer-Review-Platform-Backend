@@ -1,5 +1,7 @@
 use crate::db;
-use crate::models::{NewSubmission, Role, Submission, Submissionattachment, Submissioncriteria};
+use crate::models::{
+    NewSubmission, Role, SimpleAttachment, Submission, Submissionattachment, Submissioncriteria,
+};
 use crate::schema::criteria::dsl::workshop;
 use crate::schema::submissionattachments::dsl::{
     attachment as subatt_att, submission as subatt_sub, submissionattachments as subatt_t,
@@ -109,23 +111,50 @@ pub fn is_owner(conn: &MysqlConnection, submission_id: u64, student_id: u64) -> 
     }
 }
 
+// TODO reviews
 #[derive(Serialize)]
-pub struct TodoReview {
-    pub id: u64,
-    pub done: bool,
-    pub deadline: chrono::NaiveDateTime,
+pub struct OwnSubmission {
     pub title: String,
-    pub firstname: String,
-    pub lastname: String,
-    pub submission: u64,
-    #[serde(rename(serialize = "workshopName"))]
-    pub workshop_name: String,
+    pub comment: String,
+    pub attachments: Vec<SimpleAttachment>,
+    pub locked: bool,
+    pub date: chrono::NaiveDateTime,
+    #[serde(rename(serialize = "reviewsDone"))]
+    pub reviews_done: bool,
+    pub points: Option<i64>,
+    #[serde(rename(serialize = "maxPoints"))]
+    pub max_points: Option<i64>,
+    pub firstname: Option<String>,
+    pub lastname: Option<String>,
 }
 
 pub fn get_own_submission(
     conn: &MysqlConnection,
     submission_id: u64,
     user_id: u64,
-) -> Result<(), ()> {
-    Ok(())
+) -> Result<OwnSubmission, ()> {
+    let attachments = db::attachments::get_by_submission_id(conn, submission_id);
+    if attachments.is_err() {
+        return Err(());
+    }
+    let attachments = attachments.unwrap();
+    let submission: Result<Submission, _> = submissions_t
+        .filter(sub_id.eq(submission_id).and(sub_student.eq(user_id)))
+        .first(conn);
+    if submission.is_err() {
+        return Err(());
+    }
+    let submission = submission.unwrap();
+    Ok(OwnSubmission {
+        title: submission.title,
+        comment: submission.comment,
+        attachments,
+        locked: submission.locked,
+        date: submission.date,
+        reviews_done: submission.reviewsdone,
+        points: None,
+        max_points: None,
+        firstname: None,
+        lastname: None,
+    })
 }

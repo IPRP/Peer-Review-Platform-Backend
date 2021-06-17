@@ -185,6 +185,12 @@ pub struct Attachment {
     pub owner: Option<u64>,
 }
 
+#[derive(Queryable, Clone, Serialize)]
+pub struct SimpleAttachment {
+    pub id: u64,
+    pub title: String,
+}
+
 #[derive(Insertable, Queryable, Clone)]
 #[table_name = "attachments"]
 pub struct NewAttachment {

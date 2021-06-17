@@ -61,7 +61,8 @@ fn main() {
                 routes::attachments::download,
                 routes::students::workshops,
                 routes::students::todos,
-                routes::students::create_submission,
+                routes::submissions::create_submission,
+                routes::submissions::get_submission,
             ],
         )
         .launch();

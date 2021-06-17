@@ -1,4 +1,4 @@
-use crate::models::{Attachment, NewAttachment};
+use crate::models::{Attachment, NewAttachment, SimpleAttachment};
 use crate::schema::attachments::dsl::{
     attachments as attachments_t, id as att_id, owner as att_owner, title as att_title,
 };
@@ -45,7 +45,7 @@ pub fn get_ids_by_user_id(conn: &MysqlConnection, user_id: u64) -> Result<Vec<u6
 pub fn get_by_submission_id(
     conn: &MysqlConnection,
     submission_id: u64,
-) -> Result<Vec<Attachment>, Error> {
+) -> Result<Vec<SimpleAttachment>, Error> {
     /*
     select a.id, a.title, a.owner
         from attachments a
@@ -55,6 +55,6 @@ pub fn get_by_submission_id(
     attachments_t
         .inner_join(subatt_t.on(subatt_att.eq(att_id)))
         .filter(subatt_sub.eq(submission_id))
-        .select((att_id, att_title, att_owner))
-        .get_results::<Attachment>(conn)
+        .select((att_id, att_title))
+        .get_results::<SimpleAttachment>(conn)
 }
