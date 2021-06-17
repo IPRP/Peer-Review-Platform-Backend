@@ -1,11 +1,13 @@
 use crate::db;
-use crate::models::{NewSubmission, Submission, Submissionattachment, Submissioncriteria};
+use crate::models::{NewSubmission, Role, Submission, Submissionattachment, Submissioncriteria};
 use crate::schema::criteria::dsl::workshop;
 use crate::schema::submissionattachments::dsl::{
     attachment as subatt_att, submission as subatt_sub, submissionattachments as subatt_t,
 };
 use crate::schema::submissioncriteria::dsl::submissioncriteria as subcrit_t;
-use crate::schema::submissions::dsl::{id as sub_id, submissions as submissions_t};
+use crate::schema::submissions::dsl::{
+    id as sub_id, student as sub_student, submissions as submissions_t,
+};
 use diesel::prelude::*;
 use diesel::result::Error;
 
@@ -94,4 +96,36 @@ pub fn create<'a>(
         Ok(submission) => Ok(submission),
         Err(_) => Err(()),
     }
+}
+
+pub fn is_owner(conn: &MysqlConnection, submission_id: u64, student_id: u64) -> bool {
+    let exists: Result<Submission, diesel::result::Error> = submissions_t
+        .filter(sub_id.eq(submission_id).and(sub_student.eq(student_id)))
+        .first(conn);
+    if exists.is_ok() {
+        true
+    } else {
+        false
+    }
+}
+
+#[derive(Serialize)]
+pub struct TodoReview {
+    pub id: u64,
+    pub done: bool,
+    pub deadline: chrono::NaiveDateTime,
+    pub title: String,
+    pub firstname: String,
+    pub lastname: String,
+    pub submission: u64,
+    #[serde(rename(serialize = "workshopName"))]
+    pub workshop_name: String,
+}
+
+pub fn get_own_submission(
+    conn: &MysqlConnection,
+    submission_id: u64,
+    user_id: u64,
+) -> Result<(), ()> {
+    Ok(())
 }

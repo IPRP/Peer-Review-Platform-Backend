@@ -1,6 +1,9 @@
 use crate::models::{Attachment, NewAttachment};
 use crate::schema::attachments::dsl::{
-    attachments as attachments_t, id as att_id, owner as att_owner,
+    attachments as attachments_t, id as att_id, owner as att_owner, title as att_title,
+};
+use crate::schema::submissionattachments::dsl::{
+    attachment as subatt_att, submission as subatt_sub, submissionattachments as subatt_t,
 };
 use diesel::prelude::*;
 use diesel::result::Error;
@@ -37,4 +40,21 @@ pub fn get_ids_by_user_id(conn: &MysqlConnection, user_id: u64) -> Result<Vec<u6
         .select(att_id)
         .filter(att_owner.eq(user_id))
         .get_results::<u64>(conn)
+}
+
+pub fn get_by_submission_id(
+    conn: &MysqlConnection,
+    submission_id: u64,
+) -> Result<Vec<Attachment>, Error> {
+    /*
+    select a.id, a.title, a.owner
+        from attachments a
+        inner join submissionattachments sa on sa.attachment=a.id
+        where sa.submission = 1;
+     */
+    attachments_t
+        .inner_join(subatt_t.on(subatt_att.eq(att_id)))
+        .filter(subatt_sub.eq(submission_id))
+        .select((att_id, att_title, att_owner))
+        .get_results::<Attachment>(conn)
 }
