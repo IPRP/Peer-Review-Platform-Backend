@@ -8,6 +8,7 @@ use rocket::request::FromFormValue;
 use rocket::response::content;
 use rocket_contrib::json::{Json, JsonValue};
 use serde::{de, Deserialize, Deserializer};
+use serde_json::Value;
 use std::fmt::Display;
 use std::fs::read;
 use std::num::{ParseFloatError, ParseIntError};
@@ -67,21 +68,42 @@ pub fn get_submission(
     if db::submissions::is_owner(&*conn, submission_id, user.id) {
         let submission = db::submissions::get_own_submission(&*conn, submission_id, user.id);
         match submission {
-            Ok(submission) => Ok(Json(json!({
-                "ok": true,
-                "title": submission.title,
-                "comment": submission.comment,
-                "attachments": submission.attachments,
-                "locked": submission.locked,
-                "reviewsDone": submission.locked,
-                "points": submission.points,
-                "maxPoints": submission.max_points,
-                "lastname": submission.lastname,
-                "firstname": submission.firstname
-            }))),
+            Ok(submission) => {
+                let mut json = serde_json::to_value(submission).unwrap();
+                let json2 = json!({
+                    "ok": true
+                });
+                merge(&mut json, &*json2);
+                /*json!({
+                    "ok": true,
+                    "title": submission.title,
+                    "comment": submission.comment,
+                    "attachments": submission.attachments,
+                    "locked": submission.locked,
+                    "reviewsDone": submission.locked,
+                    "points": submission.points,
+                    "maxPoints": submission.max_points,
+                    "lastname": submission.lastname,
+                    "firstname": submission.firstname
+                })))*/
+                Ok(Json(JsonValue::from(json)))
+            }
             Err(_) => Err(ApiResponse::forbidden()),
         }
     } else {
         Err(ApiResponse::bad_request())
+    }
+}
+
+fn merge(a: &mut Value, b: &Value) {
+    match (a, b) {
+        (&mut Value::Object(ref mut a), &Value::Object(ref b)) => {
+            for (k, v) in b {
+                merge(a.entry(k.clone()).or_insert(Value::Null), v);
+            }
+        }
+        (a, b) => {
+            *a = b.clone();
+        }
     }
 }

@@ -121,10 +121,14 @@ pub struct OwnSubmission {
     pub date: chrono::NaiveDateTime,
     #[serde(rename(serialize = "reviewsDone"))]
     pub reviews_done: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub points: Option<i64>,
     #[serde(rename(serialize = "maxPoints"))]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub max_points: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub firstname: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub lastname: Option<String>,
 }
 
