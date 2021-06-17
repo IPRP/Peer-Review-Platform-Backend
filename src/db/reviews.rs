@@ -1,6 +1,8 @@
 use crate::db;
-use crate::models::{NewReview, Review, Role};
-use crate::schema::reviews::dsl::{id as reviews_id, reviewer, reviews as reviews_t};
+use crate::models::{Kind, NewReview, Review, Role};
+use crate::schema::reviews::dsl::{
+    id as reviews_id, reviewer, reviews as reviews_t, submission as reviews_sub,
+};
 use crate::schema::workshoplist::dsl::{
     role as wsl_role, user as wsl_user, workshop as wsl_ws, workshoplist as workshoplist_t,
 };
@@ -174,4 +176,37 @@ pub fn assign(
      */
 
     Ok(())
+}
+
+pub fn is_reviewer(conn: &MysqlConnection, submission_id: u64, student_id: u64) -> bool {
+    let exists: Result<Review, diesel::result::Error> = reviews_t
+        .filter(reviewer.eq(student_id).and(reviews_sub.eq(submission_id)))
+        .first(conn);
+    if exists.is_ok() {
+        true
+    } else {
+        false
+    }
+}
+
+#[derive(Serialize)]
+pub struct FullReview {
+    pub id: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub firstname: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lastname: Option<String>,
+    pub feedback: String,
+    pub points: Vec<ReviewPoints>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ReviewPoints {
+    title: String,
+    content: String,
+    weight: f64,
+    #[serde(rename = "type")]
+    kind: Kind,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    points: Option<f64>,
 }

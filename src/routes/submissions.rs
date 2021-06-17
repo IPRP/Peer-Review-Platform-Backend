@@ -1,5 +1,6 @@
 use crate::models::{Kind, NewCriterion, Role, User};
 use crate::routes::models::{ApiResponse, NumberVec, WorkshopResponse};
+use crate::utils;
 use crate::{db, IprpDB};
 use chrono::{Local, Utc};
 use diesel::result::Error;
@@ -65,45 +66,37 @@ pub fn get_submission(
     conn: IprpDB,
     submission_id: u64,
 ) -> Result<Json<JsonValue>, ApiResponse> {
+    // TODO teacher
     if db::submissions::is_owner(&*conn, submission_id, user.id) {
         let submission = db::submissions::get_own_submission(&*conn, submission_id, user.id);
         match submission {
             Ok(submission) => {
-                let mut json = serde_json::to_value(submission).unwrap();
-                let json2 = json!({
+                let mut json_response = serde_json::to_value(submission).unwrap();
+                let json_additional_info = json!({
                     "ok": true
                 });
-                merge(&mut json, &*json2);
-                /*json!({
-                    "ok": true,
-                    "title": submission.title,
-                    "comment": submission.comment,
-                    "attachments": submission.attachments,
-                    "locked": submission.locked,
-                    "reviewsDone": submission.locked,
-                    "points": submission.points,
-                    "maxPoints": submission.max_points,
-                    "lastname": submission.lastname,
-                    "firstname": submission.firstname
-                })))*/
-                Ok(Json(JsonValue::from(json)))
+                utils::json::merge(&mut json_response, &*json_additional_info);
+                Ok(Json(JsonValue::from(json_response)))
             }
             Err(_) => Err(ApiResponse::forbidden()),
         }
     } else {
-        Err(ApiResponse::bad_request())
-    }
-}
-
-fn merge(a: &mut Value, b: &Value) {
-    match (a, b) {
-        (&mut Value::Object(ref mut a), &Value::Object(ref b)) => {
-            for (k, v) in b {
-                merge(a.entry(k.clone()).or_insert(Value::Null), v);
+        if db::reviews::is_reviewer(&*conn, submission_id, user.id) {
+            let submission =
+                db::submissions::get_student_submission(&*conn, submission_id, user.id);
+            match submission {
+                Ok(submission) => {
+                    let mut json_response = serde_json::to_value(submission).unwrap();
+                    let json_additional_info = json!({
+                        "ok": true
+                    });
+                    utils::json::merge(&mut json_response, &*json_additional_info);
+                    Ok(Json(JsonValue::from(json_response)))
+                }
+                Err(_) => Err(ApiResponse::forbidden()),
             }
-        }
-        (a, b) => {
-            *a = b.clone();
+        } else {
+            Err(ApiResponse::bad_request())
         }
     }
 }

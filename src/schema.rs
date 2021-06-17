@@ -27,7 +27,7 @@ table! {
         id -> Unsigned<Bigint>,
         title -> Varchar,
         content -> Text,
-        weight -> Nullable<Double>,
+        weight -> Double,
         kind -> KindMapping,
     }
 }

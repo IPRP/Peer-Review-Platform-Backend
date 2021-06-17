@@ -1,12 +1,16 @@
 use crate::db;
 use crate::models::{
-    NewSubmission, Role, SimpleAttachment, Submission, Submissionattachment, Submissioncriteria,
+    Criterion, NewSubmission, Role, SimpleAttachment, Submission, Submissionattachment,
+    Submissioncriteria,
 };
 use crate::schema::criteria::dsl::workshop;
+use crate::schema::criterion::dsl::{criterion as criterion_t, id as c_id};
 use crate::schema::submissionattachments::dsl::{
     attachment as subatt_att, submission as subatt_sub, submissionattachments as subatt_t,
 };
-use crate::schema::submissioncriteria::dsl::submissioncriteria as subcrit_t;
+use crate::schema::submissioncriteria::dsl::{
+    criterion as subcrit_crit, submission as subcrit_sub, submissioncriteria as subcrit_t,
+};
 use crate::schema::submissions::dsl::{
     id as sub_id, student as sub_student, submissions as submissions_t,
 };
@@ -149,6 +153,7 @@ pub fn get_own_submission(
         return Err(());
     }
     let submission = submission.unwrap();
+
     Ok(OwnSubmission {
         title: submission.title,
         comment: submission.comment,
@@ -160,5 +165,56 @@ pub fn get_own_submission(
         max_points: None,
         firstname: None,
         lastname: None,
+    })
+}
+
+#[derive(Serialize)]
+pub struct OtherSubmission {
+    pub title: String,
+    pub comment: String,
+    pub attachments: Vec<SimpleAttachment>,
+    pub criteria: Vec<Criterion>,
+}
+
+pub fn get_student_submission(
+    conn: &MysqlConnection,
+    submission_id: u64,
+    _user_id: u64,
+) -> Result<OtherSubmission, ()> {
+    let attachments = db::attachments::get_by_submission_id(conn, submission_id);
+    if attachments.is_err() {
+        return Err(());
+    }
+    let attachments = attachments.unwrap();
+
+    let submission: Result<Submission, _> =
+        submissions_t.filter(sub_id.eq(submission_id)).first(conn);
+    if submission.is_err() {
+        return Err(());
+    }
+    let submission = submission.unwrap();
+
+    let submission_criteria: Result<Vec<u64>, _> = subcrit_t
+        .filter(subcrit_sub.eq(submission_id))
+        .select(subcrit_crit)
+        .get_results(conn);
+    if submission_criteria.is_err() {
+        return Err(());
+    }
+    let submission_criteria = submission_criteria.unwrap();
+
+    let submission_criteria: Result<Vec<Criterion>, _> = criterion_t
+        .filter(c_id.eq_any(submission_criteria))
+        .get_results(conn);
+    if submission_criteria.is_err() {
+        return Err(());
+    }
+    let submission_criteria = submission_criteria.unwrap();
+
+    Ok(OtherSubmission {
+        title: submission.title,
+        comment: submission.comment,
+        attachments,
+        criteria: submission_criteria,
     })
 }

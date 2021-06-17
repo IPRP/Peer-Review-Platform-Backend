@@ -126,7 +126,7 @@ pub struct Criteria {
     pub criterion: u64,
 }
 
-#[derive(DbEnum, Clone, Debug, PartialEq, Deserialize)]
+#[derive(DbEnum, Clone, Debug, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Kind {
     Point,
@@ -152,12 +152,13 @@ impl Kind {
     }
 }
 
-#[derive(Queryable, Clone)]
+#[derive(Queryable, Clone, Serialize)]
 pub struct Criterion {
     pub id: u64,
     pub title: String,
     pub content: String,
     pub weight: f64,
+    #[serde(rename = "type")]
     pub kind: Kind,
 }
 
@@ -328,4 +329,12 @@ pub struct NewReview {
     pub done: bool,
     pub locked: bool,
     pub error: bool,
+}
+
+#[derive(Insertable, Queryable, Clone)]
+#[table_name = "reviewpoints"]
+pub struct ReviewPoints {
+    pub review: u64,
+    pub criterion: u64,
+    pub points: f64,
 }

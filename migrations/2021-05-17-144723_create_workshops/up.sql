@@ -13,7 +13,7 @@ CREATE TABLE criterion
     id      SERIAL PRIMARY KEY,
     title   VARCHAR(100)                                       NOT NULL,
     content TEXT                                               NOT NULL,
-    weight  DOUBLE,
+    weight  DOUBLE                                             NOT NULL,
     kind    enum ('point', 'grade', 'percentage', 'truefalse') NOT NULL
 );
 
