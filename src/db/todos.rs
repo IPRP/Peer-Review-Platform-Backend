@@ -46,7 +46,7 @@ pub struct Todo {
 }
 
 pub fn get(conn: &MysqlConnection, student_id: u64) -> Result<Todo, ()> {
-    // TODO filter by deadline
+    // TODO filter by deadline / locked
     // TODO remove name if workshop is anonymous
 
     /*

@@ -305,7 +305,7 @@ CREATE TABLE reviewpoints
 );
  */
 
-#[derive(Queryable, Clone)]
+#[derive(Queryable, AsChangeset, Clone)]
 pub struct Review {
     pub id: u64,
     pub feedback: String,

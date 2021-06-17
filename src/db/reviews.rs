@@ -1,5 +1,7 @@
 use crate::db;
-use crate::models::{Kind, NewReview, Review, Role};
+use crate::models::{Kind, NewReview, Review, ReviewPoints, Role};
+use crate::routes::submissions::UpdateReview;
+use crate::schema::reviewpoints::dsl::reviewpoints as reviewpoints_t;
 use crate::schema::reviews::dsl::{
     id as reviews_id, reviewer, reviews as reviews_t, submission as reviews_sub,
 };
@@ -178,17 +180,50 @@ pub fn assign(
     Ok(())
 }
 
-pub fn is_reviewer(conn: &MysqlConnection, submission_id: u64, student_id: u64) -> bool {
-    let exists: Result<Review, diesel::result::Error> = reviews_t
-        .filter(reviewer.eq(student_id).and(reviews_sub.eq(submission_id)))
-        .first(conn);
-    if exists.is_ok() {
-        true
-    } else {
-        false
+pub fn update(
+    conn: &MysqlConnection,
+    update_review: UpdateReview,
+    review_id: u64,
+    user_id: u64,
+) -> bool {
+    let res = conn.transaction::<_, _, _>(|| {
+        let review: Result<Review, _> = reviews_t
+            .filter(reviews_id.eq(review_id).and(reviewer.eq(user_id)))
+            .first(conn);
+        if review.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
+        let mut review = review.unwrap();
+        review.feedback = update_review.feedback;
+        review.done = true;
+        diesel::update(reviews_t).set(&review).execute(conn);
+
+        // TODO check if all point criteria were given
+        // Submission has 2 criteria, review needs to have two filled out criteria
+
+        let review_points: Vec<ReviewPoints> = update_review
+            .points
+            .into_iter()
+            .map(|update_points| ReviewPoints {
+                review: review_id,
+                criterion: update_points.id,
+                points: update_points.points,
+            })
+            .collect();
+        diesel::insert_into(reviewpoints_t)
+            .values(&review_points)
+            .execute(conn);
+
+        Ok(())
+    });
+
+    match res {
+        Ok(_) => true,
+        Err(_) => false,
     }
 }
 
+/**
 #[derive(Serialize)]
 pub struct FullReview {
     pub id: u64,
@@ -209,4 +244,15 @@ pub struct ReviewPoints {
     kind: Kind,
     #[serde(skip_serializing_if = "Option::is_none")]
     points: Option<f64>,
+}*/
+
+pub fn is_reviewer(conn: &MysqlConnection, submission_id: u64, student_id: u64) -> bool {
+    let exists: Result<Review, diesel::result::Error> = reviews_t
+        .filter(reviewer.eq(student_id).and(reviews_sub.eq(submission_id)))
+        .first(conn);
+    if exists.is_ok() {
+        true
+    } else {
+        false
+    }
 }

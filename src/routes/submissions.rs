@@ -100,3 +100,36 @@ pub fn get_submission(
         }
     }
 }
+
+#[derive(Serialize, Deserialize)]
+pub struct UpdateReview {
+    pub feedback: String,
+    pub points: Vec<UpdatePoints>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct UpdatePoints {
+    pub id: u64,
+    pub points: f64,
+}
+
+#[put("/review/<review_id>", format = "json", data = "<update_review>")]
+pub fn update_review(
+    user: User,
+    conn: IprpDB,
+    review_id: u64,
+    update_review: Json<UpdateReview>,
+) -> Result<Json<JsonValue>, ApiResponse> {
+    if user.role == Role::Teacher {
+        return Err(ApiResponse::forbidden());
+    }
+
+    let res = db::reviews::update(&*conn, update_review.0, review_id, user.id);
+
+    match res {
+        true => Ok(Json(json!({
+            "ok": true
+        }))),
+        false => Err(ApiResponse::forbidden()),
+    }
+}
