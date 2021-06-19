@@ -12,8 +12,8 @@ use crate::schema::submissioncriteria::dsl::{
     criterion as subcrit_crit, submission as subcrit_sub, submissioncriteria as subcrit_t,
 };
 use crate::schema::submissions::dsl::{
-    error as sub_error, id as sub_id, meanpoints as sub_meanpoints, student as sub_student,
-    submissions as submissions_t,
+    error as sub_error, id as sub_id, meanpoints as sub_meanpoints,
+    reviewsdone as sub_reviews_done, student as sub_student, submissions as submissions_t,
 };
 use diesel::prelude::*;
 use diesel::result::Error;
@@ -127,11 +127,13 @@ pub struct OwnSubmission {
     pub date: chrono::NaiveDateTime,
     #[serde(rename(serialize = "reviewsDone"))]
     pub reviews_done: bool,
+    #[serde(rename(serialize = "noReviews"))]
+    pub no_reviews: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub points: Option<i64>,
+    pub points: Option<f64>,
     #[serde(rename(serialize = "maxPoints"))]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub max_points: Option<i64>,
+    pub max_points: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub firstname: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -143,6 +145,10 @@ pub fn get_own_submission(
     submission_id: u64,
     user_id: u64,
 ) -> Result<OwnSubmission, ()> {
+    let points_calculation = calculate_points(conn, submission_id);
+    if points_calculation.is_err() {
+        return Err(());
+    }
     let attachments = db::attachments::get_by_submission_id(conn, submission_id);
     if attachments.is_err() {
         return Err(());
@@ -157,6 +163,11 @@ pub fn get_own_submission(
     let submission = submission.unwrap();
 
     // TODO reviews
+    let no_reviews = if submission.meanpoints.is_none() {
+        true
+    } else {
+        false
+    };
 
     Ok(OwnSubmission {
         title: submission.title,
@@ -165,8 +176,9 @@ pub fn get_own_submission(
         locked: submission.locked,
         date: submission.date,
         reviews_done: submission.reviewsdone,
-        points: None,
-        max_points: None,
+        no_reviews,
+        points: submission.meanpoints,
+        max_points: submission.maxpoint,
         firstname: None,
         lastname: None,
     })
@@ -185,6 +197,10 @@ pub fn get_student_submission(
     submission_id: u64,
     _user_id: u64,
 ) -> Result<OtherSubmission, ()> {
+    let points_calculation = calculate_points(conn, submission_id);
+    if points_calculation.is_err() {
+        return Err(());
+    }
     let attachments = db::attachments::get_by_submission_id(conn, submission_id);
     if attachments.is_err() {
         return Err(());
@@ -226,14 +242,16 @@ pub fn get_student_submission(
 fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), ()> {
     let submission = submissions_t
         .filter(
-            sub_id
-                .eq(submission_id)
-                .and(sub_meanpoints.is_null().and(sub_error.eq(false))),
+            sub_id.eq(submission_id).and(
+                sub_reviews_done
+                    .eq(true)
+                    .and(sub_meanpoints.is_null().and(sub_error.eq(false))),
+            ),
         )
         .first(conn);
 
     if submission.is_err() {
-        // Submission points are already calculated
+        // Submission points are already calculated or not finished yet
         return Ok(());
     }
     let mut submission: Submission = submission.unwrap();

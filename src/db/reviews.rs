@@ -193,16 +193,21 @@ pub fn update(
     review_id: u64,
     user_id: u64,
 ) -> bool {
+    // Get review
+    let review: Result<Review, _> = reviews_t
+        .filter(reviews_id.eq(review_id).and(reviewer.eq(user_id)))
+        .first(conn);
+    if review.is_err() {
+        // No matching review
+        return false;
+    }
+    let mut review = review.unwrap();
+    if Local::now().naive_local() > review.deadline {
+        // Update past deadline
+        return false;
+    }
+    // Update review
     let res = conn.transaction::<_, _, _>(|| {
-        // Get review
-        let review: Result<Review, _> = reviews_t
-            .filter(reviews_id.eq(review_id).and(reviewer.eq(user_id)))
-            .first(conn);
-        if review.is_err() {
-            return Err(Error::RollbackTransaction);
-        }
-        let mut review = review.unwrap();
-
         // Check if all point criteria were given for update
         let criteria = db::submissions::get_criteria(conn, review.submission);
         if criteria.is_err() {
