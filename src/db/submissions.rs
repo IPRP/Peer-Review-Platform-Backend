@@ -12,7 +12,7 @@ use crate::schema::submissioncriteria::dsl::{
     criterion as subcrit_crit, submission as subcrit_sub, submissioncriteria as subcrit_t,
 };
 use crate::schema::submissions::dsl::{
-    error as sub_error, id as sub_id, meanpoints as sub_meanpoints,
+    error as sub_error, id as sub_id, locked as sub_locked, meanpoints as sub_meanpoints,
     reviewsdone as sub_reviews_done, student as sub_student, submissions as submissions_t,
 };
 use diesel::prelude::*;
@@ -201,7 +201,8 @@ pub fn get_student_submission(
     if points_calculation.is_err() {
         return Err(());
     }
-    let attachments = db::attachments::get_by_submission_id(conn, submission_id);
+    let attachments =
+        db::attachments::get_by_submission_id_and_lock_submission(conn, submission_id);
     if attachments.is_err() {
         return Err(());
     }
@@ -339,4 +340,21 @@ pub fn get_criteria(conn: &MysqlConnection, submission_id: u64) -> Result<Vec<Cr
         return Err(());
     }
     Ok(submission_criteria.unwrap())
+}
+
+pub fn lock(conn: &MysqlConnection, submission_id: u64) -> Result<(), ()> {
+    let update = conn.transaction::<_, _, _>(|| {
+        let submission = submissions_t.filter(sub_id.eq(submission_id));
+        let update = diesel::update(submission)
+            .set(sub_locked.eq(true))
+            .execute(conn);
+        if update.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
+        Ok(())
+    });
+    match update {
+        Ok(_) => Ok(()),
+        Err(_) => Err(()),
+    }
 }

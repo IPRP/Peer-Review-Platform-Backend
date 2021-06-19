@@ -1,3 +1,4 @@
+use crate::db;
 use crate::models::{Attachment, NewAttachment, SimpleAttachment};
 use crate::schema::attachments::dsl::{
     attachments as attachments_t, id as att_id, owner as att_owner, title as att_title,
@@ -42,7 +43,7 @@ pub fn get_ids_by_user_id(conn: &MysqlConnection, user_id: u64) -> Result<Vec<u6
         .get_results::<u64>(conn)
 }
 
-pub fn get_by_submission_id(
+fn get_by_submission_id_internal(
     conn: &MysqlConnection,
     submission_id: u64,
 ) -> Result<Vec<SimpleAttachment>, Error> {
@@ -57,4 +58,22 @@ pub fn get_by_submission_id(
         .filter(subatt_sub.eq(submission_id))
         .select((att_id, att_title))
         .get_results::<SimpleAttachment>(conn)
+}
+
+pub fn get_by_submission_id(
+    conn: &MysqlConnection,
+    submission_id: u64,
+) -> Result<Vec<SimpleAttachment>, Error> {
+    get_by_submission_id_internal(conn, submission_id)
+}
+
+pub fn get_by_submission_id_and_lock_submission(
+    conn: &MysqlConnection,
+    submission_id: u64,
+) -> Result<Vec<SimpleAttachment>, Error> {
+    let lock = db::submissions::lock(conn, submission_id);
+    if lock.is_err() {
+        return Err(Error::NotFound);
+    }
+    get_by_submission_id_internal(conn, submission_id)
 }
