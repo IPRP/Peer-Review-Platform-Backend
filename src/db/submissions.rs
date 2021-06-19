@@ -142,10 +142,10 @@ pub struct OwnSubmission {
     pub reviews: Vec<FullReview>,
 }
 
-pub fn get_own_submission(
+fn get_full_submission(
     conn: &MysqlConnection,
     submission_id: u64,
-    user_id: u64,
+    is_teacher: bool,
 ) -> Result<OwnSubmission, ()> {
     let points_calculation = calculate_points(conn, submission_id);
     if points_calculation.is_err() {
@@ -156,13 +156,22 @@ pub fn get_own_submission(
         return Err(());
     }
     let attachments = attachments.unwrap();
-    let submission: Result<Submission, _> = submissions_t
-        .filter(sub_id.eq(submission_id).and(sub_student.eq(user_id)))
-        .first(conn);
+    let submission: Result<Submission, _> =
+        submissions_t.filter(sub_id.eq(submission_id)).first(conn);
     if submission.is_err() {
         return Err(());
     }
     let submission = submission.unwrap();
+
+    let (firstname, lastname) = if let Some(student) = submission.student {
+        if let Ok(student) = db::users::get_by_id(conn, student) {
+            (Some(student.firstname), Some(student.lastname))
+        } else {
+            (Some(String::from("Not Found")), Some(String::from("")))
+        }
+    } else {
+        (Some(String::from("Not Found")), Some(String::from("")))
+    };
 
     let no_reviews = if submission.meanpoints.is_none() {
         true
@@ -171,10 +180,18 @@ pub fn get_own_submission(
     };
 
     let reviews = if submission.reviewsdone {
-        if let Ok(reviews) = db::reviews::get_full_reviews(conn, submission_id) {
-            reviews
+        if is_teacher {
+            if let Ok(reviews) = db::reviews::get_full_reviews_with_names(conn, submission_id) {
+                reviews
+            } else {
+                Vec::new()
+            }
         } else {
-            Vec::new()
+            if let Ok(reviews) = db::reviews::get_full_reviews(conn, submission_id) {
+                reviews
+            } else {
+                Vec::new()
+            }
         }
     } else {
         Vec::new()
@@ -190,10 +207,21 @@ pub fn get_own_submission(
         no_reviews,
         points: submission.meanpoints,
         max_points: submission.maxpoint,
-        firstname: None,
-        lastname: None,
+        firstname,
+        lastname,
         reviews,
     })
+}
+
+pub fn get_own_submission(conn: &MysqlConnection, submission_id: u64) -> Result<OwnSubmission, ()> {
+    get_full_submission(conn, submission_id, false)
+}
+
+pub fn get_teacher_submission(
+    conn: &MysqlConnection,
+    submission_id: u64,
+) -> Result<OwnSubmission, ()> {
+    get_full_submission(conn, submission_id, true)
 }
 
 #[derive(Serialize)]

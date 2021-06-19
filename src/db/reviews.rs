@@ -390,7 +390,7 @@ fn get_full_reviews_internal(
 pub fn get_full_reviews(conn: &MysqlConnection, submission_id: u64) -> Result<Vec<FullReview>, ()> {
     let workshop = db::workshops::get_by_submission_id(conn, submission_id);
     let with_names = if workshop.is_ok() {
-        workshop.unwrap().anonymous
+        !workshop.unwrap().anonymous
     } else {
         false
     };
