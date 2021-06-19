@@ -2,7 +2,8 @@ use crate::db;
 use crate::models::{Kind, NewReview, Review, ReviewPoints, Role};
 use crate::routes::submissions::UpdateReview;
 use crate::schema::criterion::dsl::{
-    criterion as criterion_t, id as c_id, kind as c_kind, weight as c_weight,
+    content as c_content, criterion as criterion_t, id as c_id, kind as c_kind, title as c_title,
+    weight as c_weight,
 };
 use crate::schema::reviewpoints::dsl::{
     criterion as rp_criterion, points as rp_points, review as rp_review,
@@ -309,7 +310,6 @@ pub fn get_simple_review_points(
     Ok(simple_reviews)
 }
 
-/**
 #[derive(Serialize)]
 pub struct FullReview {
     pub id: u64,
@@ -318,19 +318,91 @@ pub struct FullReview {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub lastname: Option<String>,
     pub feedback: String,
-    pub points: Vec<ReviewPoints>,
+    pub points: Vec<FullReviewPoints>,
 }
 
 #[derive(Debug, Serialize)]
-pub struct ReviewPoints {
-    title: String,
-    content: String,
-    weight: f64,
+pub struct FullReviewPoints {
+    pub title: String,
+    pub content: String,
+    pub weight: f64,
     #[serde(rename = "type")]
-    kind: Kind,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    points: Option<f64>,
-}*/
+    pub kind: Kind,
+    pub points: f64,
+}
+
+fn get_full_reviews_internal(
+    conn: &MysqlConnection,
+    submission_id: u64,
+    with_names: bool,
+) -> Result<Vec<FullReview>, ()> {
+    let reviews = reviews_t
+        .filter(reviews_sub.eq(submission_id).and(reviews_error.eq(false)))
+        .get_results::<Review>(conn);
+    if reviews.is_err() {
+        return Err(());
+    }
+    let reviews: Vec<Review> = reviews.unwrap();
+
+    let mut full_reviews: Vec<FullReview> = Vec::new();
+    for review in reviews.iter() {
+        let points = criterion_t
+            .inner_join(reviewpoints_t.on(c_id.eq(rp_criterion)))
+            .filter(rp_review.eq(review.id))
+            .select((c_title, c_content, c_weight, c_kind, rp_points))
+            .get_results::<(String, String, f64, Kind, Option<f64>)>(conn);
+        if points.is_err() {
+            return Err(());
+        }
+        let points: Vec<(String, String, f64, Kind, Option<f64>)> = points.unwrap();
+        let points: Vec<FullReviewPoints> = points
+            .into_iter()
+            .map(|point| FullReviewPoints {
+                title: point.0,
+                content: point.1,
+                weight: point.2,
+                kind: point.3,
+                points: point.4.unwrap(),
+            })
+            .collect();
+        let (firstname, lastname) = if with_names && review.reviewer.is_some() {
+            let user = db::users::get_by_id(conn, review.reviewer.unwrap());
+            if user.is_ok() {
+                let user = user.unwrap();
+                (Some(user.firstname), Some(user.lastname))
+            } else {
+                (None, None)
+            }
+        } else {
+            (None, None)
+        };
+        full_reviews.push(FullReview {
+            id: review.id,
+            firstname,
+            lastname,
+            feedback: review.feedback.clone(),
+            points,
+        });
+    }
+    Ok(full_reviews)
+}
+
+pub fn get_full_reviews(conn: &MysqlConnection, submission_id: u64) -> Result<Vec<FullReview>, ()> {
+    let workshop = db::workshops::get_by_submission_id(conn, submission_id);
+    let with_names = if workshop.is_ok() {
+        workshop.unwrap().anonymous
+    } else {
+        false
+    };
+    get_full_reviews_internal(conn, submission_id, with_names)
+}
+
+pub fn get_full_reviews_with_names(
+    conn: &MysqlConnection,
+    submission_id: u64,
+) -> Result<Vec<FullReview>, ()> {
+    get_full_reviews_internal(conn, submission_id, true)
+}
 
 pub fn is_reviewer(conn: &MysqlConnection, submission_id: u64, student_id: u64) -> bool {
     let exists: Result<Review, diesel::result::Error> = reviews_t

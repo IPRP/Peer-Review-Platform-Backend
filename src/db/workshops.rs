@@ -1,3 +1,4 @@
+use crate::db;
 use crate::models::{
     Criteria as NewCriteria, NewCriterion, NewStudent, NewWorkshop, Role, User, Workshop,
     Workshoplist,
@@ -34,6 +35,17 @@ pub fn get_by_user(conn: &MysqlConnection, id: u64) -> Vec<Workshop> {
         }
         Err(_) => Vec::with_capacity(0),
     }
+}
+
+pub fn get_by_submission_id(conn: &MysqlConnection, submission_id: u64) -> Result<Workshop, Error> {
+    let submission = db::submissions::get_by_id(conn, submission_id);
+    if submission.is_err() {
+        return Err(Error::NotFound);
+    }
+    let submission = submission.unwrap();
+    workshops_t
+        .filter(ws_id.eq(submission.workshop))
+        .first(conn)
 }
 
 pub fn create<'a>(

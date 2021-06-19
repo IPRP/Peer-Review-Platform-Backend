@@ -1,4 +1,5 @@
 use crate::db;
+use crate::db::reviews::FullReview;
 use crate::models::{
     Criterion, Kind, NewSubmission, Role, SimpleAttachment, Submission, Submissionattachment,
     Submissioncriteria,
@@ -138,6 +139,7 @@ pub struct OwnSubmission {
     pub firstname: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub lastname: Option<String>,
+    pub reviews: Vec<FullReview>,
 }
 
 pub fn get_own_submission(
@@ -162,11 +164,20 @@ pub fn get_own_submission(
     }
     let submission = submission.unwrap();
 
-    // TODO reviews
     let no_reviews = if submission.meanpoints.is_none() {
         true
     } else {
         false
+    };
+
+    let reviews = if submission.reviewsdone {
+        if let Ok(reviews) = db::reviews::get_full_reviews(conn, submission_id) {
+            reviews
+        } else {
+            Vec::new()
+        }
+    } else {
+        Vec::new()
     };
 
     Ok(OwnSubmission {
@@ -181,6 +192,7 @@ pub fn get_own_submission(
         max_points: submission.maxpoint,
         firstname: None,
         lastname: None,
+        reviews,
     })
 }
 
@@ -357,4 +369,8 @@ pub fn lock(conn: &MysqlConnection, submission_id: u64) -> Result<(), ()> {
         Ok(_) => Ok(()),
         Err(_) => Err(()),
     }
+}
+
+pub fn get_by_id(conn: &MysqlConnection, submission_id: u64) -> Result<Submission, Error> {
+    submissions_t.filter(sub_id.eq(submission_id)).first(conn)
 }
