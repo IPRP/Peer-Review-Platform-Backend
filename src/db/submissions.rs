@@ -12,7 +12,8 @@ use crate::schema::submissioncriteria::dsl::{
     criterion as subcrit_crit, submission as subcrit_sub, submissioncriteria as subcrit_t,
 };
 use crate::schema::submissions::dsl::{
-    id as sub_id, student as sub_student, submissions as submissions_t,
+    error as sub_error, id as sub_id, meanpoints as sub_meanpoints, student as sub_student,
+    submissions as submissions_t,
 };
 use diesel::prelude::*;
 use diesel::result::Error;
@@ -219,6 +220,31 @@ pub fn get_student_submission(
         attachments,
         criteria: submission_criteria,
     })
+}
+
+fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), ()> {
+    let submission = submissions_t
+        .filter(
+            sub_id
+                .eq(submission_id)
+                .and(sub_meanpoints.is_null().and(sub_error.eq(false))),
+        )
+        .first();
+
+    if submission.is_err() {
+        // Submission points are already calculated
+        return Ok(());
+    }
+    let submission: Submission = submission.unwrap();
+    // Get all reviews without errors
+
+    // If there are not, this review cannot be graded (no reviews)
+
+    // Calculate mean points and max points (based on criterion and weights)
+
+    // Update submission
+
+    Ok(())
 }
 
 pub fn get_criteria(conn: &MysqlConnection, submission_id: u64) -> Result<Vec<Criterion>, ()> {
