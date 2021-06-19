@@ -235,7 +235,7 @@ CREATE TABLE submissionattachments
     FOREIGN KEY (attachment) REFERENCES attachments (id) ON DELETE CASCADE
 ); */
 
-#[derive(Queryable, Clone)]
+#[derive(Queryable, AsChangeset, Clone)]
 pub struct Submission {
     pub id: u64,
     pub title: String,
@@ -247,7 +247,7 @@ pub struct Submission {
     pub reviewsdone: bool,
     pub error: bool,
     pub meanpoints: Option<f64>,
-    pub maxpoints: Option<f64>,
+    pub maxpoint: Option<f64>,
 }
 
 #[derive(Insertable, Queryable, Clone)]

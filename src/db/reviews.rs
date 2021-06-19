@@ -1,9 +1,16 @@
 use crate::db;
 use crate::models::{Kind, NewReview, Review, ReviewPoints, Role};
 use crate::routes::submissions::UpdateReview;
-use crate::schema::reviewpoints::dsl::{review as rp_review, reviewpoints as reviewpoints_t};
+use crate::schema::criterion::dsl::{
+    criterion as criterion_t, id as c_id, kind as c_kind, weight as c_weight,
+};
+use crate::schema::reviewpoints::dsl::{
+    criterion as rp_criterion, points as rp_points, review as rp_review,
+    reviewpoints as reviewpoints_t,
+};
 use crate::schema::reviews::dsl::{
-    id as reviews_id, reviewer, reviews as reviews_t, submission as reviews_sub,
+    error as reviews_error, id as reviews_id, reviewer, reviews as reviews_t,
+    submission as reviews_sub,
 };
 use crate::schema::workshoplist::dsl::{
     role as wsl_role, user as wsl_user, workshop as wsl_ws, workshoplist as workshoplist_t,
@@ -251,6 +258,50 @@ pub fn update(
         Ok(_) => true,
         Err(_) => false,
     }
+}
+
+#[derive(Serialize)]
+pub struct SimpleReviewPoints {
+    pub weight: f64,
+    pub kind: Kind,
+    pub points: f64,
+}
+
+pub fn get_simple_review_points(
+    conn: &MysqlConnection,
+    submission_id: u64,
+) -> Result<Vec<Vec<SimpleReviewPoints>>, ()> {
+    let reviews = reviews_t
+        .filter(reviews_sub.eq(submission_id).and(reviews_error.eq(false)))
+        .select(reviews_id)
+        .get_results::<u64>(conn);
+    if reviews.is_err() {
+        return Err(());
+    }
+    let reviews: Vec<u64> = reviews.unwrap();
+
+    let mut simple_reviews: Vec<Vec<SimpleReviewPoints>> = Vec::new();
+    for review in reviews {
+        let points = criterion_t
+            .inner_join(reviewpoints_t.on(c_id.eq(rp_criterion)))
+            .filter(rp_review.eq(review))
+            .select((c_weight, c_kind, rp_points))
+            .get_results::<(f64, Kind, Option<f64>)>(conn);
+        if points.is_err() {
+            return Err(());
+        }
+        let points: Vec<(f64, Kind, Option<f64>)> = points.unwrap();
+        let points: Vec<SimpleReviewPoints> = points
+            .into_iter()
+            .map(|point| SimpleReviewPoints {
+                weight: point.0,
+                kind: point.1,
+                points: point.2.unwrap(),
+            })
+            .collect();
+        simple_reviews.push(points);
+    }
+    Ok(simple_reviews)
 }
 
 /**

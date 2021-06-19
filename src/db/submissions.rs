@@ -1,6 +1,6 @@
 use crate::db;
 use crate::models::{
-    Criterion, NewSubmission, Role, SimpleAttachment, Submission, Submissionattachment,
+    Criterion, Kind, NewSubmission, Role, SimpleAttachment, Submission, Submissionattachment,
     Submissioncriteria,
 };
 use crate::schema::criteria::dsl::workshop;
@@ -17,6 +17,7 @@ use crate::schema::submissions::dsl::{
 };
 use diesel::prelude::*;
 use diesel::result::Error;
+use std::ops::Add;
 
 pub fn create<'a>(
     conn: &MysqlConnection,
@@ -229,22 +230,78 @@ fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), ()
                 .eq(submission_id)
                 .and(sub_meanpoints.is_null().and(sub_error.eq(false))),
         )
-        .first();
+        .first(conn);
 
     if submission.is_err() {
         // Submission points are already calculated
         return Ok(());
     }
-    let submission: Submission = submission.unwrap();
+    let mut submission: Submission = submission.unwrap();
     // Get all reviews without errors
-
-    // If there are not, this review cannot be graded (no reviews)
-
-    // Calculate mean points and max points (based on criterion and weights)
-
-    // Update submission
-
-    Ok(())
+    let reviews = db::reviews::get_simple_review_points(conn, submission_id);
+    if reviews.is_err() {
+        return Err(());
+    }
+    let reviews = reviews.unwrap();
+    // Perform updates
+    let res = conn.transaction::<_, _, _>(|| {
+        // If there are no reviews, a submissions cannot be graded
+        if reviews.len() == 0 {
+            // Save error state
+            submission.error = true;
+            let update = diesel::update(submissions_t).set(&submission).execute(conn);
+            if update.is_err() {
+                return Err(Error::RollbackTransaction);
+            }
+        } else {
+            // Calculate mean points and max points (based on criterion and weights)
+            // Max points
+            let point_range = 10.0;
+            let mut max_points = 0.0;
+            for points in reviews.first() {
+                for point in points {
+                    max_points += point_range * point.weight;
+                }
+            }
+            // Mean points
+            let mut mean_points = 0.0;
+            for points in reviews.iter() {
+                let mut review_mean_points = 0.0;
+                for point in points {
+                    let weighted_points = match point.kind {
+                        Kind::Point => (point.points % point_range) * point.weight,
+                        Kind::Grade => match point.points {
+                            1.0 => point_range,
+                            2.0 => point_range * 0.8,
+                            3.0 => point_range * 0.6,
+                            4.0 => point_range * 0.5,
+                            _ => 0.0,
+                        },
+                        Kind::Percentage => ((point.points % 100.0) / point_range) * point.weight,
+                        Kind::Truefalse => match point.points {
+                            1.0 => point_range * point.weight,
+                            _ => 0.0,
+                        },
+                    };
+                    review_mean_points += weighted_points;
+                }
+                mean_points += review_mean_points;
+            }
+            mean_points /= reviews.len() as f64;
+            // Update submission
+            submission.maxpoint = Some(max_points);
+            submission.meanpoints = Some(mean_points);
+            let update = diesel::update(submissions_t).set(&submission).execute(conn);
+            if update.is_err() {
+                return Err(Error::RollbackTransaction);
+            }
+        }
+        Ok(())
+    });
+    match res {
+        Ok(_) => Ok(()),
+        Err(_) => Err(()),
+    }
 }
 
 pub fn get_criteria(conn: &MysqlConnection, submission_id: u64) -> Result<Vec<Criterion>, ()> {

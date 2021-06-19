@@ -48,7 +48,8 @@ INSERT INTO `criterion` VALUES (1,'Criterion','True/False',10,'truefalse'),(2,'O
 INSERT INTO `criteria` VALUES (1,1),(1,2);
     "#,
             );
-            println!("Database reset: {:?}", res);
+            println!("Database reset: ");
+            println!("    => {:?}", res);
             Ok(rocket)
         }
         Err(e) => {
