@@ -220,3 +220,22 @@ pub fn get_student_submission(
         criteria: submission_criteria,
     })
 }
+
+pub fn get_criteria(conn: &MysqlConnection, submission_id: u64) -> Result<Vec<Criterion>, ()> {
+    let submission_criteria: Result<Vec<u64>, _> = subcrit_t
+        .filter(subcrit_sub.eq(submission_id))
+        .select(subcrit_crit)
+        .get_results(conn);
+    if submission_criteria.is_err() {
+        return Err(());
+    }
+    let submission_criteria = submission_criteria.unwrap();
+
+    let submission_criteria: Result<Vec<Criterion>, _> = criterion_t
+        .filter(c_id.eq_any(submission_criteria))
+        .get_results(conn);
+    if submission_criteria.is_err() {
+        return Err(());
+    }
+    Ok(submission_criteria.unwrap())
+}

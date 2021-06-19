@@ -187,6 +187,7 @@ pub fn update(
     user_id: u64,
 ) -> bool {
     let res = conn.transaction::<_, _, _>(|| {
+        // Get review
         let review: Result<Review, _> = reviews_t
             .filter(reviews_id.eq(review_id).and(reviewer.eq(user_id)))
             .first(conn);
@@ -194,13 +195,31 @@ pub fn update(
             return Err(Error::RollbackTransaction);
         }
         let mut review = review.unwrap();
+
+        // Check if all point criteria were given for update
+        let criteria = db::submissions::get_criteria(conn, review.submission);
+        if criteria.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
+        let criteria = criteria.unwrap();
+        let update_ids: Vec<u64> = update_review
+            .points
+            .iter()
+            .map(|update_points| update_points.id)
+            .collect();
+        for criterion in criteria {
+            if !update_ids.contains(&criterion.id) {
+                return Err(Error::RollbackTransaction);
+            }
+        }
+
+        // Update review
         review.feedback = update_review.feedback;
         review.done = true;
         diesel::update(reviews_t).set(&review).execute(conn);
 
-        // TODO check if all point criteria were given
-        // Submission has 2 criteria, review needs to have two filled out criteria
-
+        // Update review points
+        // First `update_review` needs to be changed into a insertable form
         let review_points: Vec<ReviewPoints> = update_review
             .points
             .into_iter()
