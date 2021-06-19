@@ -1,7 +1,7 @@
 use crate::db;
 use crate::models::{Kind, NewReview, Review, ReviewPoints, Role};
 use crate::routes::submissions::UpdateReview;
-use crate::schema::reviewpoints::dsl::reviewpoints as reviewpoints_t;
+use crate::schema::reviewpoints::dsl::{review as rp_review, reviewpoints as reviewpoints_t};
 use crate::schema::reviews::dsl::{
     id as reviews_id, reviewer, reviews as reviews_t, submission as reviews_sub,
 };
@@ -210,9 +210,20 @@ pub fn update(
                 points: update_points.points,
             })
             .collect();
-        diesel::insert_into(reviewpoints_t)
+
+        // Drop already given review points
+        let delete = diesel::delete(reviewpoints_t.filter(rp_review.eq(review_id))).execute(conn);
+        if delete.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
+
+        // Insert new review points
+        let insert = diesel::insert_into(reviewpoints_t)
             .values(&review_points)
             .execute(conn);
+        if insert.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
 
         Ok(())
     });
