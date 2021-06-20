@@ -1,7 +1,7 @@
 use crate::db;
 use crate::models::{
-    Criteria as NewCriteria, NewCriterion, NewStudent, NewWorkshop, Role, User, Workshop,
-    Workshoplist,
+    Criteria as NewCriteria, NewCriterion, NewStudent, NewWorkshop, Role, Submission, User,
+    Workshop, Workshoplist,
 };
 use crate::schema::criteria::dsl::{
     criteria as criteria_t, criterion as criteria_criterion, workshop as criteria_workshop,
@@ -46,6 +46,15 @@ pub fn get_by_submission_id(conn: &MysqlConnection, submission_id: u64) -> Resul
     workshops_t
         .filter(ws_id.eq(submission.workshop))
         .first(conn)
+}
+
+pub fn get_by_review_id(conn: &MysqlConnection, review_id: u64) -> Result<Workshop, Error> {
+    let review = db::reviews::get_by_id(conn, review_id);
+    if review.is_err() {
+        return Err(Error::NotFound);
+    }
+    let review = review.unwrap();
+    workshops_t.filter(ws_id.eq(review.workshop)).first(conn)
 }
 
 pub fn create<'a>(

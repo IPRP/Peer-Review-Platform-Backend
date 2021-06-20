@@ -318,6 +318,9 @@ pub struct FullReview {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub lastname: Option<String>,
     pub feedback: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "notSubmitted")]
+    pub not_submitted: Option<bool>,
     pub points: Vec<FullReviewPoints>,
 }
 
@@ -381,6 +384,7 @@ fn get_full_reviews_internal(
             firstname,
             lastname,
             feedback: review.feedback.clone(),
+            not_submitted: None,
             points,
         });
     }
@@ -404,9 +408,101 @@ pub fn get_full_reviews_with_names(
     get_full_reviews_internal(conn, submission_id, true)
 }
 
+fn get_full_review_internal(
+    conn: &MysqlConnection,
+    review_id: u64,
+    with_names: bool,
+) -> Result<FullReview, ()> {
+    let review = reviews_t
+        .filter(reviews_id.eq(review_id))
+        .first::<Review>(conn);
+    if review.is_err() {
+        return Err(());
+    }
+    let review: Review = review.unwrap();
+
+    let points = if !review.error {
+        let points = criterion_t
+            .inner_join(reviewpoints_t.on(c_id.eq(rp_criterion)))
+            .filter(rp_review.eq(review.id))
+            .select((c_title, c_content, c_weight, c_kind, rp_points))
+            .get_results::<(String, String, f64, Kind, Option<f64>)>(conn);
+        if points.is_err() {
+            Vec::new()
+        } else {
+            let points: Vec<(String, String, f64, Kind, Option<f64>)> = points.unwrap();
+            points
+                .into_iter()
+                .map(|point| FullReviewPoints {
+                    title: point.0,
+                    content: point.1,
+                    weight: point.2,
+                    kind: point.3,
+                    points: point.4.unwrap(),
+                })
+                .collect()
+        }
+    } else {
+        Vec::new()
+    };
+
+    let (firstname, lastname) = if with_names && review.reviewer.is_some() {
+        let user = db::users::get_by_id(conn, review.reviewer.unwrap());
+        if user.is_ok() {
+            let user = user.unwrap();
+            (Some(user.firstname), Some(user.lastname))
+        } else {
+            (None, None)
+        }
+    } else {
+        (None, None)
+    };
+
+    Ok(FullReview {
+        id: review.id,
+        firstname,
+        lastname,
+        feedback: review.feedback.clone(),
+        not_submitted: Some(review.error),
+        points,
+    })
+}
+
+pub fn get_full_review(conn: &MysqlConnection, review_id: u64) -> Result<FullReview, ()> {
+    let workshop = db::workshops::get_by_submission_id(conn, review_id);
+    let with_names = if workshop.is_ok() {
+        !workshop.unwrap().anonymous
+    } else {
+        false
+    };
+    get_full_review_internal(conn, review_id, with_names)
+}
+
+pub fn get_full_review_with_names(
+    conn: &MysqlConnection,
+    review_id: u64,
+) -> Result<FullReview, ()> {
+    get_full_review_internal(conn, review_id, true)
+}
+
 pub fn is_reviewer(conn: &MysqlConnection, submission_id: u64, student_id: u64) -> bool {
     let exists: Result<Review, diesel::result::Error> = reviews_t
         .filter(reviewer.eq(student_id).and(reviews_sub.eq(submission_id)))
+        .first(conn);
+    if exists.is_ok() {
+        true
+    } else {
+        false
+    }
+}
+
+pub fn get_by_id(conn: &MysqlConnection, review_id: u64) -> Result<Review, Error> {
+    reviews_t.filter(reviews_id.eq(review_id)).first(conn)
+}
+
+pub fn is_owner(conn: &MysqlConnection, review_id: u64, student_id: u64) -> bool {
+    let exists: Result<Review, diesel::result::Error> = reviews_t
+        .filter(reviews_id.eq(review_id).and(reviewer.eq(student_id)))
         .first(conn);
     if exists.is_ok() {
         true
