@@ -25,8 +25,10 @@ pub struct TodoReview {
     pub done: bool,
     pub deadline: chrono::NaiveDateTime,
     pub title: String,
-    pub firstname: String,
-    pub lastname: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub firstname: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lastname: Option<String>,
     pub submission: u64,
     #[serde(rename(serialize = "workshopName"))]
     pub workshop_name: String,
@@ -72,6 +74,7 @@ pub fn get(conn: &MysqlConnection, student_id: u64) -> Result<Todo, ()> {
             user_lastname,
             sub_id,
             ws_title,
+            ws_id,
         ))
         .get_results::<(
             u64,
@@ -82,6 +85,7 @@ pub fn get(conn: &MysqlConnection, student_id: u64) -> Result<Todo, ()> {
             String,
             u64,
             String,
+            u64,
         )>(conn);
 
     if raw_reviews.is_err() {
@@ -91,15 +95,23 @@ pub fn get(conn: &MysqlConnection, student_id: u64) -> Result<Todo, ()> {
 
     let reviews: Vec<TodoReview> = raw_reviews
         .into_iter()
-        .map(|review| TodoReview {
-            id: review.0,
-            done: review.1,
-            deadline: review.2,
-            title: review.3,
-            firstname: review.4,
-            lastname: review.5,
-            submission: review.6,
-            workshop_name: review.7,
+        .map(|review| {
+            let (firstname, lastname): (Option<String>, Option<String>) =
+                if !db::workshops::is_anonymous(conn, review.8) {
+                    (Some(review.4), Some(review.5))
+                } else {
+                    (None, None)
+                };
+            TodoReview {
+                id: review.0,
+                done: review.1,
+                deadline: review.2,
+                title: review.3,
+                firstname,
+                lastname,
+                submission: review.6,
+                workshop_name: review.7,
+            }
         })
         .collect();
 

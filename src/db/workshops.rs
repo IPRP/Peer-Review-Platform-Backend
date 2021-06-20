@@ -1,4 +1,5 @@
 use crate::db;
+use crate::db::reviews::WorkshopReview;
 use crate::db::submissions::WorkshopSubmission;
 use crate::models::{
     Criteria as NewCriteria, NewCriterion, NewStudent, NewWorkshop, Role, Submission, User,
@@ -329,15 +330,7 @@ fn roles_in_workshop(
                         Err(_) => None,
                     }
                 } else {
-                    let submissions = db::submissions::get_student_workshop_submissions(
-                        conn,
-                        workshop_id,
-                        user.0,
-                    );
-                    match submissions {
-                        Ok(submissions) => Some(submissions),
-                        Err(_) => None,
-                    }
+                    None
                 }
             } else {
                 None
@@ -411,9 +404,82 @@ pub fn get_teacher_workshop(
     })
 }
 
+#[derive(Serialize)]
+pub struct StudentWorkshop {
+    pub title: String,
+    pub content: String,
+    pub end: chrono::NaiveDateTime,
+    pub anonymous: bool,
+    pub students: Vec<WorkshopUser>,
+    pub teachers: Vec<WorkshopUser>,
+    pub submissions: Vec<WorkshopSubmission>,
+    pub reviews: Vec<WorkshopReview>,
+}
+
+pub fn get_student_workshop(
+    conn: &MysqlConnection,
+    workshop_id: u64,
+    student_id: u64,
+) -> Result<StudentWorkshop, ()> {
+    if !student_in_workshop(conn, student_id, workshop_id) {
+        return Err(());
+    }
+
+    let workshop: Result<Workshop, diesel::result::Error> =
+        workshops_t.filter(ws_id.eq(workshop_id)).first(conn);
+    if workshop.is_err() {
+        return Err(());
+    }
+    let workshop = workshop.unwrap();
+    let students = roles_in_workshop(conn, workshop_id, Role::Student, false);
+    if students.is_err() {
+        return Err(());
+    }
+    let students = students.unwrap();
+    let teachers = roles_in_workshop(conn, workshop_id, Role::Teacher, false);
+    if teachers.is_err() {
+        return Err(());
+    }
+    let teachers = teachers.unwrap();
+    let submissions =
+        db::submissions::get_student_workshop_submissions(conn, workshop_id, student_id);
+    if submissions.is_err() {
+        return Err(());
+    }
+    let submissions = submissions.unwrap();
+    let reviews = db::reviews::get_student_workshop_reviews(conn, workshop_id, student_id);
+    if reviews.is_err() {
+        return Err(());
+    }
+    let reviews = reviews.unwrap();
+
+    Ok(StudentWorkshop {
+        title: workshop.title,
+        content: workshop.content,
+        end: workshop.end,
+        anonymous: workshop.anonymous,
+        students,
+        teachers,
+        submissions,
+        reviews,
+    })
+}
+
 pub fn get_criteria(conn: &MysqlConnection, workshop_id: u64) -> Result<Vec<u64>, Error> {
     criteria_t
         .select(criteria_criterion)
         .filter(criteria_workshop.eq(workshop_id))
         .get_results::<u64>(conn)
+}
+
+pub fn is_anonymous(conn: &MysqlConnection, workshop_id: u64) -> bool {
+    let anonymous = workshops_t
+        .select(ws_anonymous)
+        .filter(ws_id.eq(workshop_id))
+        .first(conn);
+    if anonymous.is_err() {
+        return false;
+    }
+    let anonymous = anonymous.unwrap();
+    anonymous
 }

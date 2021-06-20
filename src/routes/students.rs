@@ -33,6 +33,26 @@ pub fn workshops(user: User, conn: IprpDB) -> Result<Json<JsonValue>, ApiRespons
     })))
 }
 
+#[get("/student/workshop/<workshop_id>")]
+pub fn workshop(
+    user: User,
+    conn: IprpDB,
+    workshop_id: u64,
+) -> Result<Json<JsonValue>, ApiResponse> {
+    if user.role == Role::Teacher {
+        return Err(ApiResponse::forbidden());
+    }
+
+    let workshop = db::workshops::get_student_workshop(&*conn, workshop_id, user.id);
+    match workshop {
+        Ok(workshop) => Ok(Json(json!({
+            "ok": true,
+            "workshop": workshop
+        }))),
+        Err(_) => Err(ApiResponse::not_found()),
+    }
+}
+
 #[get("/student/todos")]
 pub fn todos(user: User, conn: IprpDB) -> Result<Json<JsonValue>, ApiResponse> {
     if user.role == Role::Teacher {

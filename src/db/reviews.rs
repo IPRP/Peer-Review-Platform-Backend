@@ -10,12 +10,20 @@ use crate::schema::reviewpoints::dsl::{
     reviewpoints as reviewpoints_t,
 };
 use crate::schema::reviews::dsl::{
-    error as reviews_error, id as reviews_id, reviewer, reviews as reviews_t,
-    submission as reviews_sub,
+    deadline as reviews_deadline, done as reviews_done, error as reviews_error, id as reviews_id,
+    reviewer, reviews as reviews_t, submission as reviews_sub,
+};
+use crate::schema::submissions::dsl::{
+    id as sub_id, student as sub_student, submissions as submissions_t, title as sub_title,
+    workshop as sub_ws,
+};
+use crate::schema::users::dsl::{
+    firstname as u_firstname, id as u_id, lastname as u_lastname, users as users_t,
 };
 use crate::schema::workshoplist::dsl::{
     role as wsl_role, user as wsl_user, workshop as wsl_ws, workshoplist as workshoplist_t,
 };
+use crate::schema::workshops::dsl::{id as ws_id, title as ws_title, workshops as workshops_t};
 use chrono::{DateTime, Duration, Local, NaiveDateTime, TimeZone, Utc};
 use diesel::connection::SimpleConnection;
 use diesel::dsl::count;
@@ -536,4 +544,72 @@ pub fn is_submission_owner(conn: &MysqlConnection, review_id: u64, student_id: u
 
 pub fn get_by_id(conn: &MysqlConnection, review_id: u64) -> Result<Review, Error> {
     reviews_t.filter(reviews_id.eq(review_id)).first(conn)
+}
+
+#[derive(Serialize)]
+pub struct WorkshopReview {
+    pub id: u64,
+    pub done: bool,
+    pub deadline: chrono::NaiveDateTime,
+    pub title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub firstname: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lastname: Option<String>,
+}
+
+pub fn get_student_workshop_reviews(
+    conn: &MysqlConnection,
+    workshop_id: u64,
+    student_id: u64,
+) -> Result<Vec<WorkshopReview>, ()> {
+    let raw_reviews = reviews_t
+        .inner_join(submissions_t.on(sub_id.eq(reviews_sub)))
+        .inner_join(workshops_t.on(ws_id.eq(sub_ws)))
+        .inner_join(users_t.on(u_id.nullable().eq(sub_student.nullable())))
+        .filter(reviewer.eq(student_id).and(ws_id.eq(workshop_id)))
+        .select((
+            reviews_id,
+            reviews_done,
+            reviews_deadline,
+            sub_title,
+            u_firstname,
+            u_lastname,
+            ws_id,
+        ))
+        .get_results::<(
+            u64,
+            bool,
+            chrono::NaiveDateTime,
+            String,
+            String,
+            String,
+            u64,
+        )>(conn);
+
+    if raw_reviews.is_err() {
+        return Err(());
+    }
+    let raw_reviews = raw_reviews.unwrap();
+
+    let reviews: Vec<WorkshopReview> = raw_reviews
+        .into_iter()
+        .map(|review| {
+            let (firstname, lastname): (Option<String>, Option<String>) =
+                if !db::workshops::is_anonymous(conn, review.6) {
+                    (Some(review.4), Some(review.5))
+                } else {
+                    (None, None)
+                };
+            WorkshopReview {
+                id: review.0,
+                done: review.1,
+                deadline: review.2,
+                title: review.3,
+                firstname,
+                lastname,
+            }
+        })
+        .collect();
+    Ok(reviews)
 }
