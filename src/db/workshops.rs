@@ -1,4 +1,5 @@
 use crate::db;
+use crate::db::submissions::WorkshopSubmission;
 use crate::models::{
     Criteria as NewCriteria, NewCriterion, NewStudent, NewWorkshop, Role, Submission, User,
     Workshop, Workshoplist,
@@ -7,7 +8,10 @@ use crate::schema::criteria::dsl::{
     criteria as criteria_t, criterion as criteria_criterion, workshop as criteria_workshop,
 };
 use crate::schema::criterion::dsl::{criterion as criterion_t, id as c_id};
-use crate::schema::users::dsl::{id as u_id, role as u_role, users as users_t};
+use crate::schema::users::dsl::{
+    firstname as u_firstname, id as u_id, lastname as u_lastname, role as u_role, unit as u_unit,
+    users as users_t,
+};
 use crate::schema::workshoplist::dsl::{
     role as wsl_role, user as wsl_user, workshop as wsl_ws, workshoplist as workshoplist_t,
 };
@@ -282,6 +286,98 @@ pub fn student_in_workshop(conn: &MysqlConnection, student_id: u64, workshop_id:
     } else {
         false
     }
+}
+
+#[derive(Serialize)]
+pub struct WorkshopUser {
+    pub id: u64,
+    pub firstname: String,
+    pub lastname: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub group: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub submissions: Option<Vec<WorkshopSubmission>>,
+}
+
+fn roles_in_workshop(
+    conn: &MysqlConnection,
+    workshop_id: u64,
+    role: Role,
+    is_teacher: bool,
+) -> Result<Vec<WorkshopUser>, ()> {
+    let users = workshoplist_t
+        .inner_join(users_t.on(u_id.eq(wsl_user)))
+        .filter(wsl_ws.eq(workshop_id).and(u_role.eq(role.clone())))
+        .select((u_id, u_firstname, u_lastname, u_unit))
+        .get_results::<(u64, String, String, Option<String>)>(conn);
+    if users.is_err() {
+        return Err(());
+    }
+    let users: Vec<(u64, String, String, Option<String>)> = users.unwrap();
+    let users = users
+        .into_iter()
+        .map(|user| {
+            let submissions = if role == Role::Student {
+                if is_teacher {
+                    let submissions = db::submissions::get_teacher_workshop_submissions(
+                        conn,
+                        workshop_id,
+                        user.0,
+                    );
+                    match submissions {
+                        Ok(submissions) => Some(submissions),
+                        Err(_) => None,
+                    }
+                } else {
+                    let submissions = db::submissions::get_student_workshop_submissions(
+                        conn,
+                        workshop_id,
+                        user.0,
+                    );
+                    match submissions {
+                        Ok(submissions) => Some(submissions),
+                        Err(_) => None,
+                    }
+                }
+            } else {
+                None
+            };
+            WorkshopUser {
+                id: user.0,
+                firstname: user.1,
+                lastname: user.2,
+                group: user.3,
+                submissions,
+            }
+        })
+        .collect();
+
+    Ok(users)
+}
+
+pub fn students_in_workshop(
+    conn: &MysqlConnection,
+    workshop_id: u64,
+    is_teacher: bool,
+) -> Result<Vec<WorkshopUser>, ()> {
+    roles_in_workshop(conn, workshop_id, Role::Student, is_teacher)
+}
+
+pub fn teachers_in_workshop(
+    conn: &MysqlConnection,
+    workshop_id: u64,
+    is_teacher: bool,
+) -> Result<Vec<WorkshopUser>, ()> {
+    roles_in_workshop(conn, workshop_id, Role::Teacher, is_teacher)
+}
+
+#[derive(Serialize)]
+pub struct TeacherWorkshop {
+    pub title: String,
+    pub content: String,
+    pub end: chrono::NaiveDateTime,
+    pub anonymous: bool,
+    pub teachers: Vec<WorkshopUser>,
 }
 
 pub fn get_criteria(conn: &MysqlConnection, workshop_id: u64) -> Result<Vec<u64>, Error> {

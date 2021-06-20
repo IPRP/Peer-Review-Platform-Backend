@@ -15,6 +15,7 @@ use crate::schema::submissioncriteria::dsl::{
 use crate::schema::submissions::dsl::{
     error as sub_error, id as sub_id, locked as sub_locked, meanpoints as sub_meanpoints,
     reviewsdone as sub_reviews_done, student as sub_student, submissions as submissions_t,
+    workshop as sub_workshop,
 };
 use diesel::prelude::*;
 use diesel::result::Error;
@@ -118,7 +119,6 @@ pub fn is_owner(conn: &MysqlConnection, submission_id: u64, student_id: u64) -> 
     }
 }
 
-// TODO reviews
 #[derive(Serialize)]
 pub struct OwnSubmission {
     pub title: String,
@@ -278,6 +278,107 @@ pub fn get_student_submission(
         attachments,
         criteria: submission_criteria,
     })
+}
+
+#[derive(Serialize)]
+pub struct WorkshopSubmission {
+    pub id: u64,
+    pub title: String,
+    pub date: chrono::NaiveDateTime,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub locked: Option<bool>,
+    #[serde(rename(serialize = "student_id"))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub student_id: Option<u64>,
+    #[serde(rename(serialize = "reviewsDone"))]
+    pub reviews_done: bool,
+    #[serde(rename(serialize = "noReviews"))]
+    pub no_reviews: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub points: Option<f64>,
+    #[serde(rename(serialize = "maxPoints"))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_points: Option<f64>,
+}
+
+fn get_workshop_submissions_internal(
+    conn: &MysqlConnection,
+    workshop_id: u64,
+    student_id: u64,
+    is_teacher: bool,
+) -> Result<Vec<WorkshopSubmission>, ()> {
+    let submissions: Result<Vec<Submission>, _> = submissions_t
+        .filter(sub_workshop.eq(workshop_id).and(sub_student.eq(student_id)))
+        .get_results(conn);
+    if submissions.is_err() {
+        return Err(());
+    }
+    let submissions = submissions.unwrap();
+    for submission in submissions.iter() {
+        calculate_points(conn, submission.id);
+    }
+    let submissions: Vec<WorkshopSubmission> = if is_teacher {
+        submissions
+            .into_iter()
+            .map(|submission| {
+                let no_reviews = if submission.meanpoints.is_none() {
+                    true
+                } else {
+                    false
+                };
+                WorkshopSubmission {
+                    id: submission.id,
+                    title: submission.title,
+                    date: submission.date,
+                    locked: None,
+                    student_id: Some(student_id),
+                    reviews_done: submission.reviewsdone,
+                    no_reviews,
+                    points: submission.meanpoints,
+                    max_points: submission.maxpoint,
+                }
+            })
+            .collect()
+    } else {
+        submissions
+            .into_iter()
+            .map(|submission| {
+                let no_reviews = if submission.meanpoints.is_none() {
+                    true
+                } else {
+                    false
+                };
+                WorkshopSubmission {
+                    id: submission.id,
+                    title: submission.title,
+                    date: submission.date,
+                    locked: Some(submission.locked),
+                    student_id: None,
+                    reviews_done: submission.reviewsdone,
+                    no_reviews,
+                    points: submission.meanpoints,
+                    max_points: submission.maxpoint,
+                }
+            })
+            .collect()
+    };
+    Ok(submissions)
+}
+
+pub fn get_teacher_workshop_submissions(
+    conn: &MysqlConnection,
+    workshop_id: u64,
+    student_id: u64,
+) -> Result<Vec<WorkshopSubmission>, ()> {
+    get_workshop_submissions_internal(conn, workshop_id, student_id, true)
+}
+
+pub fn get_student_workshop_submissions(
+    conn: &MysqlConnection,
+    workshop_id: u64,
+    student_id: u64,
+) -> Result<Vec<WorkshopSubmission>, ()> {
+    get_workshop_submissions_internal(conn, workshop_id, student_id, false)
 }
 
 fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), ()> {
