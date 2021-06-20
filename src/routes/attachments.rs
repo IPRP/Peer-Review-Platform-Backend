@@ -84,3 +84,14 @@ pub fn download(_user: User, conn: IprpDB, id: u64) -> Result<NamedFile, ApiResp
         Err(_) => Err(ApiResponse::not_found()),
     }
 }
+
+#[delete("/submission/remove/<id>")]
+pub fn remove(_user: User, conn: IprpDB, id: u64) -> Result<Json<JsonValue>, ApiResponse> {
+    let delete = db::attachments::delete(&*conn, id, _user.id);
+    match delete {
+        Ok(_) => Ok(Json(json!({
+            "ok": true
+        }))),
+        Err(_) => Err(ApiResponse::forbidden()),
+    }
+}

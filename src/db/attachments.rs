@@ -26,6 +26,38 @@ pub fn create<'a>(conn: &MysqlConnection, title: String, owner: u64) -> Result<A
     }
 }
 
+pub fn delete(conn: &MysqlConnection, attachment_id: u64, user_id: u64) -> Result<(), ()> {
+    // Check if attachment is already part of an submission
+    let attachment = attachments_t
+        .inner_join(subatt_t.on(att_id.eq(subatt_att)))
+        .filter(att_id.eq(attachment_id).and(att_owner.eq(user_id)))
+        .select(att_id)
+        .first::<u64>(conn);
+    if attachment.is_ok() {
+        return Err(());
+    }
+    // If no, delete attachment
+    let delete = conn.transaction::<_, _, _>(|| {
+        let delete = diesel::delete(attachments_t.filter(att_id.eq(attachment_id))).execute(conn);
+        if delete.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
+        Ok(())
+    });
+
+    match delete {
+        Ok(_) => Ok(()),
+        Err(_) => Err(()),
+    }
+}
+
+/*
+select a.id
+    from attachments a
+    inner join submissionattachments sb on a.id=sb.attachment
+    where a.id = 1;
+*/
+
 pub fn get_by_id(conn: &MysqlConnection, id: u64) -> Result<Attachment, Error> {
     attachments_t.filter(att_id.eq(id)).first(conn)
 }
