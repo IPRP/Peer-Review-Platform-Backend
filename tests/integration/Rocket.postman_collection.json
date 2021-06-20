@@ -382,6 +382,27 @@
 			"response": []
 		},
 		{
+			"name": "Get Workshop",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8000/teacher/workshop/1",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"teacher",
+						"workshop",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
 			"name": "/teacher/workshop",
 			"request": {
 				"method": "POST",
@@ -405,6 +426,36 @@
 					"path": [
 						"teacher",
 						"workshop"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update workshop",
+			"request": {
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"title\": \"Updated Workshop\",\r\n    \"content\": \"All new!\",\r\n    \"end\": \"2021-07-31T16:26:00\",\r\n    \"students\": [4, 5],\r\n    \"teachers\": [1],\r\n    \"criteria\": [{\r\n        \"title\": \"Grade\", \r\n        \"content\": \".\",\r\n        \"type\": \"grade\",\r\n        \"weight\": 10.0\r\n    }, {\r\n        \"title\": \"Points\", \r\n        \"content\": \".\",\r\n        \"type\": \"point\",\r\n        \"weight\": 10.0\r\n    }]\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8000/teacher/workshop/2",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"teacher",
+						"workshop",
+						"2"
 					]
 				}
 			},
@@ -446,6 +497,63 @@
 					"path": [
 						"student",
 						"workshops"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Workshops Student",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8000/student/workshop/1",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"student",
+						"workshop",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Workshops Student User s2",
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "1234",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "s2",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8000/student/workshop/1",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"student",
+						"workshop",
+						"1"
 					]
 				}
 			},
