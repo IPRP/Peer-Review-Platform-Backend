@@ -377,7 +377,38 @@ pub struct TeacherWorkshop {
     pub content: String,
     pub end: chrono::NaiveDateTime,
     pub anonymous: bool,
+    pub students: Vec<WorkshopUser>,
     pub teachers: Vec<WorkshopUser>,
+}
+
+pub fn get_teacher_workshop(
+    conn: &MysqlConnection,
+    workshop_id: u64,
+) -> Result<TeacherWorkshop, ()> {
+    let workshop: Result<Workshop, diesel::result::Error> =
+        workshops_t.filter(ws_id.eq(workshop_id)).first(conn);
+    if workshop.is_err() {
+        return Err(());
+    }
+    let workshop = workshop.unwrap();
+    let students = roles_in_workshop(conn, workshop_id, Role::Student, true);
+    if students.is_err() {
+        return Err(());
+    }
+    let students = students.unwrap();
+    let teachers = roles_in_workshop(conn, workshop_id, Role::Teacher, true);
+    if teachers.is_err() {
+        return Err(());
+    }
+    let teachers = teachers.unwrap();
+    Ok(TeacherWorkshop {
+        title: workshop.title,
+        content: workshop.content,
+        end: workshop.end,
+        anonymous: workshop.anonymous,
+        students,
+        teachers,
+    })
 }
 
 pub fn get_criteria(conn: &MysqlConnection, workshop_id: u64) -> Result<Vec<u64>, Error> {

@@ -53,6 +53,7 @@ fn main() {
                 routes::test::login,
                 routes::test::logout,
                 routes::db::create_user,
+                routes::teachers::workshop,
                 routes::teachers::workshops,
                 routes::teachers::search_student,
                 routes::teachers::create_workshop,

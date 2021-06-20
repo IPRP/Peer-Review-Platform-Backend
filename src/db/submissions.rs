@@ -287,7 +287,7 @@ pub struct WorkshopSubmission {
     pub date: chrono::NaiveDateTime,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub locked: Option<bool>,
-    #[serde(rename(serialize = "student_id"))]
+    #[serde(rename(serialize = "studentid"))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub student_id: Option<u64>,
     #[serde(rename(serialize = "reviewsDone"))]
@@ -307,6 +307,17 @@ fn get_workshop_submissions_internal(
     student_id: u64,
     is_teacher: bool,
 ) -> Result<Vec<WorkshopSubmission>, ()> {
+    let submissions: Result<Vec<u64>, _> = submissions_t
+        .filter(sub_workshop.eq(workshop_id).and(sub_student.eq(student_id)))
+        .select(sub_id)
+        .get_results(conn);
+    if submissions.is_err() {
+        return Err(());
+    }
+    let submissions = submissions.unwrap();
+    for submission_id in submissions {
+        calculate_points(conn, submission_id);
+    }
     let submissions: Result<Vec<Submission>, _> = submissions_t
         .filter(sub_workshop.eq(workshop_id).and(sub_student.eq(student_id)))
         .get_results(conn);
@@ -314,9 +325,6 @@ fn get_workshop_submissions_internal(
         return Err(());
     }
     let submissions = submissions.unwrap();
-    for submission in submissions.iter() {
-        calculate_points(conn, submission.id);
-    }
     let submissions: Vec<WorkshopSubmission> = if is_teacher {
         submissions
             .into_iter()

@@ -1,3 +1,4 @@
+use crate::db::workshops::TeacherWorkshop;
 use crate::models::{Kind, NewCriterion, Role, User};
 use crate::routes::models::{ApiResponse, NumberVec, WorkshopResponse};
 use crate::{db, IprpDB};
@@ -30,6 +31,26 @@ pub fn workshops(user: User, conn: IprpDB) -> Result<Json<JsonValue>, ApiRespons
         "ok": true,
         "workshops": workshop_infos
     })))
+}
+
+#[get("/teacher/workshop/<workshop_id>")]
+pub fn workshop(
+    user: User,
+    conn: IprpDB,
+    workshop_id: u64,
+) -> Result<Json<JsonValue>, ApiResponse> {
+    if user.role == Role::Student {
+        return Err(ApiResponse::forbidden());
+    }
+
+    let workshop = db::workshops::get_teacher_workshop(&*conn, workshop_id);
+    match workshop {
+        Ok(workshop) => Ok(Json(json!({
+            "ok": true,
+            "workshop": workshop
+        }))),
+        Err(_) => Err(ApiResponse::not_found()),
+    }
 }
 
 // Expected format is ISO 8601 combined date and time without timezone like `2007-04-05T14:30:30`
