@@ -308,7 +308,9 @@ fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), ()
         if reviews.len() == 0 {
             // Save error state
             submission.error = true;
-            let update = diesel::update(submissions_t).set(&submission).execute(conn);
+            let update = diesel::update(submissions_t.filter(sub_id.eq(submission.id)))
+                .set(&submission)
+                .execute(conn);
             if update.is_err() {
                 return Err(Error::RollbackTransaction);
             }
@@ -350,7 +352,9 @@ fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), ()
             // Update submission
             submission.maxpoint = Some(max_points);
             submission.meanpoints = Some(mean_points);
-            let update = diesel::update(submissions_t).set(&submission).execute(conn);
+            let update = diesel::update(submissions_t.filter(sub_id.eq(submission.id)))
+                .set(&submission)
+                .execute(conn);
             if update.is_err() {
                 return Err(Error::RollbackTransaction);
             }

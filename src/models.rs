@@ -101,7 +101,7 @@ impl NewTeacher {
     }
 }
 
-#[derive(Queryable, Clone)]
+#[derive(Queryable, AsChangeset, Clone)]
 pub struct Workshop {
     pub id: u64,
     pub title: String,

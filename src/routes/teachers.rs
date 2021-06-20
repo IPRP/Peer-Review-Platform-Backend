@@ -115,6 +115,49 @@ pub fn create_workshop(
     }
 }
 
+#[derive(FromForm, Deserialize)]
+pub struct UpdateWorkshop {
+    title: String,
+    content: String,
+    end: Date,
+    teachers: NumberVec,
+    students: NumberVec,
+    criteria: CriterionVec,
+}
+
+#[put(
+    "/teacher/workshop/<workshop_id>",
+    format = "json",
+    data = "<update_workshop>"
+)]
+pub fn update_workshop(
+    user: User,
+    conn: IprpDB,
+    workshop_id: u64,
+    update_workshop: Json<UpdateWorkshop>,
+) -> Result<Json<JsonValue>, ApiResponse> {
+    if user.role == Role::Student {
+        return Err(ApiResponse::forbidden());
+    }
+
+    let workshop = db::workshops::update(
+        &*conn,
+        workshop_id,
+        update_workshop.0.title,
+        update_workshop.0.content,
+        update_workshop.0.end.0,
+        Vec::from(update_workshop.0.teachers),
+        Vec::from(update_workshop.0.students),
+        Vec::from(update_workshop.0.criteria),
+    );
+    match workshop {
+        Ok(_) => Ok(Json(json!({
+            "ok": true,
+        }))),
+        Err(_) => Err(ApiResponse::conflict()),
+    }
+}
+
 #[delete("/teacher/workshop/<id>")]
 pub fn delete_workshop(user: User, conn: IprpDB, id: u64) -> Result<Json<JsonValue>, ApiResponse> {
     if user.role == Role::Student {

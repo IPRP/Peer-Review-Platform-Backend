@@ -56,6 +56,7 @@ fn main() {
                 routes::teachers::workshops,
                 routes::teachers::search_student,
                 routes::teachers::create_workshop,
+                routes::teachers::update_workshop,
                 routes::teachers::delete_workshop,
                 routes::attachments::upload,
                 routes::attachments::download,

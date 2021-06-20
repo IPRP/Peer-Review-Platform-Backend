@@ -143,6 +143,121 @@ pub fn create<'a>(
     }
 }
 
+pub fn update(
+    conn: &MysqlConnection,
+    workshop_id: u64,
+    title: String,
+    content: String,
+    end: chrono::NaiveDateTime,
+    teachers: Vec<u64>,
+    students: Vec<u64>,
+    criteria: Vec<NewCriterion>,
+) -> Result<Workshop, ()> {
+    let workshop = workshops_t.filter(ws_id.eq(workshop_id)).first(conn);
+    if workshop.is_err() {
+        return Err(());
+    }
+    let mut workshop: Workshop = workshop.unwrap();
+    workshop.title = title;
+    workshop.content = content;
+    workshop.end = end;
+    let ws = conn.transaction::<Workshop, _, _>(|| {
+        // Remove student & teachers
+        let delete = diesel::delete(workshoplist_t.filter(wsl_ws.eq(workshop_id))).execute(conn);
+        if delete.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
+        // Remove criteria
+        let delete =
+            diesel::delete(criteria_t.filter(criteria_workshop.eq(workshop_id))).execute(conn);
+        if delete.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
+
+        // Filter students & teachers
+        let students = users_t
+            .filter(u_role.eq(Role::Student).and(u_id.eq_any(students)))
+            .get_results::<User>(conn);
+        if students.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
+        let students = students.unwrap();
+        let teachers = users_t
+            .filter(u_role.eq(Role::Teacher).and(u_id.eq_any(teachers)))
+            .get_results::<User>(conn);
+        if teachers.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
+        let mut teachers = teachers.unwrap();
+
+        // Insert criteria
+        let insert = diesel::insert_into(criterion_t)
+            .values(&criteria)
+            .execute(conn);
+        if insert.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
+
+        let mut last_criterion_id = criterion_t
+            .select(c_id)
+            .order(c_id.desc())
+            .first(conn)
+            .unwrap();
+        last_criterion_id += 1;
+        let first_criterion_id = last_criterion_id - criteria.len() as u64;
+        let criterion_ids: Vec<u64> = (first_criterion_id..last_criterion_id).collect();
+
+        // Update workshop
+        // diesel::update(reviews_t).set(&review).execute(conn);
+        let update = diesel::update(workshops_t.filter(ws_id.eq(workshop.id)))
+            .set(&workshop)
+            .execute(conn);
+        if update.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
+
+        // Assign students & teachers to workshop
+        let mut new_workshoplist = students;
+        new_workshoplist.append(&mut teachers);
+        let new_workshoplist = new_workshoplist
+            .into_iter()
+            .map(|u| Workshoplist {
+                workshop: workshop.id,
+                user: u.id,
+                role: u.role,
+            })
+            .collect::<Vec<Workshoplist>>();
+        let insert = diesel::insert_into(workshoplist_t)
+            .values(&new_workshoplist)
+            .execute(conn);
+        if insert.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
+
+        // Assign criteria to workshop
+        let new_criteria = criterion_ids
+            .into_iter()
+            .map(|c| NewCriteria {
+                workshop: workshop.id,
+                criterion: c,
+            })
+            .collect::<Vec<NewCriteria>>();
+        let insert = diesel::insert_into(criteria_t)
+            .values(&new_criteria)
+            .execute(conn);
+        if insert.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
+
+        Ok(workshop)
+    });
+
+    match ws {
+        Ok(ws) => Ok(ws),
+        Err(_) => Err(()),
+    }
+}
+
 pub fn delete(conn: &MysqlConnection, id: u64) -> Result<(), ()> {
     let workshop: Result<Workshop, diesel::result::Error> =
         workshops_t.filter(ws_id.eq(id)).first(conn);
