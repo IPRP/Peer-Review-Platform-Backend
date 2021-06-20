@@ -66,8 +66,20 @@ pub fn get_submission(
     conn: IprpDB,
     submission_id: u64,
 ) -> Result<Json<JsonValue>, ApiResponse> {
-    // TODO teacher
-    if db::submissions::is_owner(&*conn, submission_id, user.id) {
+    if user.role == Role::Teacher {
+        let submission = db::submissions::get_teacher_submission(&*conn, submission_id);
+        match submission {
+            Ok(submission) => {
+                let mut json_response = serde_json::to_value(submission).unwrap();
+                let json_additional_info = json!({
+                    "ok": true
+                });
+                utils::json::merge(&mut json_response, &*json_additional_info);
+                Ok(Json(JsonValue::from(json_response)))
+            }
+            Err(_) => Err(ApiResponse::forbidden()),
+        }
+    } else if db::submissions::is_owner(&*conn, submission_id, user.id) {
         let submission = db::submissions::get_own_submission(&*conn, submission_id);
         match submission {
             Ok(submission) => {
