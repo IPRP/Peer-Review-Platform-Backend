@@ -588,6 +588,37 @@
 			"response": []
 		},
 		{
+			"name": "Delete Attachment",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "Authorization",
+						"type": "text",
+						"value": "",
+						"disabled": true
+					}
+				],
+				"url": {
+					"raw": "http://localhost:8000/submission/remove/1",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"submission",
+						"remove",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
 			"name": "/submission/",
 			"request": {
 				"method": "POST",
@@ -617,7 +648,7 @@
 			"response": []
 		},
 		{
-			"name": "/submission/ Copy",
+			"name": "/submission/",
 			"protocolProfileBehavior": {
 				"disableBodyPruning": true
 			},
@@ -649,7 +680,7 @@
 			"response": []
 		},
 		{
-			"name": "/submission/ Copy 2",
+			"name": "/submission/ User s2",
 			"protocolProfileBehavior": {
 				"disableBodyPruning": true
 			},
@@ -665,6 +696,53 @@
 						{
 							"key": "password",
 							"value": "1234",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"title\": \"WS-Sub\",\r\n    \"comment\": \"Hey!\",\r\n    \"attachments\": [1]\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8000/submission/1",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"submission",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/submission/ User admin teacher",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "admin",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "admin",
 							"type": "string"
 						}
 					]
@@ -717,13 +795,142 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\r\n    \"feedback\": \"Great\",\r\n    \"points\": [\r\n        {\"id\": 1, \"points\": 1.0},\r\n        {\"id\": 2, \"points\": 1.0}\r\n    ]\r\n}",
+					"raw": "{\r\n    \"feedback\": \"Great\",\r\n    \"points\": [\r\n        {\"id\": 1, \"points\": 1.0},\r\n        {\"id\": 2, \"points\": 0.0}\r\n    ]\r\n}",
 					"options": {
 						"raw": {
 							"language": "json"
 						}
 					}
 				},
+				"url": {
+					"raw": "http://localhost:8000/review/1",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"review",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get review",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "username",
+							"value": "s2",
+							"type": "string"
+						},
+						{
+							"key": "password",
+							"value": "1234",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"feedback\": \"Great\",\r\n    \"points\": [\r\n        {\"id\": 1, \"points\": 1.0},\r\n        {\"id\": 2, \"points\": 0.0}\r\n    ]\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8000/review/1",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"review",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get review reviewer",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "username",
+							"value": "s2",
+							"type": "string"
+						},
+						{
+							"key": "password",
+							"value": "1234",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"feedback\": \"Great\",\r\n    \"points\": [\r\n        {\"id\": 1, \"points\": 1.0},\r\n        {\"id\": 2, \"points\": 0.0}\r\n    ]\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8000/review/1",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"review",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get review teacher",
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "admin",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "admin",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
 				"url": {
 					"raw": "http://localhost:8000/review/1",
 					"protocol": "http",

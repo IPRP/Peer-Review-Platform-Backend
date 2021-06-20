@@ -145,3 +145,42 @@ pub fn update_review(
         false => Err(ApiResponse::forbidden()),
     }
 }
+
+#[get("/review/<review_id>")]
+pub fn get_review(
+    user: User,
+    conn: IprpDB,
+    review_id: u64,
+) -> Result<Json<JsonValue>, ApiResponse> {
+    if user.role == Role::Teacher || db::reviews::is_owner(&*conn, review_id, user.id) {
+        // If user is teacher or reviewer owner return review with name
+        let review = db::reviews::get_full_review_with_names(&*conn, review_id);
+        match review {
+            Ok(review) => {
+                let mut json_response = serde_json::to_value(review).unwrap();
+                let json_additional_info = json!({
+                    "ok": true
+                });
+                utils::json::merge(&mut json_response, &*json_additional_info);
+                Ok(Json(JsonValue::from(json_response)))
+            }
+            Err(_) => Err(ApiResponse::forbidden()),
+        }
+    } else if db::reviews::is_submission_owner(&*conn, review_id, user.id) {
+        // If user is only the submission owner, check first if the workshop is anonymous or not
+        let review = db::reviews::get_full_review(&*conn, review_id);
+        match review {
+            Ok(review) => {
+                let mut json_response = serde_json::to_value(review).unwrap();
+                let json_additional_info = json!({
+                    "ok": true
+                });
+                utils::json::merge(&mut json_response, &*json_additional_info);
+                Ok(Json(JsonValue::from(json_response)))
+            }
+            Err(_) => Err(ApiResponse::forbidden()),
+        }
+    } else {
+        Err(ApiResponse::bad_request())
+    }
+}

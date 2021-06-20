@@ -326,6 +326,8 @@ pub struct FullReview {
 
 #[derive(Debug, Serialize)]
 pub struct FullReviewPoints {
+    #[serde(rename = "id")]
+    pub criterion_id: u64,
     pub title: String,
     pub content: String,
     pub weight: f64,
@@ -352,20 +354,21 @@ fn get_full_reviews_internal(
         let points = criterion_t
             .inner_join(reviewpoints_t.on(c_id.eq(rp_criterion)))
             .filter(rp_review.eq(review.id))
-            .select((c_title, c_content, c_weight, c_kind, rp_points))
-            .get_results::<(String, String, f64, Kind, Option<f64>)>(conn);
+            .select((c_id, c_title, c_content, c_weight, c_kind, rp_points))
+            .get_results::<(u64, String, String, f64, Kind, Option<f64>)>(conn);
         if points.is_err() {
             return Err(());
         }
-        let points: Vec<(String, String, f64, Kind, Option<f64>)> = points.unwrap();
+        let points: Vec<(u64, String, String, f64, Kind, Option<f64>)> = points.unwrap();
         let points: Vec<FullReviewPoints> = points
             .into_iter()
             .map(|point| FullReviewPoints {
-                title: point.0,
-                content: point.1,
-                weight: point.2,
-                kind: point.3,
-                points: point.4.unwrap(),
+                criterion_id: point.0,
+                title: point.1,
+                content: point.2,
+                weight: point.3,
+                kind: point.4,
+                points: point.5.unwrap(),
             })
             .collect();
         let (firstname, lastname) = if with_names && review.reviewer.is_some() {
@@ -421,24 +424,25 @@ fn get_full_review_internal(
     }
     let review: Review = review.unwrap();
 
-    let points = if !review.error {
+    let points = if review.done && !review.error {
         let points = criterion_t
             .inner_join(reviewpoints_t.on(c_id.eq(rp_criterion)))
             .filter(rp_review.eq(review.id))
-            .select((c_title, c_content, c_weight, c_kind, rp_points))
-            .get_results::<(String, String, f64, Kind, Option<f64>)>(conn);
+            .select((c_id, c_title, c_content, c_weight, c_kind, rp_points))
+            .get_results::<(u64, String, String, f64, Kind, Option<f64>)>(conn);
         if points.is_err() {
             Vec::new()
         } else {
-            let points: Vec<(String, String, f64, Kind, Option<f64>)> = points.unwrap();
+            let points: Vec<(u64, String, String, f64, Kind, Option<f64>)> = points.unwrap();
             points
                 .into_iter()
                 .map(|point| FullReviewPoints {
-                    title: point.0,
-                    content: point.1,
-                    weight: point.2,
-                    kind: point.3,
-                    points: point.4.unwrap(),
+                    criterion_id: point.0,
+                    title: point.1,
+                    content: point.2,
+                    weight: point.3,
+                    kind: point.4,
+                    points: point.5.unwrap(),
                 })
                 .collect()
         }
@@ -496,10 +500,6 @@ pub fn is_reviewer(conn: &MysqlConnection, submission_id: u64, student_id: u64) 
     }
 }
 
-pub fn get_by_id(conn: &MysqlConnection, review_id: u64) -> Result<Review, Error> {
-    reviews_t.filter(reviews_id.eq(review_id)).first(conn)
-}
-
 pub fn is_owner(conn: &MysqlConnection, review_id: u64, student_id: u64) -> bool {
     let exists: Result<Review, diesel::result::Error> = reviews_t
         .filter(reviews_id.eq(review_id).and(reviewer.eq(student_id)))
@@ -509,4 +509,29 @@ pub fn is_owner(conn: &MysqlConnection, review_id: u64, student_id: u64) -> bool
     } else {
         false
     }
+}
+
+pub fn is_submission_owner(conn: &MysqlConnection, review_id: u64, student_id: u64) -> bool {
+    let review: Result<Review, diesel::result::Error> =
+        reviews_t.filter(reviews_id.eq(review_id)).first(conn);
+    if review.is_ok() {
+        let review = review.unwrap();
+        let submission = db::submissions::get_by_id(conn, review.submission);
+        if submission.is_ok() {
+            let submission = submission.unwrap();
+            if let Some(student) = submission.student {
+                student == student_id
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    } else {
+        false
+    }
+}
+
+pub fn get_by_id(conn: &MysqlConnection, review_id: u64) -> Result<Review, Error> {
+    reviews_t.filter(reviews_id.eq(review_id)).first(conn)
 }
