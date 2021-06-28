@@ -39,9 +39,13 @@ iprp_db = { url = "mysql://root@127.0.0.1:3306/iprp" }
 
 The first two properties allow one to clear the database on start-up and/or insert some mock data.
 
+> Note: A user `admin` with password `admin` is always created when not already exists
+
 The review time properties specify the duration for reviews. The aggregated time is then used by the system.
 
-The last property asks for a connection string to your MySQL database. The database must be created manually before starting the Backend.
+The last property asks for a connection string to your MySQL database. 
+
+> Note: The database must be created manually before starting the Backend.
 
 ### 🗺️ API
 
