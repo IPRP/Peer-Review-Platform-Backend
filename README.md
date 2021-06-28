@@ -19,20 +19,34 @@ cargo run
 
 ### 🗺️ API
 
-Type definitons
+Type Definitions:
 
 * `<s>` - String
+  * `<sr>` - "teacher" | "student"
+  * 
 * `<i>` - Integer
 * `<f>` - Float
 * `<d>` - Date
 
-
+#### Authentication
 
 | Route    | Method | Input             | Output | Notes |
 | -------- | ------ | ----------------- | ------ | ----- |
-| `/login` | GET    | Basic Auth Header | <pre lang=json>{<br />"id": <i>,  "role": <s> <br />}</pre> |       |
+| `/login` | POST | Basic Auth Header | <pre lang=json>{<br />"id": \<i>,  "role": \<sr> <br />}</pre> | Also returns a Session Cookie! |
+| `/logout` | POST | Session Cookie | Status Code | |
 
 
+
+#### Creating user accounts
+
+Only possible with admin account (= username `admin`).
+
+| Route            | Method | Input                                                        | Output      | Notes |
+| ---------------- | ------ | ------------------------------------------------------------ | ----------- | ----- |
+| `/users/student` | POST   | <pre lang=json>{<br />"username": \<s>, <br />"firstname": \<s>,<br />"lastname": \<s>,<br />"password": \<s>,<br />"group": \<s><br />}</pre> | Status Code |       |
+| `/users/teacher` | POST   | <pre lang=json>{<br />"username": \<s>, <br />"firstname": \<s>,<br />"lastname": \<s>,<br />"password": \<s><br />}</pre> | Status Code |       |
+
+#### 
 
 
 
