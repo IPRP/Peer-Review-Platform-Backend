@@ -27,7 +27,9 @@ Type Definitions:
 * `<b>` - Boolean
 * `<i>` - Integer
 * `<f>` - Float
-* `<d>` - Date
+* `<d>` - Date      
+  Expected format is ISO 8601 without time zone like `2007-04-05T14:30:30`     
+  In JavaScript it can be achieved like this: `(new Date()).toISOString().split(".")[0]`
 
 #### Authentication
 
