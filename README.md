@@ -7,7 +7,7 @@
 * Rust (Nightly)
 * MySQL
 
-### 🏃‍♂️ Run
+### :rocket: Run
 
 For convenience checkout the latest releases.
 
@@ -16,6 +16,23 @@ If you want to run it manually use
 ```
 cargo run
 ```
+
+### 🗺️ API
+
+Type definitons
+
+* `<s>` - String
+* `<i>` - Integer
+* `<f>` - Float
+* `<d>` - Date
+
+
+
+| Route    | Method | Input             | Output | Notes |
+| -------- | ------ | ----------------- | ------ | ----- |
+| `/login` | GET    | Basic Auth Header | <pre lang=json>{<br />"id": <i>,  "role": <s> <br />}</pre> |       |
+
+
 
 
 
