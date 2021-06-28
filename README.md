@@ -23,12 +23,13 @@ Type Definitions:
 
 * `<s>` - String
   * `<sr>` - "teacher" | "student"
-  * 
+  * `<sp>` - "point" | "grade" | "percentage" | "truefalse"
+* `<b>` - Boolean
 * `<i>` - Integer
 * `<f>` - Float
 * `<d>` - Date
 
-
+#### Authentication
 
 <table>
 <thead>
@@ -40,30 +41,202 @@ Type Definitions:
 <th>Notes</th>
 </tr>
 <tr>
-    <td><code>/login</code></td>
-    <td>POST</td>
-    <td>Basic Auth Header</td>
-    <td>
+  <td><code>/login</code></td>
+  <td>POST</td>
+  <td>Basic Auth Header</td>
+  <td>
 <pre lang=json>
-{
-	"id": &lt;i>, "role": &lt;sr>
+{ "id": &lt;i>, "role": &lt;sr> }
+</pre>
+  </td>
+	<td>Also returns a Session Cookie!</td>
+</tr>
+  <td><code>/logout</code></td>
+  <td>POST</td>
+  <td>Session Cookie</td>
+  <td>Status Code</td>
+  <td></td>
+</tr>
+</thead>
+</table>
+
+#### Teacher
+
+<table>
+<thead>
+<tr>
+<th>Route</th>
+<th>Method</th>
+<th>Input</th>
+<th>Output</th>
+<th>Notes</th>
+</tr>
+<tr>
+  <td>Show all workshops<br><code>/teacher/workshops</code></td>
+  <td>GET</td>
+  <td></td>
+  <td>
+<pre lang=json>
+{ 
+  workshops: [ 
+    { "id": &lt;i>, "title": &lt;s>, } , ... 
+  ]
 }
 </pre>
-    </td>
-	<td>Also returns a Session Cookie!</td>
-    </tr>
-    <td><code>/logout</code></td>
-    <td>POST</td>
-    <td>Session Cookie</td>
-    <td>Status Code</td>
+  </td>
 	<td></td>
-    </tr>
+</tr>
+<tr>
+  <td>Retrieve specific workshop<br><code>/teacher/workshop/{id}</code></td>
+  <td>GET</td>
+  <td></td>
+  <td>
+<pre lang=json>
+{ 
+  "ok": &lt;b>,
+  "workshop": {
+    "title": &lt;s>, "content": &lt;s>, 
+    "end": &lt;d>, "anonymous": &lt;b>
+    "teachers": [ { "id": &lt;i>, "firstname": &lt;s>, "lastname": &lt;s>}, .. ],
+    "students": [ { "id": &lt;i>, "firstname": &lt;s>, "lastname": &lt;s>, "group": &lt;s>,
+      "submissions": [ {"id": &lt;i>, "date": &lt;d>, "title": &lt;s>, "reviewsDone": &lt;b>,
+      "studentid": &lt;i>, "noReviews": &lt;b>,
+      "points": &lt;f>, "maxPoints": &lt;f>}, ..] 
+  } ], .. }
+}
+</pre>
+  </td>
+  <td>Points & maxPoints only accessible when reviewsDone true and noReviews false</td>
+</tr>
+<tr>
+  <td>Create new workshop<br><code>/teacher/workshop</code></td>
+  <td>POST</td>
+  <td>
+<pre lang=json>
+{ 
+  "title": &lt;s>, "content": &lt;s>,
+  "end": &lt;d>, "anonymous": &lt;b>,
+  "teachers": [ &lt;i>, ..],
+  "students": [ &lt;i>, ..],
+  "criteria": [ {
+    "type": &lt;sp>, "title": &lt;s>,
+    "content": &lt;s>, "weight": &lt;f>}, .. ] 
+}
+</pre>
+  </td>
+  <td>
+<pre lang=json>
+{ 
+  "ok": &lt;b>,
+  "id": &lt;i>
+}
+</pre>
+  </td>
+  <td>Teachers & Students array consists of User Ids</td>
+</tr>
+<tr>
+  <td>Update existing workshop<br><code>/teacher/workshop/{id}</code></td>
+  <td>PUT</td>
+  <td>
+<pre lang=json>
+{ 
+  "title": &lt;s>, "content": &lt;s>,
+  "end": &lt;d>, 
+  "teachers": [ &lt;i>, ..],
+  "students": [ &lt;i>, ..],
+  "criteria": [ {
+    "type": &lt;sp>, "title": &lt;s>,
+    "content": &lt;s>, "weight": &lt;f>}, .. ] 
+}
+</pre>
+  </td>
+  <td>
+<pre lang=json>
+{ 
+  "ok": &lt;b>
+}
+</pre>
+  </td>
+  <td></td>
+</tr>
+<tr>
+  <td>Delete existing workshop<br><code>/teacher/workshop/{id}</code></td>
+  <td>DELETE</td>
+  <td></td>
+  <td>
+<pre lang=json>
+{ 
+  "ok": &lt;b>
+}
+</pre>
+  </td>
+  <td></td>
+</tr>
+<tr>
+  <td>Get Student from Id<br><code>/teacher/search/student</code></td>
+  <td>GET</td>
+  <td>
+<pre lang=json>
+{ 
+  "id": &lt;i>
+}
+</pre>
+  </td>
+  <td>
+<pre lang=json>
+{ 
+  "ok": &lt;b>,
+  "id": &lt;i>, "firstname": &lt;s>, "lastname": &lt;s>
+}
+</pre>
+  </td>
+  <td></td>
+</tr>
+<tr>
+  <td>Get Student Id fron Name<br><code>/teacher/search/student</code></td>
+  <td>GET</td>
+  <td>
+<pre lang=json>
+{ 
+  "firstname": &lt;s>, "lastname": &lt;s>
+}
+</pre>
+  </td>
+  <td>
+<pre lang=json>
+{ 
+  "ok": &lt;b>,
+  "id": &lt;i>
+}
+</pre>
+  </td>
+  <td></td>
+</tr>
+<tr>
+  <td>Get all Students from a Group<br><code>/teacher/search/student</code></td>
+  <td>GET</td>
+  <td>
+<pre lang=json>
+{ 
+  "group": &lt;s>
+}
+</pre>
+  </td>
+  <td>
+<pre lang=json>
+{ 
+  "ok": &lt;b>,
+  "ids": [&lt;i>, ..]
+}
+</pre>
+  </td>
+  <td></td>
+</tr>
 </thead>
 </table>
 
 
-
-#### Authentication
+#### old
 
 | Route    | Method | Input             | Output | Notes |
 | -------- | ------ | ----------------- | ------ | ----- |
