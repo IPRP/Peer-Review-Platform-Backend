@@ -28,12 +28,66 @@ Type Definitions:
 * `<f>` - Float
 * `<d>` - Date
 
+
+
+<table>
+<thead>
+<tr>
+<th>Route</th>
+<th>Method</th>
+<th>Input</th>
+<th>Output</th>
+<th>Notes</th>
+</tr>
+<tr>
+    <td><code>/login</code></td>
+    <td>POST</td>
+    <td>Basic Auth Header</td>
+    <td>
+<pre lang=json>
+{
+	"id": &lt;i>, "role": &lt;sr>
+}
+</pre>
+    </td>
+	<td>Also returns a Session Cookie!</td>
+    </tr>
+    <td><code>/logout</code></td>
+    <td>POST</td>
+    <td>Session Cookie</td>
+    <td>Status Code</td>
+	<td></td>
+    </tr>
+</thead>
+</table>
+
+
+
 #### Authentication
 
 | Route    | Method | Input             | Output | Notes |
 | -------- | ------ | ----------------- | ------ | ----- |
 | `/login` | POST | Basic Auth Header | <pre lang=json>{<br />"id": \<i>,  "role": \<sr> <br />}</pre> | Also returns a Session Cookie! |
 | `/logout` | POST | Session Cookie | Status Code | |
+
+
+
+<table>
+<thead>
+<tr>
+<th>abc</th>
+<th>def</th>
+</tr>
+<tr>
+<td>
+    <pre lang=json>
+    	a b c
+    </pre>
+</td>
+<td></td>
+</td>
+</thead>
+</table>
 
 
 
