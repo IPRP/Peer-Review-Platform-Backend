@@ -1,9 +1,11 @@
-use crate::auth::auth::AuthenticatedUser;
+use crate::models::User;
+use crate::routes::models::ApiResponse;
 use crate::utils::res_path;
 use rocket::http::{ContentType, Cookie, Cookies, Status};
 use rocket::response::status::NotFound;
 use rocket::response::NamedFile;
 use rocket::Data;
+use rocket_contrib::json::{Json, JsonValue};
 use rocket_multipart_form_data::{
     mime, MultipartFormData, MultipartFormDataField, MultipartFormDataOptions,
 };
@@ -25,7 +27,7 @@ pub fn image() -> Result<NamedFile, NotFound<String>> {
 #[post("/form", data = "<data>")]
 pub fn form(content_type: &ContentType, data: Data) -> &'static str {
     // See: https://docs.rs/rocket-multipart-form-data/0.9.6/rocket_multipart_form_data/
-    let mut options = MultipartFormDataOptions::with_multipart_form_data_fields(vec![
+    let options = MultipartFormDataOptions::with_multipart_form_data_fields(vec![
         MultipartFormDataField::text("title"),
         MultipartFormDataField::file("file")
             .content_type_by_string(Some(mime::TEXT_PLAIN))
@@ -44,26 +46,4 @@ pub fn form(content_type: &ContentType, data: Data) -> &'static str {
         return "Ok";
     }
     "Not Ok"
-}
-
-/// Use Basic Auth header to trigger this.
-/// Using cookies will resend the cookie.
-#[post("/users/login")]
-pub fn login(user: AuthenticatedUser, mut cookies: Cookies) -> Status {
-    cookies.add_private(Cookie::new("user_id", user.user_id.to_string()));
-    Status::Ok
-}
-
-/// Removes set cookie.
-#[post("/users/logout")]
-pub fn logout(_user: AuthenticatedUser, mut cookies: Cookies) -> Status {
-    cookies.remove_private(Cookie::named("user_id"));
-    Status::Ok
-}
-
-/// Test authentication.
-/// Will work with basic auth or cookie.
-#[get("/users/test")]
-pub fn auth_test(user: AuthenticatedUser) -> &'static str {
-    "Hi!"
 }

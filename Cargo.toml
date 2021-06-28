@@ -8,11 +8,14 @@ edition = "2018"
 
 [dependencies]
 rocket = "0.4.7"
-diesel = { version = "1.4.4", features = ["mysql"] }
+diesel = { version = "1.4.4", features = ["mysql", "chrono"] }
 diesel_migrations = "1.4.0"
+diesel-derive-enum = { version = "1.1.1", features = ["mysql"] }
+chrono = { version = "0.4", features = ["serde"] }
 rocket-multipart-form-data = "0.9.6"
 rust-crypto = "0.2.36"
 serde = "1.0.125"
+serde_json = "1.0"
 serde_derive = "1.0.125"
 base64 = "0.13.0"
 
