@@ -97,12 +97,27 @@ Type Definitions:
   "workshop": {
     "title": &lt;s>, "content": &lt;s>, 
     "end": &lt;d>, "anonymous": &lt;b>
-    "teachers": [ { "id": &lt;i>, "firstname": &lt;s>, "lastname": &lt;s>}, .. ],
-    "students": [ { "id": &lt;i>, "firstname": &lt;s>, "lastname": &lt;s>, "group": &lt;s>,
-      "submissions": [ {"id": &lt;i>, "date": &lt;d>, "title": &lt;s>, "reviewsDone": &lt;b>,
-      "studentid": &lt;i>, "noReviews": &lt;b>,
-      "points": &lt;f>, "maxPoints": &lt;f>}, ..] 
-  } ], .. }
+    "teachers": [ 
+      { 
+        "id": &lt;i>, "firstname": &lt;s>, 
+        "lastname": &lt;s> 
+      }, .. 
+    ],
+    "students": [ 
+      { 
+        "id": &lt;i>, "firstname": &lt;s>, 
+        "lastname": &lt;s>, "group": &lt;s>,
+        "submissions": [ 
+          {
+            "id": &lt;i>, "date": &lt;d>, 
+            "title": &lt;s>, "reviewsDone": &lt;b>,
+            "studentid": &lt;i>, "noReviews": &lt;b>,
+            "points": &lt;f>, "maxPoints": &lt;f>
+          }, ..
+        ] 
+      } 
+    ]
+  }
 }
 </pre>
   </td>
@@ -235,32 +250,111 @@ Type Definitions:
 </thead>
 </table>
 
-
-#### old
-
-| Route    | Method | Input             | Output | Notes |
-| -------- | ------ | ----------------- | ------ | ----- |
-| `/login` | POST | Basic Auth Header | <pre lang=json>{<br />"id": \<i>,  "role": \<sr> <br />}</pre> | Also returns a Session Cookie! |
-| `/logout` | POST | Session Cookie | Status Code | |
-
-
+#### Student
 
 <table>
 <thead>
 <tr>
-<th>abc</th>
-<th>def</th>
+<th>Route</th>
+<th>Method</th>
+<th>Input</th>
+<th>Output</th>
+<th>Notes</th>
 </tr>
 <tr>
-<td>
-    <pre lang=json>
-    	a b c
-    </pre>
-</td>
-<td></td>
-</td>
+  <td>Show all workshops<br><code>/student/workshops</code></td>
+  <td>GET</td>
+  <td></td>
+  <td>
+<pre lang=json>
+{ 
+  workshops: [ 
+    { "id": &lt;i>, "title": &lt;s>, } , ... 
+  ]
+}
+</pre>
+  </td>
+	<td></td>
+</tr>
+<tr>
+  <td>Retrieve specific workshop<br><code>/student/workshop/{id}</code></td>
+  <td>GET</td>
+  <td></td>
+  <td>
+<pre lang=json>
+{ 
+  "ok": &lt;b>,
+  "workshop": {
+    "title": &lt;s>, "content": &lt;s>, 
+    "end": &lt;d>,
+    "teachers": [ 
+      { 
+        "id": &lt;i>, "firstname": &lt;s>, 
+        "lastname": &lt;s> 
+      }, .. 
+    ],
+    "students": [ 
+      { 
+        "id": &lt;i>, "firstname": &lt;s>, 
+        "lastname": &lt;s>, "group": &lt;s>
+      } 
+    ],
+    "submissions": [ 
+      {
+        "id": &lt;i>, "title": &lt;s>, 
+        "date": &lt;d>, "locked": &lt;b>,
+        "reviewsDone": &lt;b>, "noReviews": &lt;b>
+        "points": &lt;f>, "maxPoints": &lt;f>
+      }, ..
+    ],
+    "reviews": [
+      {
+        "id": &lt;i>, "done": &lt;b>,
+        "deadline": &lt;d>, "title": &lt;s>,
+        "firstname": &lt;s>, "lastname": &lt;s>
+      }
+    ]
+  }
+}
+</pre>
+  </td>
+  <td>
+    Points & maxPoints only accessible when reviewsDone true and noReviews false<br>
+    Firstname & Lastname of Reviewer is only accessible in non anonymous workshops
+  </td>
+</tr>
+<tr>
+  <td>Get given reviews and submissions that need attention<br><code>/student/todos</code></td>
+  <td>GET</td>
+  <td></td>
+  <td>
+<pre lang=json>
+{
+  "ok": &lt;b>,
+  "reviews": [
+    {
+      "id": &lt;i>, "done": &lt;b>,
+      "deadline": &lt;d>, "title": &lt;s>,
+      "firstname": &lt;s>, "lastname": &lt;s>,
+      "submission": &lt;i>, "workshopName": &lt;s>
+    }, ..
+  ],
+  "submissions": [
+    {
+      "id": &lt;i>, "workshopName": &lt;>
+    }
+  ]
+}
+</pre>
+  </td>
+  <td>
+    Id property in "submissions" relates to the workshop Id
+  </td>
+</tr>
 </thead>
 </table>
+
+
 
 
 
