@@ -50,13 +50,10 @@ fn main() {
         .mount(
             "/",
             routes![
-                routes::test::index,
-                routes::test::image,
-                routes::test::form,
-                routes::test::auth_test,
-                routes::test::login,
-                routes::test::logout,
-                routes::db::create_user,
+                routes::users::login,
+                routes::users::logout,
+                routes::users::create_student,
+                routes::users::create_teacher,
                 routes::teachers::workshop,
                 routes::teachers::workshops,
                 routes::teachers::search_student,

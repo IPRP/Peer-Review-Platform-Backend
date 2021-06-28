@@ -17,6 +17,8 @@ If you want to run it manually use
 cargo run
 ```
 
+
+
 ### 📖 Help
 
 * [Windows] Build shows `libssl-1_1-x64.dll` not found

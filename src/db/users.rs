@@ -1,4 +1,4 @@
-use crate::models::{NewStudent, Role, User};
+use crate::models::{NewStudent, NewTeacher, Role, User};
 use crate::schema::users::dsl::{
     firstname as dsl_firstname, id as dsl_id, lastname as dsl_lastname, role as dls_role,
     unit as dsl_unit, username as dsl_username, users,
@@ -6,7 +6,29 @@ use crate::schema::users::dsl::{
 use diesel::prelude::*;
 use diesel::result::Error;
 
-pub fn create_user<'a>(
+pub fn create_student<'a>(
+    conn: &MysqlConnection,
+    username: String,
+    firstname: String,
+    lastname: String,
+    password: String,
+    unit: String,
+) -> Result<User, &'static str> {
+    let exists: Result<User, _> = users.filter(dsl_username.eq(&username)).first(conn);
+    if exists.is_ok() {
+        return Err("Already exists");
+    }
+    let new_user = NewStudent::new(username, firstname, lastname, password, unit);
+
+    diesel::insert_into(users)
+        .values(&new_user)
+        .execute(conn)
+        .expect("Error saving new user");
+
+    Ok(users.order(dsl_id.desc()).first(conn).unwrap())
+}
+
+pub fn create_teacher<'a>(
     conn: &MysqlConnection,
     username: String,
     firstname: String,
@@ -17,10 +39,7 @@ pub fn create_user<'a>(
     if exists.is_ok() {
         return Err("Already exists");
     }
-
-    // TODO get unit from params?
-    let unit = String::from("3A2");
-    let new_user = NewStudent::new(username, firstname, lastname, password, unit);
+    let new_user = NewTeacher::new(username, firstname, lastname, password);
 
     diesel::insert_into(users)
         .values(&new_user)

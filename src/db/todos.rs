@@ -49,7 +49,6 @@ pub struct Todo {
 
 pub fn get(conn: &MysqlConnection, student_id: u64) -> Result<Todo, ()> {
     // TODO filter by deadline / locked
-    // TODO remove name if workshop is anonymous
 
     /*
     select r.id, r.done, r.deadline, s.id, u.firstname, u.lastname, w.title
