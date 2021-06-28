@@ -5,7 +5,7 @@
 ### 📦 Requirements 
 
 * Rust (Nightly)
-* MySQL
+* MySQL (Tested with version 8.0.23 under WSL2)
 
 ### :rocket: Run
 
@@ -16,6 +16,32 @@ If you want to run it manually use
 ```
 cargo run
 ```
+
+### 🧰 Configuration
+
+The backend can be configured through the `Rocket.toml` file.
+
+```toml
+[global]
+# Clear all data (but not events)
+db_clear = true
+# Insert some mock data
+db_insert_mock_data = true
+# Set timespan for reviews
+review_time_days = 0
+review_time_hours = 0
+review_time_minutes = 5
+# Rocket internal db config
+# Please specifiy a correct db string!
+[global.databases]
+iprp_db = { url = "mysql://root@127.0.0.1:3306/iprp" }
+```
+
+The first two properties allow one to clear the database on start-up and/or insert some mock data.
+
+The review time properties specify the duration for reviews. The aggregated time is then used by the system.
+
+The last property asks for a connection string to your MySQL database. The database must be created manually before starting the Backend.
 
 ### 🗺️ API
 

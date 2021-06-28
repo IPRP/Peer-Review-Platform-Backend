@@ -1,7 +1,7 @@
 [global]
 # Clear all data (but not events)
 db_clear = true
-# Inserts some mock data
+# Insert some mock data
 db_insert_mock_data = true
 # Set timespan for reviews
 review_time_days = 0
