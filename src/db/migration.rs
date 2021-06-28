@@ -1,5 +1,6 @@
 use crate::diesel::connection::SimpleConnection;
 use crate::IprpDB;
+use chrono::Duration;
 use rocket::logger::error;
 use rocket::Rocket;
 
@@ -101,4 +102,31 @@ INSERT INTO `criteria` VALUES (1,1),(1,2);
             Err(rocket)
         }
     }
+}
+
+pub struct ReviewTimespan {
+    pub days: i64,
+    pub hours: i64,
+    pub minutes: i64,
+}
+
+impl ReviewTimespan {
+    pub fn deadline(&self, date: &chrono::NaiveDateTime) -> chrono::NaiveDateTime {
+        *date
+            + Duration::days(self.days)
+            + Duration::hours(self.hours)
+            + Duration::minutes(self.minutes)
+    }
+}
+
+pub fn setup_review_timespan(rocket: Rocket) -> Result<Rocket, Rocket> {
+    let days = rocket.config().get_int("review_time_days").unwrap_or(7);
+    let hours = rocket.config().get_int("review_time_hours").unwrap_or(0);
+    let minutes = rocket.config().get_int("review_time_minutes").unwrap_or(0);
+    let review_timespan = ReviewTimespan {
+        days,
+        hours,
+        minutes,
+    };
+    Ok(rocket.manage(review_timespan))
 }

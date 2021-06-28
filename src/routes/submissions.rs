@@ -1,3 +1,4 @@
+use crate::db::ReviewTimespan;
 use crate::models::{Kind, NewCriterion, Role, User};
 use crate::routes::models::{ApiResponse, NumberVec, WorkshopResponse};
 use crate::utils;
@@ -7,6 +8,7 @@ use diesel::result::Error;
 use rocket::http::{RawStr, Status};
 use rocket::request::FromFormValue;
 use rocket::response::content;
+use rocket::State;
 use rocket_contrib::json::{Json, JsonValue};
 use serde::{de, Deserialize, Deserializer};
 use serde_json::Value;
@@ -30,6 +32,7 @@ pub struct NewSubmission {
 pub fn create_submission(
     user: User,
     conn: IprpDB,
+    review_timespan: State<ReviewTimespan>,
     workshop_id: u64,
     new_submission: Json<NewSubmission>,
 ) -> Result<Json<JsonValue>, ApiResponse> {
@@ -43,6 +46,7 @@ pub fn create_submission(
 
     let submission = db::submissions::create(
         &*conn,
+        review_timespan.inner(),
         new_submission.0.title,
         new_submission.0.comment,
         Vec::from(new_submission.0.attachments),

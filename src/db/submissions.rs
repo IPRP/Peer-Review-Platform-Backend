@@ -1,5 +1,6 @@
 use crate::db;
 use crate::db::reviews::FullReview;
+use crate::db::ReviewTimespan;
 use crate::models::{
     Criterion, Kind, NewSubmission, Role, SimpleAttachment, Submission, Submissionattachment,
     Submissioncriteria,
@@ -23,6 +24,7 @@ use std::ops::Add;
 
 pub fn create<'a>(
     conn: &MysqlConnection,
+    review_timespan: &ReviewTimespan,
     title: String,
     comment: String,
     attachments: Vec<u64>,
@@ -94,7 +96,14 @@ pub fn create<'a>(
             .execute(conn);
 
         // Assign reviews
-        let assign = db::reviews::assign(conn, date, submission.id, student_id, workshop_id);
+        let assign = db::reviews::assign(
+            conn,
+            review_timespan,
+            date,
+            submission.id,
+            student_id,
+            workshop_id,
+        );
         if assign.is_err() {
             return Err(Error::RollbackTransaction);
         }

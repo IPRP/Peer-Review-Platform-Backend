@@ -1,4 +1,5 @@
 use crate::db;
+use crate::db::ReviewTimespan;
 use crate::models::{Kind, NewReview, Review, ReviewPoints, Role};
 use crate::routes::submissions::UpdateReview;
 use crate::schema::criterion::dsl::{
@@ -35,15 +36,14 @@ use std::ops::Add;
 
 pub fn assign(
     conn: &MysqlConnection,
+    review_timespan: &ReviewTimespan,
     date: chrono::NaiveDateTime,
     submission_id: u64,
     submission_student_id: u64,
     workshop_id: u64,
 ) -> Result<(), ()> {
     // Calculate deadline
-    // TODO set correct deadline
-    //let deadline = date + Duration::days(7);
-    let deadline = date + Duration::minutes(1);
+    let deadline = review_timespan.deadline(&date);
 
     // Get (at max) 3 users who have the least count of reviews for this particular workshop
     /* Based on: https://stackoverflow.com/a/2838527/12347616
