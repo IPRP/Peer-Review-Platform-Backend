@@ -71,6 +71,8 @@ Type Definitions:
 <th>Output</th>
 <th>Notes</th>
 </tr>
+</thead>
+<tbody>
 <tr>
   <td>Show all workshops<br><code>/teacher/workshops</code></td>
   <td>GET</td>
@@ -78,7 +80,7 @@ Type Definitions:
   <td>
 <pre lang=json>
 { 
-  workshops: [ 
+  "workshops": [ 
     { "id": &lt;i>, "title": &lt;s>, } , ... 
   ]
 }
@@ -247,7 +249,7 @@ Type Definitions:
   </td>
   <td></td>
 </tr>
-</thead>
+</tbody>
 </table>
 
 #### Student
@@ -261,6 +263,8 @@ Type Definitions:
 <th>Output</th>
 <th>Notes</th>
 </tr>
+</thead>
+<tbody>
 <tr>
   <td>Show all workshops<br><code>/student/workshops</code></td>
   <td>GET</td>
@@ -268,7 +272,7 @@ Type Definitions:
   <td>
 <pre lang=json>
 { 
-  workshops: [ 
+  "workshops": [ 
     { "id": &lt;i>, "title": &lt;s>, } , ... 
   ]
 }
@@ -341,7 +345,7 @@ Type Definitions:
   ],
   "submissions": [
     {
-      "id": &lt;i>, "workshopName": &lt;>
+      "id": &lt;i>, "workshopName": &lt;s>
     }
   ]
 }
@@ -351,12 +355,217 @@ Type Definitions:
     Id property in "submissions" relates to the workshop Id
   </td>
 </tr>
-</thead>
+</tbody>
 </table>
 
+#### Submissions & Reviews
 
-
-
+<table>
+<thead>
+<tr>
+<th>Route</th>
+<th>Method</th>
+<th>Input</th>
+<th>Output</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>Add submission<br><code>/submission/{workshop_id}</code></td>
+  <td>POST</td>
+  <td>
+<pre lang=json>
+{
+  "title": &lt;s>, "comment": &lt;s>,
+  "attachments": [&lt;i>, ..]
+}
+</pre>
+  </td>
+  <td>
+<pre lang=json>
+{
+  "ok": &lt;b>,
+  "id": &lt;i>
+}
+</pre>
+  </td>
+  <td>
+    Attachments is a list of attachment Ids
+  </td>
+</tr>
+<tr>
+  <td>Get submission<br><code>/submission/{submission_id}</code></td>
+  <td>GET</td>
+  <td></td>
+  <td>
+Student (Own submission) & Teacher
+<pre lang=json>
+{
+  "ok": &lt;b>,
+  "title": &lt;s>, "comment": &lt;s>,
+  "attachments": [
+    { "id": &lt;i>, "title": &lt;s>}, ..
+  ],
+  "locked": &lt;b>, "date": &lt;d>,
+  "firstname": &lt;s>, "lastname": &lt;s>,
+  "reviewsDone": &lt;b>, "noReviews": &lt;b>,
+  "points": &lt;f>, "maxPoints": &lt;f>,
+  "reviews": [
+    {
+      "id": &lt;i>, "firstname": &lt;s>,
+      "lastname": &lt;s>, "feedback": &lt;s>,
+      "points": [
+        {
+          "id": &lt;i>, "type": &lt;sp>,
+          "title": &lt;s>, "content: "&lt;s>",
+          "points": &lt;f>, "weight": &lt;f>
+        }
+      ]
+    }
+  ]
+}
+</pre>
+<br>
+Student (Other student submission)
+<pre lang=json>
+{
+  "ok": &lt;b>,
+  "title": &lt;s>, "comment": &lt;s>,
+  "attachments": [
+    { "id": &lt;i>, "title": &lt;s>}, ..
+  ],
+  "criteria": [
+    {
+       "id": &lt;i>, "type": &lt;sp>,
+       "title": &lt;s>, "content: "&lt;s>"
+    }
+  ]
+}
+</pre>
+<br>
+  </td>
+  <td>
+    Reviewers first- & lastname are not available for students in anonymous workshops
+  </td>
+</tr>
+<tr>
+  <td>Update submission<br><code>/submission/{submission_id}</code></td>
+  <td>PUT</td>
+  <td>
+<pre lang=json>
+{
+  "title": &lt;s>, "comment": &lt;s>,
+  "attachments": [&lt;i>, ..]
+}
+</pre>
+  </td>
+  <td>
+<pre lang=json>
+{
+  "ok": &lt;b>
+}
+</pre>
+  </td>
+  <td>
+    Attachments is a list of attachment Ids
+  </td>
+</tr>
+<tr>
+  <td>Add attachment<br><code>/submission/upload</code></td>
+  <td>POST</td>
+  <td>Form data with key "file" containing the file and key "title" with a backup filename</td>
+  <td>
+<pre lang=json>
+{
+  "ok": &lt;b>,
+  "attachment": {
+    "id": &lt;i>, "title": &lt;s>
+  }
+}
+</pre>
+  </td>
+  <td>
+  </td>
+</tr>
+<tr>
+  <td>Remove attachment<br><code>/submission/remove/{att_id}</code></td>
+  <td>DELETE</td>
+  <td></td>
+  <td>
+<pre lang=json>
+{
+  "ok": &lt;b>
+}
+</pre>
+  </td>
+  <td>
+  </td>
+</tr>
+<tr>
+  <td>Download attachment<br><code>/submission/download/{att_id}</code></td>
+  <td>GET</td>
+  <td></td>
+  <td>Filestream</td>
+  <td>
+  </td>
+</tr>
+<tr>
+  <td>Update review<br><code>/review/{review_id}</code></td>
+  <td>PUT</td>
+  <td>
+<pre lang=json>
+{
+  "feedback": &lt;s>, "points": [
+    {
+      "id": &lt;i>, "points": &lt;f>
+    }
+  ]
+}
+</pre>
+  </td>
+  <td>
+<pre lang=json>
+{
+  "ok": &lt;b>,
+  "id": &lt;i>
+}
+</pre>
+  </td>
+  <td>
+    Points Id is received through Criteria property from <code>GET /submission/{submission_id}</code> <br>
+    Grading with Points: <br>
+    "point":      1.0 - 10.0<br>
+    "grade":      1.0 (A) - 5.0 (F)<br>
+    "percentage": 0.0 - 100.0<br>
+    "truefalse":  0.0 False, 1.0 True
+  </td>
+</tr>
+<tr>
+  <td>Get review<br><code>/review/{review_id}</code></td>
+  <td>GET</td>
+  <td><td>
+<pre lang=json>
+{
+  "ok": &lt;b>,
+  "id": &lt;i>, "firstname": &lt;s>,
+  "lastname": &lt;s>, "notSubmitted": &lt;b>,
+  "feedback": &lt;s>, "points": [
+    {
+      "type": &lt;sp>, "title": &lt;s>,
+      "content": &lt;s>, "points": &lt;f>,
+      "weight": &lt;f>
+    }
+  ]
+}
+</pre>
+  </td>
+  <td>
+   Reviewers first- & lastname are not available in anonymous workshops
+  </td>
+</tr>
+</tbody>
+</table>
 
 #### Creating user accounts
 
@@ -366,8 +575,6 @@ Only possible with admin account (= username `admin`).
 | ---------------- | ------ | ------------------------------------------------------------ | ----------- | ----- |
 | `/users/student` | POST   | <pre lang=json>{<br />"username": \<s>, <br />"firstname": \<s>,<br />"lastname": \<s>,<br />"password": \<s>,<br />"group": \<s><br />}</pre> | Status Code |       |
 | `/users/teacher` | POST   | <pre lang=json>{<br />"username": \<s>, <br />"firstname": \<s>,<br />"lastname": \<s>,<br />"password": \<s><br />}</pre> | Status Code |       |
-
-#### 
 
 
 
