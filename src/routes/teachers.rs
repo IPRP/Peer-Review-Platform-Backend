@@ -200,12 +200,22 @@ pub struct SearchStudent {
     group: Option<String>,
 }
 
-#[get("/teacher/search/student", format = "json", data = "<search_info>")]
+#[get("/teacher/search/student?<id>&<firstname>&<lastname>&<group>")]
 pub fn search_student(
     user: User,
     conn: IprpDB,
-    search_info: Json<SearchStudent>,
+    id: Option<u64>,
+    firstname: Option<String>,
+    lastname: Option<String>,
+    group: Option<String>,
 ) -> Result<Json<JsonValue>, ApiResponse> {
+    let search_info = SearchStudent {
+        id,
+        firstname,
+        lastname,
+        group,
+    };
+
     if user.role == Role::Student {
         return Err(ApiResponse::forbidden());
     }

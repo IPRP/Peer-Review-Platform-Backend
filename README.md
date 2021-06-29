@@ -39,7 +39,7 @@ iprp_db = { url = "mysql://root@127.0.0.1:3306/iprp" }
 
 The first two properties allow one to clear the database on start-up and/or insert some mock data.
 
-> Note: A user `admin` with password `admin` is always created when not already exists
+> Note: A user `admin` with password `admin` is always created when not already exists
 
 The review time properties specify the duration for reviews. The aggregated time is then used by the system.
 
@@ -225,11 +225,7 @@ Type Definitions:
   <td>Get Student from Id<br><code>/teacher/search/student</code></td>
   <td>GET</td>
   <td>
-<pre lang=json>
-{ 
-  "id": &lt;i>
-}
-</pre>
+Query Parameter: <code>?id=&lt;i></code>
   </td>
   <td>
 <pre lang=json>
@@ -245,11 +241,7 @@ Type Definitions:
   <td>Get Student Id fron Name<br><code>/teacher/search/student</code></td>
   <td>GET</td>
   <td>
-<pre lang=json>
-{ 
-  "firstname": &lt;s>, "lastname": &lt;s>
-}
-</pre>
+  Query Parameter: <code>?firstname=&lt;s>&lastname=&lt;s></code>
   </td>
   <td>
 <pre lang=json>
@@ -265,11 +257,7 @@ Type Definitions:
   <td>Get all Students from a Group<br><code>/teacher/search/student</code></td>
   <td>GET</td>
   <td>
-<pre lang=json>
-{ 
-  "group": &lt;s>
-}
-</pre>
+Query Parameter: <code>?group=&lt;s></code>
   </td>
   <td>
 <pre lang=json>
