@@ -2,8 +2,8 @@ use crate::db;
 use crate::db::reviews::WorkshopReview;
 use crate::db::submissions::WorkshopSubmission;
 use crate::models::{
-    Criteria as NewCriteria, NewCriterion, NewStudent, NewWorkshop, Role, Submission, User,
-    Workshop, Workshoplist,
+    Criteria as NewCriteria, Criterion, NewCriterion, NewStudent, NewWorkshop, Role, Submission,
+    User, Workshop, Workshoplist,
 };
 use crate::schema::criteria::dsl::{
     criteria as criteria_t, criterion as criteria_criterion, workshop as criteria_workshop,
@@ -372,6 +372,7 @@ pub struct TeacherWorkshop {
     pub anonymous: bool,
     pub students: Vec<WorkshopUser>,
     pub teachers: Vec<WorkshopUser>,
+    pub criteria: Vec<Criterion>,
 }
 
 pub fn get_teacher_workshop(
@@ -394,6 +395,23 @@ pub fn get_teacher_workshop(
         return Err(());
     }
     let teachers = teachers.unwrap();
+
+    let criteria: Result<Vec<u64>, _> = criteria_t
+        .filter(criteria_workshop.eq(workshop_id))
+        .select(criteria_criterion)
+        .get_results(conn);
+    if criteria.is_err() {
+        return Err(());
+    }
+    let criteria = criteria.unwrap();
+
+    let criteria: Result<Vec<Criterion>, _> =
+        criterion_t.filter(c_id.eq_any(criteria)).get_results(conn);
+    if criteria.is_err() {
+        return Err(());
+    }
+    let criteria = criteria.unwrap();
+
     Ok(TeacherWorkshop {
         title: workshop.title,
         content: workshop.content,
@@ -401,6 +419,7 @@ pub fn get_teacher_workshop(
         anonymous: workshop.anonymous,
         students,
         teachers,
+        criteria,
     })
 }
 
