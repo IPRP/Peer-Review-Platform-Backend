@@ -2,6 +2,7 @@
 
 #[macro_use]
 extern crate rocket;
+extern crate rocket_cors;
 extern crate rocket_multipart_form_data;
 #[macro_use]
 extern crate rocket_contrib;
@@ -17,6 +18,7 @@ extern crate base64;
 extern crate crypto;
 
 use rocket::fairing::AdHoc;
+use rocket_cors::{AllowedMethods, AllowedOrigins, CorsOptions};
 
 // Import database operations
 mod db;
@@ -39,6 +41,13 @@ pub struct IprpDB(diesel::MysqlConnection);
 
 // Start
 fn main() {
+    let cors = CorsOptions {
+        allow_credentials: true,
+        ..Default::default()
+    }
+    .to_cors()
+    .unwrap();
+
     rocket::ignite()
         .attach(IprpDB::fairing())
         .attach(AdHoc::on_attach("Database Migration", db::run_db_migration))
@@ -46,7 +55,8 @@ fn main() {
             "Review Configuration",
             db::setup_review_timespan,
         ))
-        .attach(cors::CORS)
+        //.attach(cors::CORS)
+        .attach(cors)
         .mount(
             "/",
             routes![
