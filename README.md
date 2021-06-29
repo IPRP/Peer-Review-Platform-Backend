@@ -150,6 +150,13 @@ Type Definitions:
           }, ..
         ] 
       } 
+    ],
+    "criteria": [
+      {
+        "id": &lt;i>, "type": &lt;sp>,
+        "title": &lt;s>, "content": &lt;s>,
+        "weight": &lt;f>
+      }, ..
     ]
   }
 }
@@ -459,7 +466,7 @@ Student (Own submission) & Teacher
       "points": [
         {
           "id": &lt;i>, "type": &lt;sp>,
-          "title": &lt;s>, "content: "&lt;s>",
+          "title": &lt;s>, "content: &lt;s>,
           "points": &lt;f>, "weight": &lt;f>
         }
       ]
@@ -479,8 +486,9 @@ Student (Other student submission)
   "criteria": [
     {
        "id": &lt;i>, "type": &lt;sp>,
-       "title": &lt;s>, "content: "&lt;s>"
-    }
+       "title": &lt;s>, "content": &lt;s>,
+       "weight": &lt;f>
+    }, ..
   ]
 }
 </pre>

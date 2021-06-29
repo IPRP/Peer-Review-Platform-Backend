@@ -269,6 +269,33 @@
 			"response": []
 		},
 		{
+			"name": "/teacher/search/student All",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8000/teacher/search/student?all=true",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"teacher",
+						"search",
+						"student"
+					],
+					"query": [
+						{
+							"key": "all",
+							"value": "true"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
 			"name": "/teacher/workshops",
 			"request": {
 				"method": "GET",
