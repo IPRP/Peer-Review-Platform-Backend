@@ -57,6 +57,36 @@ pub fn get_by_name(conn: &MysqlConnection, username: &str) -> Result<User, Error
     users.filter(dsl_username.eq(username)).first(conn)
 }
 
+#[derive(Serialize, Clone)]
+pub struct SimpleUser {
+    pub id: u64,
+    pub firstname: String,
+    pub lastname: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "group")]
+    pub unit: Option<String>,
+}
+
+pub fn get_all_students(conn: &MysqlConnection) -> Result<Vec<SimpleUser>, ()> {
+    let students = users
+        .filter(dls_role.eq(Role::Student))
+        .select((dsl_id, dsl_firstname, dsl_lastname, dsl_unit))
+        .get_results::<(u64, String, String, Option<String>)>(conn);
+    if students.is_err() {
+        return Err(());
+    }
+    let students: Vec<(u64, String, String, Option<String>)> = students.unwrap();
+    Ok(students
+        .into_iter()
+        .map(|user| SimpleUser {
+            id: user.0,
+            firstname: user.1,
+            lastname: user.2,
+            unit: user.3,
+        })
+        .collect())
+}
+
 pub fn get_student_by_id(conn: &MysqlConnection, id: u64) -> Result<User, Error> {
     // Make query with multiple WHERE statements
     users

@@ -194,22 +194,26 @@ pub fn delete_workshop(user: User, conn: IprpDB, id: u64) -> Result<Json<JsonVal
 
 #[derive(FromForm, Deserialize)]
 pub struct SearchStudent {
+    all: bool,
     id: Option<u64>,
     firstname: Option<String>,
     lastname: Option<String>,
     group: Option<String>,
 }
 
-#[get("/teacher/search/student?<id>&<firstname>&<lastname>&<group>")]
+#[get("/teacher/search/student?<all>&<id>&<firstname>&<lastname>&<group>")]
 pub fn search_student(
     user: User,
     conn: IprpDB,
+    all: Option<bool>,
     id: Option<u64>,
     firstname: Option<String>,
     lastname: Option<String>,
     group: Option<String>,
 ) -> Result<Json<JsonValue>, ApiResponse> {
+    let all = all.unwrap_or(false);
     let search_info = SearchStudent {
+        all,
         id,
         firstname,
         lastname,
@@ -220,7 +224,16 @@ pub fn search_student(
         return Err(ApiResponse::forbidden());
     }
 
-    if search_info.id.is_some() {
+    if search_info.all {
+        let users = db::users::get_all_students(&*conn);
+        match users {
+            Ok(users) => Ok(Json(json!({
+                "ok": true,
+                "students": users
+            }))),
+            Err(_) => Err(ApiResponse::bad_request()),
+        }
+    } else if search_info.id.is_some() {
         let id = search_info.id.unwrap();
         let user = db::users::get_student_by_id(&*conn, id);
 

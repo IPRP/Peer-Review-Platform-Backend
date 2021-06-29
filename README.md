@@ -32,7 +32,7 @@ review_time_days = 0
 review_time_hours = 0
 review_time_minutes = 5
 # Rocket internal db config
-# Please specifiy a correct db string!
+# Please specify a correct db string!
 [global.databases]
 iprp_db = { url = "mysql://root@127.0.0.1:3306/iprp" }
 ```
@@ -268,6 +268,27 @@ Query Parameter: <code>?group=&lt;s></code>
 </pre>
   </td>
   <td></td>
+</tr>
+<tr>
+  <td>Get all Students<br><code>/teacher/search/student</code></td>
+  <td>GET</td>
+  <td>
+Query Parameter: <code>?all=&lt;b></code>
+  </td>
+  <td>
+<pre lang=json>
+{ 
+  "ok": &lt;b>,
+  "students": [
+    {
+      "firstname": &lt;s>, "lastname": &lt;s>,
+      "id": &lt;i>, "group": &lt;>
+    }, ..
+  ]
+}
+</pre>
+  </td>
+  <td>All needs to be "true" (<code>?all=true</code>)</td>
 </tr>
 </tbody>
 </table>
