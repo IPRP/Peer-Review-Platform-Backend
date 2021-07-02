@@ -37,6 +37,10 @@ fn main() {
     let src = PathBuf::from("./Rocket.toml");
     let dst = dst_base.join("Rocket.toml");
     let _ = fs::copy(src, dst);
+
+    // Create attachments directory
+    let dst = dst_base.join("attachments");
+    fs::create_dir_all(&dst);
 }
 
 use std::path::{Path, PathBuf};
