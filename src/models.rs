@@ -1,22 +1,6 @@
 use crate::schema::*;
 
-/**
-#[derive(Queryable)]
-pub struct Post {
-    pub id: u64,
-    pub title: String,
-    pub body: String,
-    pub published: bool,
-}
-
-#[derive(Insertable)]
-#[table_name = "posts"]
-pub struct NewPost<'a> {
-    pub title: &'a str,
-    pub body: &'a str,
-}*/
-
-// TODO patch file (MySQL Enum to RoleMapping)
+// For Future: Patch file (MySQL Enum to RoleMapping)
 // See: http://diesel.rs/guides/configuring-diesel-cli.html
 // And: https://github.com/adwhit/diesel-derive-enum/issues/56
 // And: https://github.com/diesel-rs/diesel/issues/2154

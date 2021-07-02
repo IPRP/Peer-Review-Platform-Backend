@@ -1,3 +1,5 @@
+//! CRUD operations for workshops.
+
 use crate::db;
 use crate::db::reviews::WorkshopReview;
 use crate::db::submissions::WorkshopSubmission;
@@ -23,6 +25,7 @@ use crate::schema::workshops::dsl::{
 use diesel::prelude::*;
 use diesel::result::Error;
 
+/// Get all workshops for an user.
 pub fn get_by_user(conn: &MysqlConnection, id: u64) -> Vec<Workshop> {
     let workshop_ids = workshoplist_t
         .select(wsl_ws)
@@ -42,6 +45,7 @@ pub fn get_by_user(conn: &MysqlConnection, id: u64) -> Vec<Workshop> {
     }
 }
 
+/// Get workshop by submission id.
 pub fn get_by_submission_id(conn: &MysqlConnection, submission_id: u64) -> Result<Workshop, Error> {
     let submission = db::submissions::get_by_id(conn, submission_id);
     if submission.is_err() {
@@ -53,6 +57,7 @@ pub fn get_by_submission_id(conn: &MysqlConnection, submission_id: u64) -> Resul
         .first(conn)
 }
 
+/// Get workshop by review id.
 pub fn get_by_review_id(conn: &MysqlConnection, review_id: u64) -> Result<Workshop, Error> {
     let review = db::reviews::get_by_id(conn, review_id);
     if review.is_err() {
@@ -62,6 +67,7 @@ pub fn get_by_review_id(conn: &MysqlConnection, review_id: u64) -> Result<Worksh
     workshops_t.filter(ws_id.eq(review.workshop)).first(conn)
 }
 
+/// Create new workshop.
 pub fn create<'a>(
     conn: &MysqlConnection,
     title: String,
@@ -148,6 +154,7 @@ pub fn create<'a>(
     }
 }
 
+/// Update existing workshop.
 pub fn update(
     conn: &MysqlConnection,
     workshop_id: u64,
@@ -263,6 +270,7 @@ pub fn update(
     }
 }
 
+/// Delete existing workshop.
 pub fn delete(conn: &MysqlConnection, id: u64) -> Result<(), ()> {
     let workshop: Result<Workshop, diesel::result::Error> =
         workshops_t.filter(ws_id.eq(id)).first(conn);
@@ -274,6 +282,7 @@ pub fn delete(conn: &MysqlConnection, id: u64) -> Result<(), ()> {
     }
 }
 
+/// Check if student is part of a workshop.
 pub fn student_in_workshop(conn: &MysqlConnection, student_id: u64, workshop_id: u64) -> bool {
     let exists: Result<Workshoplist, diesel::result::Error> = workshoplist_t
         .filter(
@@ -289,6 +298,7 @@ pub fn student_in_workshop(conn: &MysqlConnection, student_id: u64, workshop_id:
     }
 }
 
+/// Workshop representation of an user.
 #[derive(Serialize)]
 pub struct WorkshopUser {
     pub id: u64,
@@ -300,6 +310,7 @@ pub struct WorkshopUser {
     pub submissions: Option<Vec<WorkshopSubmission>>,
 }
 
+// Gets students/teachers of a workshop.
 fn roles_in_workshop(
     conn: &MysqlConnection,
     workshop_id: u64,
@@ -348,6 +359,7 @@ fn roles_in_workshop(
     Ok(users)
 }
 
+/// Gets students of a workshop.
 pub fn students_in_workshop(
     conn: &MysqlConnection,
     workshop_id: u64,
@@ -356,6 +368,7 @@ pub fn students_in_workshop(
     roles_in_workshop(conn, workshop_id, Role::Student, is_teacher)
 }
 
+/// Gets teachers of a workshop.
 pub fn teachers_in_workshop(
     conn: &MysqlConnection,
     workshop_id: u64,
@@ -364,6 +377,7 @@ pub fn teachers_in_workshop(
     roles_in_workshop(conn, workshop_id, Role::Teacher, is_teacher)
 }
 
+/// Teacher representation of a workshop.
 #[derive(Serialize)]
 pub struct TeacherWorkshop {
     pub title: String,
@@ -375,6 +389,7 @@ pub struct TeacherWorkshop {
     pub criteria: Vec<Criterion>,
 }
 
+/// Get teacher workshop by workshop id.
 pub fn get_teacher_workshop(
     conn: &MysqlConnection,
     workshop_id: u64,
@@ -423,6 +438,7 @@ pub fn get_teacher_workshop(
     })
 }
 
+/// Student representation of a workshop.
 #[derive(Serialize)]
 pub struct StudentWorkshop {
     pub title: String,
@@ -435,6 +451,7 @@ pub struct StudentWorkshop {
     pub reviews: Vec<WorkshopReview>,
 }
 
+/// Get student workshop by workshop id.
 pub fn get_student_workshop(
     conn: &MysqlConnection,
     workshop_id: u64,
@@ -484,6 +501,7 @@ pub fn get_student_workshop(
     })
 }
 
+/// Get criteria ids for given workshop.
 pub fn get_criteria(conn: &MysqlConnection, workshop_id: u64) -> Result<Vec<u64>, Error> {
     criteria_t
         .select(criteria_criterion)
@@ -491,6 +509,7 @@ pub fn get_criteria(conn: &MysqlConnection, workshop_id: u64) -> Result<Vec<u64>
         .get_results::<u64>(conn)
 }
 
+/// Check if workshop is anonymous or not.
 pub fn is_anonymous(conn: &MysqlConnection, workshop_id: u64) -> bool {
     let anonymous = workshops_t
         .select(ws_anonymous)

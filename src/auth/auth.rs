@@ -1,3 +1,5 @@
+//! Authentication handling for Rocket.
+
 use crate::models::{Role, User};
 use crate::IprpDB;
 use base64::DecodeError;
@@ -6,29 +8,6 @@ use rocket::http::Status;
 use rocket::request::{FromRequest, Outcome};
 use rocket::Request;
 use std::string::FromUtf8Error;
-
-/*
-#[derive(Copy, Clone)]
-pub struct AuthenticatedUser {
-    pub(crate) user_id: u64,
-    pub(crate) role: Role,
-}
-
-#[derive(Copy, Clone)]
-pub enum Role {
-    Student,
-    Teacher,
-}
-
-impl Role {
-    fn determine(role: String) -> Role {
-        if role == "teacher" {
-            Role::Teacher
-        } else {
-            Role::Student
-        }
-    }
-}*/
 
 #[derive(Debug)]
 pub enum LoginError {
@@ -104,6 +83,7 @@ impl<'a, 'r> FromRequest<'a, 'r> for User {
     }
 }
 
+/// Get username & password from Basic Authentication Header.
 fn get_basic_auth_info(input: &str) -> Result<(String, String), &'static str> {
     let input = input
         .replace("basic", "")

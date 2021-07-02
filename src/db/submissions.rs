@@ -1,3 +1,5 @@
+//! CRUD operations for submissions.
+
 use crate::db;
 use crate::db::reviews::FullReview;
 use crate::db::ReviewTimespan;
@@ -22,6 +24,7 @@ use diesel::prelude::*;
 use diesel::result::Error;
 use std::ops::Add;
 
+/// Create a new submission for a workshop.
 pub fn create<'a>(
     conn: &MysqlConnection,
     review_timespan: &ReviewTimespan,
@@ -117,6 +120,7 @@ pub fn create<'a>(
     }
 }
 
+/// Check if student is owner of submission.
 pub fn is_owner(conn: &MysqlConnection, submission_id: u64, student_id: u64) -> bool {
     let exists: Result<Submission, diesel::result::Error> = submissions_t
         .filter(sub_id.eq(submission_id).and(sub_student.eq(student_id)))
@@ -128,6 +132,7 @@ pub fn is_owner(conn: &MysqlConnection, submission_id: u64, student_id: u64) -> 
     }
 }
 
+/// Representation of a submission for owner.
 #[derive(Serialize)]
 pub struct OwnSubmission {
     pub title: String,
@@ -151,6 +156,7 @@ pub struct OwnSubmission {
     pub reviews: Vec<FullReview>,
 }
 
+// Get detailed submission from submission id.
 fn get_full_submission(
     conn: &MysqlConnection,
     submission_id: u64,
@@ -222,10 +228,12 @@ fn get_full_submission(
     })
 }
 
+/// Get detailed submission from submission id.
 pub fn get_own_submission(conn: &MysqlConnection, submission_id: u64) -> Result<OwnSubmission, ()> {
     get_full_submission(conn, submission_id, false)
 }
 
+/// Get detailed submission from submission id.
 pub fn get_teacher_submission(
     conn: &MysqlConnection,
     submission_id: u64,
@@ -233,6 +241,7 @@ pub fn get_teacher_submission(
     get_full_submission(conn, submission_id, true)
 }
 
+/// Representation of a submission for other students like reviewers.
 #[derive(Serialize)]
 pub struct OtherSubmission {
     pub title: String,
@@ -241,6 +250,8 @@ pub struct OtherSubmission {
     pub criteria: Vec<Criterion>,
 }
 
+/// Get simplified submission from submission id.
+/// Also locks submission so that submission owner can no longer update it.
 pub fn get_student_submission(
     conn: &MysqlConnection,
     submission_id: u64,
@@ -289,6 +300,7 @@ pub fn get_student_submission(
     })
 }
 
+/// Workshop representation of a submission.
 #[derive(Serialize)]
 pub struct WorkshopSubmission {
     pub id: u64,
@@ -310,6 +322,7 @@ pub struct WorkshopSubmission {
     pub max_points: Option<f64>,
 }
 
+// Get all workshop submissions.
 fn get_workshop_submissions_internal(
     conn: &MysqlConnection,
     workshop_id: u64,
@@ -382,6 +395,8 @@ fn get_workshop_submissions_internal(
     Ok(submissions)
 }
 
+/// Get all workshop submissions.
+/// Representation is adapted for teachers.
 pub fn get_teacher_workshop_submissions(
     conn: &MysqlConnection,
     workshop_id: u64,
@@ -390,6 +405,8 @@ pub fn get_teacher_workshop_submissions(
     get_workshop_submissions_internal(conn, workshop_id, student_id, true)
 }
 
+/// Get all workshop submissions.
+/// Representation is adapted for students.
 pub fn get_student_workshop_submissions(
     conn: &MysqlConnection,
     workshop_id: u64,
@@ -398,6 +415,7 @@ pub fn get_student_workshop_submissions(
     get_workshop_submissions_internal(conn, workshop_id, student_id, false)
 }
 
+// Calculate points of a submission.
 fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), ()> {
     let submission = submissions_t
         .filter(
@@ -485,6 +503,7 @@ fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), ()
     }
 }
 
+/// Get review criteria for a submission.
 pub fn get_criteria(conn: &MysqlConnection, submission_id: u64) -> Result<Vec<Criterion>, ()> {
     let submission_criteria: Result<Vec<u64>, _> = subcrit_t
         .filter(subcrit_sub.eq(submission_id))
@@ -504,6 +523,7 @@ pub fn get_criteria(conn: &MysqlConnection, submission_id: u64) -> Result<Vec<Cr
     Ok(submission_criteria.unwrap())
 }
 
+/// Lock submission.
 pub fn lock(conn: &MysqlConnection, submission_id: u64) -> Result<(), ()> {
     let update = conn.transaction::<_, _, _>(|| {
         let submission = submissions_t.filter(sub_id.eq(submission_id));
@@ -521,6 +541,7 @@ pub fn lock(conn: &MysqlConnection, submission_id: u64) -> Result<(), ()> {
     }
 }
 
+/// Get submission by submission id.
 pub fn get_by_id(conn: &MysqlConnection, submission_id: u64) -> Result<Submission, Error> {
     submissions_t.filter(sub_id.eq(submission_id)).first(conn)
 }

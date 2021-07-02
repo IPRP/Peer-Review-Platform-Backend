@@ -1,3 +1,5 @@
+//! Cryptography related functions.
+
 use crypto::digest::Digest;
 use crypto::sha3::Sha3;
 

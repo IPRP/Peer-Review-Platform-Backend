@@ -1,3 +1,5 @@
+//! CRUD operations for users.
+
 use crate::models::{NewStudent, NewTeacher, Role, User};
 use crate::schema::users::dsl::{
     firstname as dsl_firstname, id as dsl_id, lastname as dsl_lastname, role as dls_role,
@@ -6,6 +8,7 @@ use crate::schema::users::dsl::{
 use diesel::prelude::*;
 use diesel::result::Error;
 
+/// Create student account.
 pub fn create_student<'a>(
     conn: &MysqlConnection,
     username: String,
@@ -28,6 +31,7 @@ pub fn create_student<'a>(
     Ok(users.order(dsl_id.desc()).first(conn).unwrap())
 }
 
+/// Create teacher account.
 pub fn create_teacher<'a>(
     conn: &MysqlConnection,
     username: String,
@@ -49,14 +53,17 @@ pub fn create_teacher<'a>(
     Ok(users.order(dsl_id.desc()).first(conn).unwrap())
 }
 
+/// Get user by user id.
 pub fn get_by_id(conn: &MysqlConnection, id: u64) -> Result<User, Error> {
     users.filter(dsl_id.eq(id)).first(conn)
 }
 
+/// Get user by username.
 pub fn get_by_name(conn: &MysqlConnection, username: &str) -> Result<User, Error> {
     users.filter(dsl_username.eq(username)).first(conn)
 }
 
+/// Simplified representation of an user.
 #[derive(Serialize, Clone)]
 pub struct SimpleUser {
     pub id: u64,
@@ -67,6 +74,7 @@ pub struct SimpleUser {
     pub unit: Option<String>,
 }
 
+/// Get all students in simplified representation.
 pub fn get_all_students(conn: &MysqlConnection) -> Result<Vec<SimpleUser>, ()> {
     let students = users
         .filter(dls_role.eq(Role::Student))
@@ -87,6 +95,7 @@ pub fn get_all_students(conn: &MysqlConnection) -> Result<Vec<SimpleUser>, ()> {
         .collect())
 }
 
+/// Get student by student id.
 pub fn get_student_by_id(conn: &MysqlConnection, id: u64) -> Result<User, Error> {
     // Make query with multiple WHERE statements
     users
@@ -94,6 +103,7 @@ pub fn get_student_by_id(conn: &MysqlConnection, id: u64) -> Result<User, Error>
         .first(conn)
 }
 
+/// Get student by firstname & lastname.
 pub fn get_student_by_firstname_lastname(
     conn: &MysqlConnection,
     firstname: &str,
@@ -110,6 +120,7 @@ pub fn get_student_by_firstname_lastname(
         .first(conn)
 }
 
+/// Get all student ids by unit (group).
 pub fn get_students_by_unit(conn: &MysqlConnection, unit: &str) -> Result<Vec<User>, Error> {
     users
         .filter(dsl_unit.eq(unit).and(dls_role.eq(Role::Student)))

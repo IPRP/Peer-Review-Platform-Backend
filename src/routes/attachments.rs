@@ -14,6 +14,7 @@ use std::fs;
 
 const FILE_LIMIT: u64 = 50 * 1024 * 1024;
 
+/// Upload new attachment.
 #[post("/submission/upload", data = "<data>")]
 pub fn upload(
     user: User,
@@ -71,6 +72,7 @@ pub fn upload(
     }
 }
 
+/// Download attachment.
 #[get("/submission/download/<id>")]
 pub fn download(_user: User, conn: IprpDB, id: u64) -> Result<NamedFile, ApiResponse> {
     let attachment = db::attachments::get_by_id(&*conn, id);
@@ -85,6 +87,7 @@ pub fn download(_user: User, conn: IprpDB, id: u64) -> Result<NamedFile, ApiResp
     }
 }
 
+/// Remove attachment.
 #[delete("/submission/remove/<id>")]
 pub fn remove(_user: User, conn: IprpDB, id: u64) -> Result<Json<JsonValue>, ApiResponse> {
     let delete = db::attachments::delete(&*conn, id, _user.id);

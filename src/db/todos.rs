@@ -1,3 +1,5 @@
+//! CRUD operations for submissions.
+
 use crate::db;
 use crate::schema::reviews::dsl::{
     deadline as review_deadline, done as review_done, id as review_id, reviewer,
@@ -19,6 +21,7 @@ use diesel::dsl::not;
 use diesel::prelude::*;
 use diesel::result::Error;
 
+/// Representation of a review for TODOs
 #[derive(Serialize)]
 pub struct TodoReview {
     pub id: u64,
@@ -34,6 +37,7 @@ pub struct TodoReview {
     pub workshop_name: String,
 }
 
+/// Representation of a submission for TODOs
 #[derive(Serialize)]
 pub struct TodoSubmission {
     pub id: u64,
@@ -41,15 +45,15 @@ pub struct TodoSubmission {
     pub workshop_name: String,
 }
 
+/// Representation of a student T O D O.
 #[derive(Serialize)]
 pub struct Todo {
     pub reviews: Vec<TodoReview>,
     pub submissions: Vec<TodoSubmission>,
 }
 
+/// Get student T O D O.
 pub fn get(conn: &MysqlConnection, student_id: u64) -> Result<Todo, ()> {
-    // TODO filter by deadline / locked
-
     /*
     select r.id, r.done, r.deadline, s.id, u.firstname, u.lastname, w.title
          from reviews r
@@ -58,6 +62,7 @@ pub fn get(conn: &MysqlConnection, student_id: u64) -> Result<Todo, ()> {
          inner join users u on s.student=u.id
          where s.student=4;
      */
+    // One can maybe filter by deadline / locked in the future
 
     let raw_reviews = reviews_t
         .inner_join(submissions_t.on(sub_id.eq(review_submission)))

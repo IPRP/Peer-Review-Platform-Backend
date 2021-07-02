@@ -1,3 +1,5 @@
+//! CRUD operations for reviews.
+
 use crate::db;
 use crate::db::ReviewTimespan;
 use crate::models::{Kind, NewReview, Review, ReviewPoints, Role};
@@ -34,6 +36,7 @@ use diesel::sql_types::BigInt;
 use std::convert::TryInto;
 use std::ops::Add;
 
+/// Assign reviews from a given submission.
 pub fn assign(
     conn: &MysqlConnection,
     review_timespan: &ReviewTimespan,
@@ -105,7 +108,6 @@ pub fn assign(
     let reviews: Vec<Review> = reviews.unwrap();
 
     // Create events that close reviews
-    // TODO error handling, calculating mean points
     // See: https://docs.rs/chrono/0.4.0/chrono/naive/struct.NaiveDateTime.html#example-14
     // And: https://dev.mysql.com/doc/refman/8.0/en/create-event.html
     // And: https://stackoverflow.com/a/8763381/12347616
@@ -196,6 +198,8 @@ pub fn assign(
     Ok(())
 }
 
+/// Update review.
+/// Can be performed multiple times until review is locked on deadline.
 pub fn update(
     conn: &MysqlConnection,
     update_review: UpdateReview,
@@ -276,6 +280,7 @@ pub fn update(
     }
 }
 
+/// Simplified representation of review points.
 #[derive(Serialize)]
 pub struct SimpleReviewPoints {
     pub weight: f64,
@@ -283,6 +288,7 @@ pub struct SimpleReviewPoints {
     pub points: f64,
 }
 
+/// Get simplified review points from a submission.
 pub fn get_simple_review_points(
     conn: &MysqlConnection,
     submission_id: u64,
@@ -320,6 +326,7 @@ pub fn get_simple_review_points(
     Ok(simple_reviews)
 }
 
+/// Detailed representation of a review.
 #[derive(Serialize)]
 pub struct FullReview {
     pub id: u64,
@@ -334,6 +341,7 @@ pub struct FullReview {
     pub points: Vec<FullReviewPoints>,
 }
 
+/// Detailed representation of review points.
 #[derive(Debug, Serialize)]
 pub struct FullReviewPoints {
     #[serde(rename = "id")]
@@ -346,6 +354,7 @@ pub struct FullReviewPoints {
     pub points: f64,
 }
 
+// Get all detailed reviews from a submission.
 fn get_full_reviews_internal(
     conn: &MysqlConnection,
     submission_id: u64,
@@ -404,6 +413,8 @@ fn get_full_reviews_internal(
     Ok(full_reviews)
 }
 
+/// Get all detailed reviews from a submission.
+/// If workshop is anonymous no names will be returned.
 pub fn get_full_reviews(conn: &MysqlConnection, submission_id: u64) -> Result<Vec<FullReview>, ()> {
     let workshop = db::workshops::get_by_submission_id(conn, submission_id);
     let with_names = if workshop.is_ok() {
@@ -414,6 +425,7 @@ pub fn get_full_reviews(conn: &MysqlConnection, submission_id: u64) -> Result<Ve
     get_full_reviews_internal(conn, submission_id, with_names)
 }
 
+/// Get all detailed reviews from a submission with names.
 pub fn get_full_reviews_with_names(
     conn: &MysqlConnection,
     submission_id: u64,
@@ -421,6 +433,7 @@ pub fn get_full_reviews_with_names(
     get_full_reviews_internal(conn, submission_id, true)
 }
 
+// Get detailed review.
 fn get_full_review_internal(
     conn: &MysqlConnection,
     review_id: u64,
@@ -482,6 +495,8 @@ fn get_full_review_internal(
     })
 }
 
+/// Get detailed review.
+/// If workshop is anonymous no names will be returned.
 pub fn get_full_review(conn: &MysqlConnection, review_id: u64) -> Result<FullReview, ()> {
     let workshop = db::workshops::get_by_submission_id(conn, review_id);
     let with_names = if workshop.is_ok() {
@@ -492,6 +507,7 @@ pub fn get_full_review(conn: &MysqlConnection, review_id: u64) -> Result<FullRev
     get_full_review_internal(conn, review_id, with_names)
 }
 
+/// Get detailed review with names.
 pub fn get_full_review_with_names(
     conn: &MysqlConnection,
     review_id: u64,
@@ -499,6 +515,7 @@ pub fn get_full_review_with_names(
     get_full_review_internal(conn, review_id, true)
 }
 
+/// Check if student is review for a given submission.
 pub fn is_reviewer(conn: &MysqlConnection, submission_id: u64, student_id: u64) -> bool {
     let exists: Result<Review, diesel::result::Error> = reviews_t
         .filter(reviewer.eq(student_id).and(reviews_sub.eq(submission_id)))
@@ -510,6 +527,7 @@ pub fn is_reviewer(conn: &MysqlConnection, submission_id: u64, student_id: u64) 
     }
 }
 
+/// Check if student is reviewer of given review.
 pub fn is_owner(conn: &MysqlConnection, review_id: u64, student_id: u64) -> bool {
     let exists: Result<Review, diesel::result::Error> = reviews_t
         .filter(reviews_id.eq(review_id).and(reviewer.eq(student_id)))
@@ -521,6 +539,7 @@ pub fn is_owner(conn: &MysqlConnection, review_id: u64, student_id: u64) -> bool
     }
 }
 
+/// Check if student is submission owner through a review of this submission.
 pub fn is_submission_owner(conn: &MysqlConnection, review_id: u64, student_id: u64) -> bool {
     let review: Result<Review, diesel::result::Error> =
         reviews_t.filter(reviews_id.eq(review_id)).first(conn);
@@ -542,10 +561,12 @@ pub fn is_submission_owner(conn: &MysqlConnection, review_id: u64, student_id: u
     }
 }
 
+/// Get review by review id.
 pub fn get_by_id(conn: &MysqlConnection, review_id: u64) -> Result<Review, Error> {
     reviews_t.filter(reviews_id.eq(review_id)).first(conn)
 }
 
+/// Workshop representation of a review.
 #[derive(Serialize)]
 pub struct WorkshopReview {
     pub id: u64,
@@ -558,6 +579,7 @@ pub struct WorkshopReview {
     pub lastname: Option<String>,
 }
 
+/// Get all reviews from a student in one workshop.
 pub fn get_student_workshop_reviews(
     conn: &MysqlConnection,
     workshop_id: u64,
