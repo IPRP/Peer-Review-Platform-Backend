@@ -2,8 +2,8 @@
 
 use crate::db;
 use crate::schema::reviews::dsl::{
-    deadline as review_deadline, done as review_done, id as review_id, reviewer,
-    reviews as reviews_t, submission as review_submission,
+    deadline as review_deadline, done as review_done, id as review_id, locked as review_locked,
+    reviewer, reviews as reviews_t, submission as review_submission,
 };
 use crate::schema::submissions::dsl::{
     id as sub_id, student as sub_student, submissions as submissions_t, title as sub_title,
@@ -62,13 +62,12 @@ pub fn get(conn: &MysqlConnection, student_id: u64) -> Result<Todo, ()> {
          inner join users u on s.student=u.id
          where s.student=4;
      */
-    // One can maybe filter by deadline / locked in the future
 
     let raw_reviews = reviews_t
         .inner_join(submissions_t.on(sub_id.eq(review_submission)))
         .inner_join(workshops_t.on(ws_id.eq(sub_ws)))
         .inner_join(users_t.on(user_id.nullable().eq(sub_student.nullable())))
-        .filter(reviewer.eq(student_id))
+        .filter(reviewer.eq(student_id).and(review_locked.eq(false)))
         .select((
             review_id,
             review_done,

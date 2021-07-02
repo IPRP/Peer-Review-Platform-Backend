@@ -6,7 +6,7 @@ db_insert_mock_data = true
 # Set timespan for reviews
 review_time_days = 0
 review_time_hours = 0
-review_time_minutes = 1
+review_time_minutes = 5
 # Rocket internal db config
 # Please specify a correct db string!
 [global.databases]
