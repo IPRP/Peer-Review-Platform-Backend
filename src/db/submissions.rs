@@ -1,7 +1,7 @@
 //! CRUD operations for submissions.
 
 use crate::db;
-use crate::db::reviews::FullReview;
+use crate::db::reviews::{FullReview, MissingReview};
 use crate::db::ReviewTimespan;
 use crate::models::{
     Criterion, Kind, NewSubmission, Role, SimpleAttachment, Submission, Submissionattachment,
@@ -154,6 +154,9 @@ pub struct OwnSubmission {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub lastname: Option<String>,
     pub reviews: Vec<FullReview>,
+    #[serde(rename(serialize = "missingReviews"))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub missing_reviews: Option<Vec<MissingReview>>,
 }
 
 // Get detailed submission from submission id.
@@ -212,6 +215,20 @@ fn get_full_submission(
         Vec::new()
     };
 
+    let missing_reviews = if submission.reviewsdone {
+        if is_teacher {
+            if let Ok(missing_reviews) = db::reviews::get_missing_reviews(conn, submission_id) {
+                Some(missing_reviews)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
     Ok(OwnSubmission {
         title: submission.title,
         comment: submission.comment,
@@ -225,6 +242,7 @@ fn get_full_submission(
         firstname,
         lastname,
         reviews,
+        missing_reviews,
     })
 }
 

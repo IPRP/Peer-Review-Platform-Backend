@@ -474,6 +474,12 @@ Student (Own submission) & Teacher
         }
       ]
     }
+  ],
+  "missingReviews": [
+    {
+      "id": &lt;i>, "firstname": &lt;s>,
+      "lastname": &lt;s>
+    }
   ]
 }
 </pre>
@@ -498,7 +504,7 @@ Student (Other student submission)
 <br>
   </td>
   <td>
-    Reviewers first- & lastname are not available for students in anonymous workshops
+    Reviewers first- & lastname are not available for students in anonymous workshops. Missing Reviews is only available for teachers.
   </td>
 </tr>
 <tr>

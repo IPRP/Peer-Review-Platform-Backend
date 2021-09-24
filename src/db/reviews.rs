@@ -354,6 +354,16 @@ pub struct FullReviewPoints {
     pub points: f64,
 }
 
+/// Representation of a missing review
+#[derive(Serialize)]
+pub struct MissingReview {
+    pub id: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub firstname: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lastname: Option<String>,
+}
+
 // Get all detailed reviews from a submission.
 fn get_full_reviews_internal(
     conn: &MysqlConnection,
@@ -513,6 +523,42 @@ pub fn get_full_review_with_names(
     review_id: u64,
 ) -> Result<FullReview, ()> {
     get_full_review_internal(conn, review_id, true)
+}
+
+/// Get missing reviews with names
+/// (Only needed for teachers)
+pub fn get_missing_reviews(
+    conn: &MysqlConnection,
+    submission_id: u64,
+) -> Result<Vec<MissingReview>, ()> {
+    let reviews = reviews_t
+        .filter(reviews_sub.eq(submission_id).and(reviews_error.eq(true)))
+        .get_results::<Review>(conn);
+    if reviews.is_err() {
+        return Err(());
+    }
+    let reviews: Vec<Review> = reviews.unwrap();
+
+    let mut missing_reviews: Vec<MissingReview> = Vec::new();
+    for review in reviews.iter() {
+        let (firstname, lastname) = if review.reviewer.is_some() {
+            let user = db::users::get_by_id(conn, review.reviewer.unwrap());
+            if user.is_ok() {
+                let user = user.unwrap();
+                (Some(user.firstname), Some(user.lastname))
+            } else {
+                (None, None)
+            }
+        } else {
+            (None, None)
+        };
+        missing_reviews.push(MissingReview {
+            id: review.id,
+            firstname,
+            lastname,
+        });
+    }
+    Ok(missing_reviews)
 }
 
 /// Check if student is review for a given submission.
