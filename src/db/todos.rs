@@ -15,7 +15,10 @@ use crate::schema::users::dsl::{
 use crate::schema::workshoplist::dsl::{
     role as wsl_role, user as wsl_user, workshop as wsl_ws, workshoplist as workshoplist_t,
 };
-use crate::schema::workshops::dsl::{id as ws_id, title as ws_title, workshops as workshops_t};
+use crate::schema::workshops::dsl::{
+    end as ws_end, id as ws_id, title as ws_title, workshops as workshops_t,
+};
+use chrono::Local;
 use diesel::dsl::exists;
 use diesel::dsl::not;
 use diesel::prelude::*;
@@ -118,12 +121,20 @@ pub fn get(conn: &MysqlConnection, student_id: u64) -> Result<Todo, ()> {
         })
         .collect();
 
+    // Filter only current workshops
+    let date = Local::now().naive_local();
+
     let raw_submissions = workshops_t
         .left_outer_join(workshoplist_t.on(ws_id.eq(wsl_ws)))
         .left_outer_join(users_t.on(user_id.eq(wsl_user)))
-        .filter(wsl_user.eq(student_id).and(not(exists(
-            submissions_t.filter(sub_student.eq(student_id)),
-        ))))
+        .filter(
+            wsl_user
+                .eq(student_id)
+                .and(not(exists(
+                    submissions_t.filter(sub_student.eq(student_id)),
+                )))
+                .and(ws_end.ge(date)),
+        )
         .select((ws_id, ws_title))
         .get_results::<(u64, String)>(conn);
 
