@@ -255,6 +255,13 @@ pub struct Submissionattachment {
 }
 
 #[derive(Insertable, Queryable, Clone)]
+#[table_name = "workshopattachments"]
+pub struct Workshopattachment {
+    pub workshop: u64,
+    pub attachment: u64,
+}
+
+#[derive(Insertable, Queryable, Clone)]
 #[table_name = "submissioncriteria"]
 pub struct Submissioncriteria {
     pub submission: u64,

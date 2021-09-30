@@ -484,7 +484,7 @@ fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), ()
                 let mut review_mean_points = 0.0;
                 for point in points {
                     let weighted_points = match point.kind {
-                        Kind::Point => (point.points % point_range) * point.weight,
+                        Kind::Point => (point.points % (point_range + 1.0)) * point.weight,
                         Kind::Grade => match point.points {
                             1.0 => point_range,
                             2.0 => point_range * 0.8,
@@ -492,7 +492,7 @@ fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), ()
                             4.0 => point_range * 0.5,
                             _ => 0.0,
                         },
-                        Kind::Percentage => ((point.points % 100.0) / point_range) * point.weight,
+                        Kind::Percentage => ((point.points % 101.0) / point_range) * point.weight,
                         Kind::Truefalse => match point.points {
                             1.0 => point_range * point.weight,
                             _ => 0.0,
