@@ -13,6 +13,7 @@ pub fn res_path() -> PathBuf {
     current_exe().unwrap().parent().unwrap().join("resources")
 }
 
+/// Returns the path to the applications attachments folder.
 pub fn attachment_path() -> PathBuf {
     current_exe().unwrap().parent().unwrap().join("attachments")
 }

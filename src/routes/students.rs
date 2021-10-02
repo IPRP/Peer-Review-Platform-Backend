@@ -13,6 +13,7 @@ use std::fs::read;
 use std::num::{ParseFloatError, ParseIntError};
 use std::str::FromStr;
 
+/// Get all workshops.
 #[get("/student/workshops")]
 pub fn workshops(user: User, conn: IprpDB) -> Result<Json<JsonValue>, ApiResponse> {
     if user.role == Role::Teacher {
@@ -33,6 +34,7 @@ pub fn workshops(user: User, conn: IprpDB) -> Result<Json<JsonValue>, ApiRespons
     })))
 }
 
+/// Get specific workshop.
 #[get("/student/workshop/<workshop_id>")]
 pub fn workshop(
     user: User,
@@ -53,6 +55,7 @@ pub fn workshop(
     }
 }
 
+/// Get student TODOs.
 #[get("/student/todos")]
 pub fn todos(user: User, conn: IprpDB) -> Result<Json<JsonValue>, ApiResponse> {
     if user.role == Role::Teacher {

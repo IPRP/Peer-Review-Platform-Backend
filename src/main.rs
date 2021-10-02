@@ -41,13 +41,14 @@ pub struct IprpDB(diesel::MysqlConnection);
 
 // Start
 fn main() {
+    // Setup cors
     let cors = CorsOptions {
         allow_credentials: true,
         ..Default::default()
     }
     .to_cors()
     .unwrap();
-
+    // Launch Rocket
     rocket::ignite()
         .attach(IprpDB::fairing())
         .attach(AdHoc::on_attach("Database Migration", db::run_db_migration))
@@ -55,7 +56,6 @@ fn main() {
             "Review Configuration",
             db::setup_review_timespan,
         ))
-        //.attach(cors::CORS)
         .attach(cors)
         .mount(
             "/",

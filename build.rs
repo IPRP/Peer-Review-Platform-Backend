@@ -40,7 +40,7 @@ fn main() {
 
     // Create attachments directory
     let dst = dst_base.join("attachments");
-    fs::create_dir_all(&dst);
+    let _ = fs::create_dir_all(&dst);
 }
 
 use std::path::{Path, PathBuf};

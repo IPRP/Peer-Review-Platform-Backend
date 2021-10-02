@@ -1,10 +1,10 @@
+//! Structs used throughout routes
+
 use rocket::http::{ContentType, Status};
 use rocket::request::Request;
 use rocket::response;
 use rocket::response::{Responder, Response};
 use rocket_contrib::json::{Json, JsonValue};
-
-/// Structs used throughout routes
 
 #[derive(Serialize)]
 pub struct WorkshopResponse {
@@ -22,7 +22,6 @@ impl From<NumberVec> for Vec<u64> {
 }
 
 /// JSON response with custom status
-
 // Based on: https://stackoverflow.com/a/54867136/12347616
 #[derive(Debug)]
 pub struct ApiResponse {

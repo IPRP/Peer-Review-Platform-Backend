@@ -1,7 +1,9 @@
+//! CRUD operations for submissions.
+
 use crate::db;
 use crate::schema::reviews::dsl::{
-    deadline as review_deadline, done as review_done, id as review_id, reviewer,
-    reviews as reviews_t, submission as review_submission,
+    deadline as review_deadline, done as review_done, id as review_id, locked as review_locked,
+    reviewer, reviews as reviews_t, submission as review_submission,
 };
 use crate::schema::submissions::dsl::{
     id as sub_id, student as sub_student, submissions as submissions_t, title as sub_title,
@@ -13,12 +15,16 @@ use crate::schema::users::dsl::{
 use crate::schema::workshoplist::dsl::{
     role as wsl_role, user as wsl_user, workshop as wsl_ws, workshoplist as workshoplist_t,
 };
-use crate::schema::workshops::dsl::{id as ws_id, title as ws_title, workshops as workshops_t};
+use crate::schema::workshops::dsl::{
+    end as ws_end, id as ws_id, title as ws_title, workshops as workshops_t,
+};
+use chrono::Local;
 use diesel::dsl::exists;
 use diesel::dsl::not;
 use diesel::prelude::*;
 use diesel::result::Error;
 
+/// Representation of a review for TODOs
 #[derive(Serialize)]
 pub struct TodoReview {
     pub id: u64,
@@ -34,6 +40,7 @@ pub struct TodoReview {
     pub workshop_name: String,
 }
 
+/// Representation of a submission for TODOs
 #[derive(Serialize)]
 pub struct TodoSubmission {
     pub id: u64,
@@ -41,15 +48,15 @@ pub struct TodoSubmission {
     pub workshop_name: String,
 }
 
+/// Representation of a student T O D O.
 #[derive(Serialize)]
 pub struct Todo {
     pub reviews: Vec<TodoReview>,
     pub submissions: Vec<TodoSubmission>,
 }
 
+/// Get student T O D O.
 pub fn get(conn: &MysqlConnection, student_id: u64) -> Result<Todo, ()> {
-    // TODO filter by deadline / locked
-
     /*
     select r.id, r.done, r.deadline, s.id, u.firstname, u.lastname, w.title
          from reviews r
@@ -63,7 +70,7 @@ pub fn get(conn: &MysqlConnection, student_id: u64) -> Result<Todo, ()> {
         .inner_join(submissions_t.on(sub_id.eq(review_submission)))
         .inner_join(workshops_t.on(ws_id.eq(sub_ws)))
         .inner_join(users_t.on(user_id.nullable().eq(sub_student.nullable())))
-        .filter(reviewer.eq(student_id))
+        .filter(reviewer.eq(student_id).and(review_locked.eq(false)))
         .select((
             review_id,
             review_done,
@@ -114,12 +121,20 @@ pub fn get(conn: &MysqlConnection, student_id: u64) -> Result<Todo, ()> {
         })
         .collect();
 
+    // Filter only current workshops
+    let date = Local::now().naive_local();
+
     let raw_submissions = workshops_t
         .left_outer_join(workshoplist_t.on(ws_id.eq(wsl_ws)))
         .left_outer_join(users_t.on(user_id.eq(wsl_user)))
-        .filter(wsl_user.eq(student_id).and(not(exists(
-            submissions_t.filter(sub_student.eq(student_id)),
-        ))))
+        .filter(
+            wsl_user
+                .eq(student_id)
+                .and(not(exists(
+                    submissions_t.filter(sub_student.eq(student_id)),
+                )))
+                .and(ws_end.ge(date)),
+        )
         .select((ws_id, ws_title))
         .get_results::<(u64, String)>(conn);
 

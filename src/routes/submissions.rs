@@ -24,6 +24,7 @@ pub struct NewSubmission {
     attachments: NumberVec,
 }
 
+/// Create new submission.
 #[post(
     "/submission/<workshop_id>",
     format = "json",
@@ -64,6 +65,7 @@ pub fn create_submission(
     }
 }
 
+/// Get existing submission.
 #[get("/submission/<submission_id>")]
 pub fn get_submission(
     user: User,
@@ -129,6 +131,7 @@ pub struct UpdatePoints {
     pub points: f64,
 }
 
+/// Update existing review.
 #[put("/review/<review_id>", format = "json", data = "<update_review>")]
 pub fn update_review(
     user: User,
@@ -150,6 +153,7 @@ pub fn update_review(
     }
 }
 
+/// Get specific review.
 #[get("/review/<review_id>")]
 pub fn get_review(
     user: User,

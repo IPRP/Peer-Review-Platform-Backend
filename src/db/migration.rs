@@ -1,9 +1,14 @@
+//! Performs database operations when launching the application.
+//! For example clearing the database or inserting mock data.
+
 use crate::diesel::connection::SimpleConnection;
 use crate::IprpDB;
 use chrono::Duration;
 use rocket::logger::error;
 use rocket::Rocket;
 
+/// Run database migration.
+/// Can be configured via `Rocket.toml`.
 // Perform migrations automatically without CLI
 // Based on https://stackoverflow.com/a/61064269/12347616
 embed_migrations!();
@@ -104,6 +109,7 @@ INSERT INTO `criteria` VALUES (1,1),(1,2);
     }
 }
 
+/// Holds configured timespan for reviews.
 pub struct ReviewTimespan {
     pub days: i64,
     pub hours: i64,
@@ -111,6 +117,7 @@ pub struct ReviewTimespan {
 }
 
 impl ReviewTimespan {
+    /// Calculate deadline for given date.
     pub fn deadline(&self, date: &chrono::NaiveDateTime) -> chrono::NaiveDateTime {
         *date
             + Duration::days(self.days)
@@ -119,6 +126,7 @@ impl ReviewTimespan {
     }
 }
 
+/// Setup review timespan from `Rocke.toml` configuration file.
 pub fn setup_review_timespan(rocket: Rocket) -> Result<Rocket, Rocket> {
     let days = rocket.config().get_int("review_time_days").unwrap_or(7);
     let hours = rocket.config().get_int("review_time_hours").unwrap_or(0);

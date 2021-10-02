@@ -118,6 +118,16 @@ table! {
     use diesel::sql_types::*;
     use crate::models::*;
 
+    workshopattachments (workshop, attachment) {
+        workshop -> Unsigned<Bigint>,
+        attachment -> Unsigned<Bigint>,
+    }
+}
+
+table! {
+    use diesel::sql_types::*;
+    use crate::models::*;
+
     workshoplist (workshop, user) {
         workshop -> Unsigned<Bigint>,
         user -> Unsigned<Bigint>,
@@ -152,6 +162,8 @@ joinable!(submissioncriteria -> criterion (criterion));
 joinable!(submissioncriteria -> submissions (submission));
 joinable!(submissions -> users (student));
 joinable!(submissions -> workshops (workshop));
+joinable!(workshopattachments -> attachments (attachment));
+joinable!(workshopattachments -> workshops (workshop));
 joinable!(workshoplist -> users (user));
 joinable!(workshoplist -> workshops (workshop));
 
@@ -165,6 +177,7 @@ allow_tables_to_appear_in_same_query!(
     submissioncriteria,
     submissions,
     users,
+    workshopattachments,
     workshoplist,
     workshops,
 );

@@ -1,3 +1,6 @@
+//! Add CORS Headers to Rocket.
+//! Deprecated in favor of `rocket_cors`.
+
 use rocket::fairing::{Fairing, Info, Kind};
 use rocket::http::Header;
 use rocket::{Request, Response};

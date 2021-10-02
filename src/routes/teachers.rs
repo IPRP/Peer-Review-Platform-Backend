@@ -13,6 +13,7 @@ use std::fmt::Display;
 use std::num::{ParseFloatError, ParseIntError};
 use std::str::FromStr;
 
+/// Get all workshops.
 #[get("/teacher/workshops")]
 pub fn workshops(user: User, conn: IprpDB) -> Result<Json<JsonValue>, ApiResponse> {
     if user.role == Role::Student {
@@ -33,6 +34,7 @@ pub fn workshops(user: User, conn: IprpDB) -> Result<Json<JsonValue>, ApiRespons
     })))
 }
 
+/// Get specific workshop.
 #[get("/teacher/workshop/<workshop_id>")]
 pub fn workshop(
     user: User,
@@ -103,6 +105,7 @@ pub struct NewWorkshop {
     criteria: CriterionVec,
 }
 
+/// Create new workshop.
 #[post("/teacher/workshop", format = "json", data = "<new_workshop>")]
 pub fn create_workshop(
     user: User,
@@ -146,6 +149,7 @@ pub struct UpdateWorkshop {
     criteria: CriterionVec,
 }
 
+/// Update workshop.
 #[put(
     "/teacher/workshop/<workshop_id>",
     format = "json",
@@ -179,6 +183,7 @@ pub fn update_workshop(
     }
 }
 
+/// Delete existing workshop.
 #[delete("/teacher/workshop/<id>")]
 pub fn delete_workshop(user: User, conn: IprpDB, id: u64) -> Result<Json<JsonValue>, ApiResponse> {
     if user.role == Role::Student {
@@ -201,6 +206,8 @@ pub struct SearchStudent {
     group: Option<String>,
 }
 
+/// Search students.
+/// Different Query Parameter yield different results.
 #[get("/teacher/search/student?<all>&<id>&<firstname>&<lastname>&<group>")]
 pub fn search_student(
     user: User,

@@ -5,7 +5,10 @@
 ### 📦 Requirements 
 
 * Rust (Nightly)
+
 * MySQL (Tested with version 8.0.23 under WSL2)
+
+  Before running the backend make sure that the Event Scheduler is turned on!
 
 ### :rocket: Run
 
@@ -245,7 +248,7 @@ Query Parameter: <code>?id=&lt;i></code>
   <td></td>
 </tr>
 <tr>
-  <td>Get Student Id fron Name<br><code>/teacher/search/student</code></td>
+  <td>Get Student Id from Name<br><code>/teacher/search/student</code></td>
   <td>GET</td>
   <td>
   Query Parameter: <code>?firstname=&lt;s>&lastname=&lt;s></code>
@@ -289,7 +292,7 @@ Query Parameter: <code>?all=&lt;b></code>
   "students": [
     {
       "firstname": &lt;s>, "lastname": &lt;s>,
-      "id": &lt;i>, "group": &lt;>
+      "id": &lt;i>, "group": &lt;s>
     }, ..
   ]
 }
@@ -471,6 +474,12 @@ Student (Own submission) & Teacher
         }
       ]
     }
+  ],
+  "missingReviews": [
+    {
+      "id": &lt;i>, "firstname": &lt;s>,
+      "lastname": &lt;s>
+    }
   ]
 }
 </pre>
@@ -495,7 +504,7 @@ Student (Other student submission)
 <br>
   </td>
   <td>
-    Reviewers first- & lastname are not available for students in anonymous workshops
+    Reviewers first- & lastname are not available for students in anonymous workshops. Missing Reviews is only available for teachers.
   </td>
 </tr>
 <tr>
