@@ -9,7 +9,7 @@ use crate::schema::submissionattachments::dsl::{
     attachment as subatt_att, submission as subatt_sub, submissionattachments as subatt_t,
 };
 use diesel::prelude::*;
-use diesel::result::{DatabaseErrorKind, Error};
+use diesel::result::Error;
 
 /// Create attachment.
 pub fn create<'a>(conn: &MysqlConnection, title: String, owner: u64) -> Result<Attachment, ()> {

@@ -1,17 +1,11 @@
-
 use crate::models::{Kind, NewCriterion, Role, User};
 use crate::routes::models::{ApiResponse, NumberVec, WorkshopResponse};
 use crate::{db, IprpDB};
 
-
-use rocket::http::{RawStr};
+use rocket::http::RawStr;
 use rocket::request::FromFormValue;
 
 use rocket_contrib::json::{Json, JsonValue};
-
-
-use std::num::{ParseIntError};
-
 
 /// Get all workshops.
 #[get("/teacher/workshops")]
@@ -307,11 +301,6 @@ impl<'v> FromFormValue<'v> for Date {
     }*/
 }
 
-// See: https://stackoverflow.com/a/26370894/12347616
-fn parse_str_to_u64(input: &&str) -> Result<u64, ParseIntError> {
-    input.parse::<u64>()
-}
-
 impl<'v> FromFormValue<'v> for NumberVec {
     type Error = &'v RawStr;
 
@@ -337,13 +326,19 @@ impl<'v> FromFormValue<'v> for NumberVec {
     }*/
 }
 
-// See: https://stackoverflow.com/a/38447886/12347616
-fn crop_letters(s: &str, pos: usize) -> String {
-    match s.char_indices().skip(pos).next() {
-        Some((pos, _)) => String::from(&s[pos..]),
-        None => "".to_string(),
-    }
-}
+// See: https://stackoverflow.com/a/26370894/12347616
+// use std::num::ParseIntError;
+// fn parse_str_to_u64(input: &&str) -> Result<u64, ParseIntError> {
+//     input.parse::<u64>()
+// }
+//
+// // See: https://stackoverflow.com/a/38447886/12347616
+// fn crop_letters(s: &str, pos: usize) -> String {
+//     match s.char_indices().skip(pos).next() {
+//         Some((pos, _)) => String::from(&s[pos..]),
+//         None => "".to_string(),
+//     }
+// }
 
 impl<'v> FromFormValue<'v> for CriterionVec {
     type Error = &'v RawStr;

@@ -244,9 +244,12 @@ pub fn update(
         // Update review
         review.feedback = update_review.feedback;
         review.done = true;
-        diesel::update(reviews_t.filter(reviews_id.eq(review.id)))
+        let review_update = diesel::update(reviews_t.filter(reviews_id.eq(review.id)))
             .set(&review)
             .execute(conn);
+        if review_update.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
 
         // Update review points
         // First `update_review` needs to be changed into a insertable form

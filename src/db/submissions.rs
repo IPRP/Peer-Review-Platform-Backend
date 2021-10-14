@@ -50,9 +50,12 @@ pub fn create<'a>(
 
     let submission = conn.transaction::<Submission, Error, _>(|| {
         // Insert submission
-        diesel::insert_into(submissions_t)
+        let submission_insert = diesel::insert_into(submissions_t)
             .values(&new_submission)
             .execute(conn);
+        if submission_insert.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
         let submission: Submission = submissions_t.order(sub_id.desc()).first(conn).unwrap();
 
         // Relate attachments to submission
@@ -74,9 +77,12 @@ pub fn create<'a>(
                 }
             })
             .collect();
-        diesel::insert_into(subatt_t)
+        let attachment_insert = diesel::insert_into(subatt_t)
             .values(&submission_attachments)
             .execute(conn);
+        if attachment_insert.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
 
         // Relate criteria to submission
         let workshop_criteria = db::workshops::get_criteria(conn, workshop_id);
@@ -91,9 +97,12 @@ pub fn create<'a>(
                 criterion,
             })
             .collect();
-        diesel::insert_into(subcrit_t)
+        let criteria_insert = diesel::insert_into(subcrit_t)
             .values(&submission_criteria)
             .execute(conn);
+        if criteria_insert.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
 
         // Assign reviews
         let assign = db::reviews::assign(
@@ -353,7 +362,9 @@ fn get_workshop_submissions_internal(
     }
     let submissions = submissions.unwrap();
     for submission_id in submissions {
-        calculate_points(conn, submission_id);
+        if calculate_points(conn, submission_id).is_err() {
+            return Err(());
+        }
     }
     let submissions: Result<Vec<Submission>, _> = submissions_t
         .filter(sub_workshop.eq(workshop_id).and(sub_student.eq(student_id)))

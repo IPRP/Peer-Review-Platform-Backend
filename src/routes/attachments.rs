@@ -1,4 +1,4 @@
-use crate::models::{User};
+use crate::models::User;
 use crate::routes::models::ApiResponse;
 use crate::utils::attachment_path;
 use crate::{db, IprpDB};
@@ -50,8 +50,8 @@ pub fn upload(
         match db::attachments::create(&*conn, file_name, user.id) {
             Ok(att) => {
                 // Copy file to attachments folder
-                fs::create_dir_all(&attachment_path().join(att.id.to_string()));
-                fs::copy(
+                let _ = fs::create_dir_all(&attachment_path().join(att.id.to_string()));
+                let _ = fs::copy(
                     &file.path,
                     &attachment_path()
                         .join(att.id.to_string())
