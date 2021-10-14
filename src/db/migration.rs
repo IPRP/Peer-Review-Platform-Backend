@@ -7,8 +7,9 @@ use chrono::Duration;
 use rocket::logger::error;
 use rocket::Rocket;
 
-/// Run database migration.
-/// Can be configured via `Rocket.toml`.
+// Run database migration.
+// Can be configured via `Rocket.toml`.
+// ===
 // Perform migrations automatically without CLI
 // Based on https://stackoverflow.com/a/61064269/12347616
 embed_migrations!();

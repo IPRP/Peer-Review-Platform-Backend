@@ -482,16 +482,16 @@ fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), ()
                 for point in points {
                     let weighted_points = match point.kind {
                         Kind::Point => (point.points % (point_range + 1.0)) * point.weight,
-                        Kind::Grade => match point.points {
-                            1.0 => point_range,
-                            2.0 => point_range * 0.8,
-                            3.0 => point_range * 0.6,
-                            4.0 => point_range * 0.5,
+                        Kind::Grade => match point.points.round() as i64 {
+                            1 => point_range,
+                            2 => point_range * 0.8,
+                            3 => point_range * 0.6,
+                            4 => point_range * 0.5,
                             _ => 0.0,
                         },
                         Kind::Percentage => ((point.points % 101.0) / point_range) * point.weight,
-                        Kind::Truefalse => match point.points {
-                            1.0 => point_range * point.weight,
+                        Kind::Truefalse => match point.points.round() as i64 {
+                            1 => point_range * point.weight,
                             _ => 0.0,
                         },
                     };

@@ -27,7 +27,7 @@ use crate::schema::workshoplist::dsl::{
     role as wsl_role, user as wsl_user, workshop as wsl_ws, workshoplist as workshoplist_t,
 };
 use crate::schema::workshops::dsl::{id as ws_id, workshops as workshops_t};
-use chrono::{DateTime, Duration, Local, NaiveDateTime, TimeZone, Utc};
+use chrono::{Duration, Local, TimeZone, Utc};
 use diesel::connection::SimpleConnection;
 
 use diesel::prelude::*;
@@ -94,9 +94,13 @@ pub fn assign(
             error: false,
         })
         .collect();
-    diesel::insert_into(reviews_t)
+    let review_insert = diesel::insert_into(reviews_t)
         .values(&reviews)
         .execute(conn);
+    if review_insert.is_err() {
+        return Err(());
+    }
+
     let reviews = reviews_t
         .order(reviews_id.desc())
         .limit(review_count.try_into().unwrap())
@@ -607,6 +611,7 @@ pub fn is_submission_owner(conn: &MysqlConnection, review_id: u64, student_id: u
 }
 
 /// Get review by review id.
+#[allow(dead_code)]
 pub fn get_by_id(conn: &MysqlConnection, review_id: u64) -> Result<Review, Error> {
     reviews_t.filter(reviews_id.eq(review_id)).first(conn)
 }

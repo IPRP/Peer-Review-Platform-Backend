@@ -4,8 +4,8 @@ use crate::db;
 use crate::db::reviews::WorkshopReview;
 use crate::db::submissions::WorkshopSubmission;
 use crate::models::{
-    Criteria as NewCriteria, Criterion, NewCriterion, NewStudent, NewWorkshop, Role, Submission,
-    User, Workshop, Workshoplist,
+    Criteria as NewCriteria, Criterion, NewCriterion, NewWorkshop, Role, User, Workshop,
+    Workshoplist,
 };
 use crate::schema::criteria::dsl::{
     criteria as criteria_t, criterion as criteria_criterion, workshop as criteria_workshop,
@@ -19,8 +19,7 @@ use crate::schema::workshoplist::dsl::{
     role as wsl_role, user as wsl_user, workshop as wsl_ws, workshoplist as workshoplist_t,
 };
 use crate::schema::workshops::dsl::{
-    anonymous as ws_anonymous, content as ws_content, end as ws_end, id as ws_id,
-    title as ws_title, workshops as workshops_t,
+    anonymous as ws_anonymous, id as ws_id, workshops as workshops_t,
 };
 use diesel::prelude::*;
 use diesel::result::Error;
@@ -58,6 +57,7 @@ pub fn get_by_submission_id(conn: &MysqlConnection, submission_id: u64) -> Resul
 }
 
 /// Get workshop by review id.
+#[allow(dead_code)]
 pub fn get_by_review_id(conn: &MysqlConnection, review_id: u64) -> Result<Workshop, Error> {
     let review = db::reviews::get_by_id(conn, review_id);
     if review.is_err() {
@@ -103,9 +103,12 @@ pub fn create<'a>(
         let mut teachers = teachers.unwrap();
         println!("{:?}", teachers);
         // Insert criteria
-        diesel::insert_into(criterion_t)
+        let criterion_insert = diesel::insert_into(criterion_t)
             .values(&criteria)
             .execute(conn);
+        if criterion_insert.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
         let mut last_criterion_id = criterion_t
             .select(c_id)
             .order(c_id.desc())
@@ -132,9 +135,12 @@ pub fn create<'a>(
                 role: u.role,
             })
             .collect::<Vec<Workshoplist>>();
-        diesel::insert_into(workshoplist_t)
+        let workshop_insert = diesel::insert_into(workshoplist_t)
             .values(&new_workshoplist)
             .execute(conn);
+        if workshop_insert.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
         // Assign criteria to workshop
         let new_criteria = criterion_ids
             .into_iter()
@@ -143,9 +149,12 @@ pub fn create<'a>(
                 criterion: c,
             })
             .collect::<Vec<NewCriteria>>();
-        diesel::insert_into(criteria_t)
+        let criteria_insert = diesel::insert_into(criteria_t)
             .values(&new_criteria)
             .execute(conn);
+        if criteria_insert.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
         Ok(workshop)
     });
     match ws {
@@ -275,8 +284,12 @@ pub fn delete(conn: &MysqlConnection, id: u64) -> Result<(), ()> {
     let workshop: Result<Workshop, diesel::result::Error> =
         workshops_t.filter(ws_id.eq(id)).first(conn);
     if workshop.is_ok() {
-        diesel::delete(workshops_t.filter(ws_id.eq(id))).execute(conn);
-        Ok(())
+        let workshop_delete = diesel::delete(workshops_t.filter(ws_id.eq(id))).execute(conn);
+        if workshop_delete.is_ok() {
+            Ok(())
+        } else {
+            Err(())
+        }
     } else {
         Err(())
     }
@@ -360,6 +373,7 @@ fn roles_in_workshop(
 }
 
 /// Gets students of a workshop.
+#[allow(dead_code)]
 pub fn students_in_workshop(
     conn: &MysqlConnection,
     workshop_id: u64,
@@ -369,6 +383,7 @@ pub fn students_in_workshop(
 }
 
 /// Gets teachers of a workshop.
+#[allow(dead_code)]
 pub fn teachers_in_workshop(
     conn: &MysqlConnection,
     workshop_id: u64,

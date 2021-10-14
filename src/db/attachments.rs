@@ -9,16 +9,19 @@ use crate::schema::submissionattachments::dsl::{
     attachment as subatt_att, submission as subatt_sub, submissionattachments as subatt_t,
 };
 use diesel::prelude::*;
-use diesel::result::Error;
+use diesel::result::{DatabaseErrorKind, Error};
 
 /// Create attachment.
 pub fn create<'a>(conn: &MysqlConnection, title: String, owner: u64) -> Result<Attachment, ()> {
     let new_attachment = NewAttachment { title, owner };
 
     let att = conn.transaction::<Attachment, Error, _>(|| {
-        diesel::insert_into(attachments_t)
+        let attachment_insert = diesel::insert_into(attachments_t)
             .values(&new_attachment)
             .execute(conn);
+        if let Err(error) = attachment_insert {
+            return Err(error);
+        }
         let attachment: Attachment = attachments_t.order(att_id.desc()).first(conn).unwrap();
         Ok(attachment)
     });
@@ -68,6 +71,7 @@ pub fn get_by_id(conn: &MysqlConnection, id: u64) -> Result<Attachment, Error> {
 }
 
 /// Get all attachments from an user by its id.
+#[allow(dead_code)]
 pub fn get_by_user_id(conn: &MysqlConnection, user_id: u64) -> Result<Vec<Attachment>, Error> {
     attachments_t
         .filter(att_owner.eq(user_id))
