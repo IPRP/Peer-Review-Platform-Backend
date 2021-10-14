@@ -1,6 +1,7 @@
 //! CRUD operations for submissions.
 
 use crate::db;
+use crate::db::models::*;
 use crate::schema::reviews::dsl::{
     deadline as review_deadline, done as review_done, id as review_id, locked as review_locked,
     reviewer, reviews as reviews_t, submission as review_submission,
@@ -22,37 +23,6 @@ use chrono::Local;
 use diesel::dsl::exists;
 use diesel::dsl::not;
 use diesel::prelude::*;
-
-/// Representation of a review for TODOs
-#[derive(Serialize)]
-pub struct TodoReview {
-    pub id: u64,
-    pub done: bool,
-    pub deadline: chrono::NaiveDateTime,
-    pub title: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub firstname: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub lastname: Option<String>,
-    pub submission: u64,
-    #[serde(rename(serialize = "workshopName"))]
-    pub workshop_name: String,
-}
-
-/// Representation of a submission for TODOs
-#[derive(Serialize)]
-pub struct TodoSubmission {
-    pub id: u64,
-    #[serde(rename(serialize = "workshopName"))]
-    pub workshop_name: String,
-}
-
-/// Representation of a student T O D O.
-#[derive(Serialize)]
-pub struct Todo {
-    pub reviews: Vec<TodoReview>,
-    pub submissions: Vec<TodoSubmission>,
-}
 
 /// Get student T O D O.
 pub fn get(conn: &MysqlConnection, student_id: u64) -> Result<Todo, ()> {

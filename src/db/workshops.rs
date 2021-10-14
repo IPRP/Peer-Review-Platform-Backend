@@ -1,12 +1,7 @@
 //! CRUD operations for workshops.
 
 use crate::db;
-use crate::db::reviews::WorkshopReview;
-use crate::db::submissions::WorkshopSubmission;
-use crate::models::{
-    Criteria as NewCriteria, Criterion, NewCriterion, NewWorkshop, Role, User, Workshop,
-    Workshoplist,
-};
+use crate::db::models::*;
 use crate::schema::criteria::dsl::{
     criteria as criteria_t, criterion as criteria_criterion, workshop as criteria_workshop,
 };
@@ -144,11 +139,11 @@ pub fn create<'a>(
         // Assign criteria to workshop
         let new_criteria = criterion_ids
             .into_iter()
-            .map(|c| NewCriteria {
+            .map(|c| Criteria {
                 workshop: workshop.id,
                 criterion: c,
             })
-            .collect::<Vec<NewCriteria>>();
+            .collect::<Vec<Criteria>>();
         let criteria_insert = diesel::insert_into(criteria_t)
             .values(&new_criteria)
             .execute(conn);
@@ -258,11 +253,11 @@ pub fn update(
         // Assign criteria to workshop
         let new_criteria = criterion_ids
             .into_iter()
-            .map(|c| NewCriteria {
+            .map(|c| Criteria {
                 workshop: workshop.id,
                 criterion: c,
             })
-            .collect::<Vec<NewCriteria>>();
+            .collect::<Vec<Criteria>>();
         let insert = diesel::insert_into(criteria_t)
             .values(&new_criteria)
             .execute(conn);
@@ -309,18 +304,6 @@ pub fn student_in_workshop(conn: &MysqlConnection, student_id: u64, workshop_id:
     } else {
         false
     }
-}
-
-/// Workshop representation of an user.
-#[derive(Serialize)]
-pub struct WorkshopUser {
-    pub id: u64,
-    pub firstname: String,
-    pub lastname: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub group: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub submissions: Option<Vec<WorkshopSubmission>>,
 }
 
 // Gets students/teachers of a workshop.
@@ -392,18 +375,6 @@ pub fn teachers_in_workshop(
     roles_in_workshop(conn, workshop_id, Role::Teacher, is_teacher)
 }
 
-/// Teacher representation of a workshop.
-#[derive(Serialize)]
-pub struct TeacherWorkshop {
-    pub title: String,
-    pub content: String,
-    pub end: chrono::NaiveDateTime,
-    pub anonymous: bool,
-    pub students: Vec<WorkshopUser>,
-    pub teachers: Vec<WorkshopUser>,
-    pub criteria: Vec<Criterion>,
-}
-
 /// Get teacher workshop by workshop id.
 pub fn get_teacher_workshop(
     conn: &MysqlConnection,
@@ -451,19 +422,6 @@ pub fn get_teacher_workshop(
         teachers,
         criteria,
     })
-}
-
-/// Student representation of a workshop.
-#[derive(Serialize)]
-pub struct StudentWorkshop {
-    pub title: String,
-    pub content: String,
-    pub end: chrono::NaiveDateTime,
-    pub anonymous: bool,
-    pub students: Vec<WorkshopUser>,
-    pub teachers: Vec<WorkshopUser>,
-    pub submissions: Vec<WorkshopSubmission>,
-    pub reviews: Vec<WorkshopReview>,
 }
 
 /// Get student workshop by workshop id.

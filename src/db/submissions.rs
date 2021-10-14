@@ -1,12 +1,8 @@
 //! CRUD operations for submissions.
 
 use crate::db;
-use crate::db::reviews::{FullReview, MissingReview};
+use crate::db::models::*;
 use crate::db::ReviewTimespan;
-use crate::models::{
-    Criterion, Kind, NewSubmission, SimpleAttachment, Submission, Submissionattachment,
-    Submissioncriteria,
-};
 
 use crate::schema::criterion::dsl::{criterion as criterion_t, id as c_id};
 use crate::schema::submissionattachments::dsl::submissionattachments as subatt_t;
@@ -138,33 +134,6 @@ pub fn is_owner(conn: &MysqlConnection, submission_id: u64, student_id: u64) -> 
     }
 }
 
-/// Representation of a submission for owner.
-#[derive(Serialize)]
-pub struct OwnSubmission {
-    pub title: String,
-    pub comment: String,
-    pub attachments: Vec<SimpleAttachment>,
-    pub locked: bool,
-    pub date: chrono::NaiveDateTime,
-    #[serde(rename(serialize = "reviewsDone"))]
-    pub reviews_done: bool,
-    #[serde(rename(serialize = "noReviews"))]
-    pub no_reviews: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub points: Option<f64>,
-    #[serde(rename(serialize = "maxPoints"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub max_points: Option<f64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub firstname: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub lastname: Option<String>,
-    pub reviews: Vec<FullReview>,
-    #[serde(rename(serialize = "missingReviews"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub missing_reviews: Option<Vec<MissingReview>>,
-}
-
 // Get detailed submission from submission id.
 fn get_full_submission(
     conn: &MysqlConnection,
@@ -265,15 +234,6 @@ pub fn get_teacher_submission(
     get_full_submission(conn, submission_id, true)
 }
 
-/// Representation of a submission for other students like reviewers.
-#[derive(Serialize)]
-pub struct OtherSubmission {
-    pub title: String,
-    pub comment: String,
-    pub attachments: Vec<SimpleAttachment>,
-    pub criteria: Vec<Criterion>,
-}
-
 /// Get simplified submission from submission id.
 /// Also locks submission so that submission owner can no longer update it.
 pub fn get_student_submission(
@@ -322,28 +282,6 @@ pub fn get_student_submission(
         attachments,
         criteria: submission_criteria,
     })
-}
-
-/// Workshop representation of a submission.
-#[derive(Serialize)]
-pub struct WorkshopSubmission {
-    pub id: u64,
-    pub title: String,
-    pub date: chrono::NaiveDateTime,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub locked: Option<bool>,
-    #[serde(rename(serialize = "studentid"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub student_id: Option<u64>,
-    #[serde(rename(serialize = "reviewsDone"))]
-    pub reviews_done: bool,
-    #[serde(rename(serialize = "noReviews"))]
-    pub no_reviews: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub points: Option<f64>,
-    #[serde(rename(serialize = "maxPoints"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub max_points: Option<f64>,
 }
 
 // Get all workshop submissions.

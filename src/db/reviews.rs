@@ -1,8 +1,8 @@
 //! CRUD operations for reviews.
 
 use crate::db;
+use crate::db::models::*;
 use crate::db::ReviewTimespan;
-use crate::models::{Kind, NewReview, Review, ReviewPoints, Role};
 use crate::routes::submissions::UpdateReview;
 use crate::schema::criterion::dsl::{
     content as c_content, criterion as criterion_t, id as c_id, kind as c_kind, title as c_title,
@@ -29,7 +29,6 @@ use crate::schema::workshoplist::dsl::{
 use crate::schema::workshops::dsl::{id as ws_id, workshops as workshops_t};
 use chrono::{Duration, Local, TimeZone, Utc};
 use diesel::connection::SimpleConnection;
-
 use diesel::prelude::*;
 use diesel::result::Error;
 use diesel::sql_types::BigInt;
@@ -286,14 +285,6 @@ pub fn update(
     }
 }
 
-/// Simplified representation of review points.
-#[derive(Serialize)]
-pub struct SimpleReviewPoints {
-    pub weight: f64,
-    pub kind: Kind,
-    pub points: f64,
-}
-
 /// Get simplified review points from a submission.
 pub fn get_simple_review_points(
     conn: &MysqlConnection,
@@ -330,44 +321,6 @@ pub fn get_simple_review_points(
         simple_reviews.push(points);
     }
     Ok(simple_reviews)
-}
-
-/// Detailed representation of a review.
-#[derive(Serialize)]
-pub struct FullReview {
-    pub id: u64,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub firstname: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub lastname: Option<String>,
-    pub feedback: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "notSubmitted")]
-    pub not_submitted: Option<bool>,
-    pub points: Vec<FullReviewPoints>,
-}
-
-/// Detailed representation of review points.
-#[derive(Debug, Serialize)]
-pub struct FullReviewPoints {
-    #[serde(rename = "id")]
-    pub criterion_id: u64,
-    pub title: String,
-    pub content: String,
-    pub weight: f64,
-    #[serde(rename = "type")]
-    pub kind: Kind,
-    pub points: f64,
-}
-
-/// Representation of a missing review
-#[derive(Serialize)]
-pub struct MissingReview {
-    pub id: u64,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub firstname: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub lastname: Option<String>,
 }
 
 // Get all detailed reviews from a submission.
@@ -617,19 +570,6 @@ pub fn is_submission_owner(conn: &MysqlConnection, review_id: u64, student_id: u
 #[allow(dead_code)]
 pub fn get_by_id(conn: &MysqlConnection, review_id: u64) -> Result<Review, Error> {
     reviews_t.filter(reviews_id.eq(review_id)).first(conn)
-}
-
-/// Workshop representation of a review.
-#[derive(Serialize)]
-pub struct WorkshopReview {
-    pub id: u64,
-    pub done: bool,
-    pub deadline: chrono::NaiveDateTime,
-    pub title: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub firstname: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub lastname: Option<String>,
 }
 
 /// Get all reviews from a student in one workshop.

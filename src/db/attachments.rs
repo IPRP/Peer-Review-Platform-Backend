@@ -1,7 +1,7 @@
 //! CRUD operations for attachments.
 
 use crate::db;
-use crate::models::{Attachment, NewAttachment, SimpleAttachment};
+use crate::db::models::*;
 use crate::schema::attachments::dsl::{
     attachments as attachments_t, id as att_id, owner as att_owner, title as att_title,
 };
