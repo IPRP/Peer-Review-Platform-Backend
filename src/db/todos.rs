@@ -13,7 +13,7 @@ use crate::schema::users::dsl::{
     firstname as user_firstname, id as user_id, lastname as user_lastname, users as users_t,
 };
 use crate::schema::workshoplist::dsl::{
-    role as wsl_role, user as wsl_user, workshop as wsl_ws, workshoplist as workshoplist_t,
+    user as wsl_user, workshop as wsl_ws, workshoplist as workshoplist_t,
 };
 use crate::schema::workshops::dsl::{
     end as ws_end, id as ws_id, title as ws_title, workshops as workshops_t,
@@ -22,7 +22,6 @@ use chrono::Local;
 use diesel::dsl::exists;
 use diesel::dsl::not;
 use diesel::prelude::*;
-use diesel::result::Error;
 
 /// Representation of a review for TODOs
 #[derive(Serialize)]

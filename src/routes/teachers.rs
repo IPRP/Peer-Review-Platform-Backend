@@ -1,17 +1,17 @@
-use crate::db::workshops::TeacherWorkshop;
+
 use crate::models::{Kind, NewCriterion, Role, User};
 use crate::routes::models::{ApiResponse, NumberVec, WorkshopResponse};
 use crate::{db, IprpDB};
-use chrono::Utc;
-use diesel::result::Error;
-use rocket::http::{RawStr, Status};
+
+
+use rocket::http::{RawStr};
 use rocket::request::FromFormValue;
-use rocket::response::content;
+
 use rocket_contrib::json::{Json, JsonValue};
-use serde::{de, Deserialize, Deserializer};
-use std::fmt::Display;
-use std::num::{ParseFloatError, ParseIntError};
-use std::str::FromStr;
+
+
+use std::num::{ParseIntError};
+
 
 /// Get all workshops.
 #[get("/teacher/workshops")]
@@ -290,7 +290,7 @@ pub fn search_student(
 impl<'v> FromFormValue<'v> for Date {
     type Error = &'v RawStr;
 
-    fn from_form_value(form_value: &'v RawStr) -> Result<Self, Self::Error> {
+    fn from_form_value(_form_value: &'v RawStr) -> Result<Self, Self::Error> {
         unimplemented!()
     }
 
@@ -315,7 +315,7 @@ fn parse_str_to_u64(input: &&str) -> Result<u64, ParseIntError> {
 impl<'v> FromFormValue<'v> for NumberVec {
     type Error = &'v RawStr;
 
-    fn from_form_value(form_value: &'v RawStr) -> Result<Self, Self::Error> {
+    fn from_form_value(_form_value: &'v RawStr) -> Result<Self, Self::Error> {
         unimplemented!()
     }
 
@@ -405,7 +405,7 @@ impl<'v> FromFormValue<'v> for CriterionVec {
 
     // It seems that a dummy implementation is sufficient?
     // Serde is triggered internally?
-    fn from_form_value(form_value: &'v RawStr) -> Result<CriterionVec, &'v RawStr> {
+    fn from_form_value(_form_value: &'v RawStr) -> Result<CriterionVec, &'v RawStr> {
         unimplemented!()
     }
 }

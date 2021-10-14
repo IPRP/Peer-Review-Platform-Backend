@@ -1,13 +1,11 @@
 //! Authentication handling for Rocket.
 
-use crate::models::{Role, User};
+use crate::models::User;
 use crate::IprpDB;
-use base64::DecodeError;
-use diesel::result::Error;
+
 use rocket::http::Status;
 use rocket::request::{FromRequest, Outcome};
 use rocket::Request;
-use std::string::FromUtf8Error;
 
 #[derive(Debug)]
 pub enum LoginError {

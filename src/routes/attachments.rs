@@ -1,8 +1,8 @@
-use crate::models::{Attachment, User};
+use crate::models::{User};
 use crate::routes::models::ApiResponse;
 use crate::utils::attachment_path;
 use crate::{db, IprpDB};
-use diesel::result::Error;
+
 use rocket::http::ContentType;
 use rocket::response::NamedFile;
 use rocket::Data;

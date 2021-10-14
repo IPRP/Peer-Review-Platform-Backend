@@ -4,14 +4,12 @@ use crate::db;
 use crate::db::reviews::{FullReview, MissingReview};
 use crate::db::ReviewTimespan;
 use crate::models::{
-    Criterion, Kind, NewSubmission, Role, SimpleAttachment, Submission, Submissionattachment,
+    Criterion, Kind, NewSubmission, SimpleAttachment, Submission, Submissionattachment,
     Submissioncriteria,
 };
-use crate::schema::criteria::dsl::workshop;
+
 use crate::schema::criterion::dsl::{criterion as criterion_t, id as c_id};
-use crate::schema::submissionattachments::dsl::{
-    attachment as subatt_att, submission as subatt_sub, submissionattachments as subatt_t,
-};
+use crate::schema::submissionattachments::dsl::submissionattachments as subatt_t;
 use crate::schema::submissioncriteria::dsl::{
     criterion as subcrit_crit, submission as subcrit_sub, submissioncriteria as subcrit_t,
 };
@@ -22,7 +20,6 @@ use crate::schema::submissions::dsl::{
 };
 use diesel::prelude::*;
 use diesel::result::Error;
-use std::ops::Add;
 
 /// Create a new submission for a workshop.
 pub fn create<'a>(

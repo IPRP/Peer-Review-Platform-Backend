@@ -4,7 +4,7 @@ use rocket::http::{ContentType, Status};
 use rocket::request::Request;
 use rocket::response;
 use rocket::response::{Responder, Response};
-use rocket_contrib::json::{Json, JsonValue};
+use rocket_contrib::json::{JsonValue};
 
 #[derive(Serialize)]
 pub struct WorkshopResponse {

@@ -26,15 +26,14 @@ use crate::schema::users::dsl::{
 use crate::schema::workshoplist::dsl::{
     role as wsl_role, user as wsl_user, workshop as wsl_ws, workshoplist as workshoplist_t,
 };
-use crate::schema::workshops::dsl::{id as ws_id, title as ws_title, workshops as workshops_t};
+use crate::schema::workshops::dsl::{id as ws_id, workshops as workshops_t};
 use chrono::{DateTime, Duration, Local, NaiveDateTime, TimeZone, Utc};
 use diesel::connection::SimpleConnection;
-use diesel::dsl::count;
+
 use diesel::prelude::*;
 use diesel::result::Error;
 use diesel::sql_types::BigInt;
 use std::convert::TryInto;
-use std::ops::Add;
 
 /// Assign reviews from a given submission.
 pub fn assign(

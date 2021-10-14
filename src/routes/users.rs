@@ -1,10 +1,10 @@
 use crate::models::User;
 use crate::{db, IprpDB};
 use rocket::http::{Cookie, Cookies, Status};
-use rocket::response::content;
+
 use rocket_contrib::json;
 use rocket_contrib::json::{Json, JsonValue};
-use serde::{Deserialize, Serialize};
+
 
 /// Use Basic Auth header to trigger this.
 /// Using cookies will resend the cookie.

@@ -18,7 +18,7 @@ extern crate base64;
 extern crate crypto;
 
 use rocket::fairing::AdHoc;
-use rocket_cors::{AllowedMethods, AllowedOrigins, CorsOptions};
+use rocket_cors::{CorsOptions};
 
 // Import database operations
 mod db;
