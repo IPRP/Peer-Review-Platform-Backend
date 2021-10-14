@@ -1,5 +1,8 @@
-use crate::models::{Kind, NewCriterion, Role, User};
-use crate::routes::models::{ApiResponse, NumberVec, WorkshopResponse};
+use crate::db::models::*;
+use crate::routes::models::{
+    ApiResponse, Date, NumberVec, RouteCriterionVec, RouteNewWorkshop, RouteSearchStudent,
+    RouteUpdateWorkshop, RouteWorkshopResponse,
+};
 use crate::{db, IprpDB};
 
 use rocket::http::RawStr;
@@ -17,11 +20,11 @@ pub fn workshops(user: User, conn: IprpDB) -> Result<Json<JsonValue>, ApiRespons
     let workshops = db::workshops::get_by_user(&*conn, user.id);
     let workshop_infos = workshops
         .into_iter()
-        .map(|ws| WorkshopResponse {
+        .map(|ws| RouteWorkshopResponse {
             id: ws.id,
             title: ws.title,
         })
-        .collect::<Vec<WorkshopResponse>>();
+        .collect::<Vec<RouteWorkshopResponse>>();
     Ok(Json(json!({
         "ok": true,
         "workshops": workshop_infos
@@ -49,62 +52,12 @@ pub fn workshop(
     }
 }
 
-// Expected format is ISO 8601 combined date and time without timezone like `2007-04-05T14:30:30`
-// In JS that would mean creating a Date like this `(new Date()).toISOString().split(".")[0]`
-// https://github.com/serde-rs/json/issues/531#issuecomment-479738561
-#[derive(Deserialize)]
-pub struct Date(chrono::NaiveDateTime);
-
-#[derive(Debug, Deserialize)]
-pub struct Criterion {
-    title: String,
-    content: String,
-    weight: f64,
-    #[serde(rename = "type")]
-    kind: Kind,
-}
-
-impl From<Criterion> for NewCriterion {
-    fn from(item: Criterion) -> Self {
-        NewCriterion {
-            title: item.title,
-            content: item.content,
-            weight: item.weight,
-            kind: item.kind,
-        }
-    }
-}
-
-impl From<CriterionVec> for Vec<NewCriterion> {
-    fn from(items: CriterionVec) -> Self {
-        items
-            .0
-            .into_iter()
-            .map(|item| NewCriterion::from(item))
-            .collect()
-    }
-}
-
-#[derive(Deserialize)]
-pub struct CriterionVec(Vec<Criterion>);
-
-#[derive(FromForm, Deserialize)]
-pub struct NewWorkshop {
-    title: String,
-    content: String,
-    end: Date,
-    anonymous: bool,
-    teachers: NumberVec,
-    students: NumberVec,
-    criteria: CriterionVec,
-}
-
 /// Create new workshop.
 #[post("/teacher/workshop", format = "json", data = "<new_workshop>")]
 pub fn create_workshop(
     user: User,
     conn: IprpDB,
-    new_workshop: Json<NewWorkshop>,
+    new_workshop: Json<RouteNewWorkshop>,
 ) -> Result<Json<JsonValue>, ApiResponse> {
     if user.role == Role::Student {
         return Err(ApiResponse::forbidden());
@@ -133,16 +86,6 @@ pub fn create_workshop(
     }
 }
 
-#[derive(FromForm, Deserialize)]
-pub struct UpdateWorkshop {
-    title: String,
-    content: String,
-    end: Date,
-    teachers: NumberVec,
-    students: NumberVec,
-    criteria: CriterionVec,
-}
-
 /// Update workshop.
 #[put(
     "/teacher/workshop/<workshop_id>",
@@ -153,7 +96,7 @@ pub fn update_workshop(
     user: User,
     conn: IprpDB,
     workshop_id: u64,
-    update_workshop: Json<UpdateWorkshop>,
+    update_workshop: Json<RouteUpdateWorkshop>,
 ) -> Result<Json<JsonValue>, ApiResponse> {
     if user.role == Role::Student {
         return Err(ApiResponse::forbidden());
@@ -191,15 +134,6 @@ pub fn delete_workshop(user: User, conn: IprpDB, id: u64) -> Result<Json<JsonVal
     }
 }
 
-#[derive(FromForm, Deserialize)]
-pub struct SearchStudent {
-    all: bool,
-    id: Option<u64>,
-    firstname: Option<String>,
-    lastname: Option<String>,
-    group: Option<String>,
-}
-
 /// Search students.
 /// Different Query Parameter yield different results.
 #[get("/teacher/search/student?<all>&<id>&<firstname>&<lastname>&<group>")]
@@ -213,7 +147,7 @@ pub fn search_student(
     group: Option<String>,
 ) -> Result<Json<JsonValue>, ApiResponse> {
     let all = all.unwrap_or(false);
-    let search_info = SearchStudent {
+    let search_info = RouteSearchStudent {
         all,
         id,
         firstname,
@@ -340,7 +274,7 @@ impl<'v> FromFormValue<'v> for NumberVec {
 //     }
 // }
 
-impl<'v> FromFormValue<'v> for CriterionVec {
+impl<'v> FromFormValue<'v> for RouteCriterionVec {
     type Error = &'v RawStr;
 
     /*
@@ -400,7 +334,7 @@ impl<'v> FromFormValue<'v> for CriterionVec {
 
     // It seems that a dummy implementation is sufficient?
     // Serde is triggered internally?
-    fn from_form_value(_form_value: &'v RawStr) -> Result<CriterionVec, &'v RawStr> {
+    fn from_form_value(_form_value: &'v RawStr) -> Result<RouteCriterionVec, &'v RawStr> {
         unimplemented!()
     }
 }

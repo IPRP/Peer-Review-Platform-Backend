@@ -1,4 +1,4 @@
-use crate::models::User;
+use crate::db::models::*;
 use crate::routes::models::ApiResponse;
 use crate::utils::attachment_path;
 use crate::{db, IprpDB};

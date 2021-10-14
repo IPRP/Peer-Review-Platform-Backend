@@ -3,7 +3,7 @@
 use crate::db;
 use crate::db::models::*;
 use crate::db::ReviewTimespan;
-use crate::routes::submissions::UpdateReview;
+use crate::routes::models::RouteUpdateReview;
 use crate::schema::criterion::dsl::{
     content as c_content, criterion as criterion_t, id as c_id, kind as c_kind, title as c_title,
     weight as c_weight,
@@ -204,7 +204,7 @@ pub fn assign(
 /// Can be performed multiple times until review is locked on deadline.
 pub fn update(
     conn: &MysqlConnection,
-    update_review: UpdateReview,
+    update_review: RouteUpdateReview,
     review_id: u64,
     user_id: u64,
 ) -> bool {

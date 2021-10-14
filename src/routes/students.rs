@@ -1,17 +1,8 @@
-use crate::models::{Role, User};
-use crate::routes::models::{ApiResponse, WorkshopResponse};
+use crate::db::models::*;
+use crate::routes::models::{ApiResponse, RouteWorkshopResponse};
 use crate::{db, IprpDB};
 
-
-
-
-
 use rocket_contrib::json::{Json, JsonValue};
-
-
-
-
-
 
 /// Get all workshops.
 #[get("/student/workshops")]
@@ -23,11 +14,11 @@ pub fn workshops(user: User, conn: IprpDB) -> Result<Json<JsonValue>, ApiRespons
     let workshops = db::workshops::get_by_user(&*conn, user.id);
     let workshop_infos = workshops
         .into_iter()
-        .map(|ws| WorkshopResponse {
+        .map(|ws| RouteWorkshopResponse {
             id: ws.id,
             title: ws.title,
         })
-        .collect::<Vec<WorkshopResponse>>();
+        .collect::<Vec<RouteWorkshopResponse>>();
     Ok(Json(json!({
         "ok": true,
         "workshops": workshop_infos

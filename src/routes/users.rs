@@ -1,10 +1,10 @@
-use crate::models::User;
+use crate::db::models::*;
 use crate::{db, IprpDB};
 use rocket::http::{Cookie, Cookies, Status};
 
+use crate::routes::models::{RouteCreateStudent, RouteCreateTeacher};
 use rocket_contrib::json;
 use rocket_contrib::json::{Json, JsonValue};
-
 
 /// Use Basic Auth header to trigger this.
 /// Using cookies will resend the cookie.
@@ -22,23 +22,13 @@ pub fn logout(_user: User, mut cookies: Cookies) -> Status {
     Status::Ok
 }
 
-#[derive(FromForm, Deserialize)]
-pub struct CreateStudent {
-    username: String,
-    firstname: String,
-    lastname: String,
-    password: String,
-    #[serde(rename(deserialize = "group"))]
-    unit: String,
-}
-
 /// Create new student account.
 /// Only accessible with "admin" account.
 #[post("/users/student", format = "json", data = "<create_info>")]
 pub fn create_student(
     user: User,
     conn: IprpDB,
-    create_info: json::Json<CreateStudent>,
+    create_info: json::Json<RouteCreateStudent>,
 ) -> Result<json::Json<u64>, Status> {
     if user.username != "admin" {
         return Err(Status::Forbidden);
@@ -58,21 +48,13 @@ pub fn create_student(
     };
 }
 
-#[derive(FromForm, Deserialize)]
-pub struct CreateTeacher {
-    username: String,
-    firstname: String,
-    lastname: String,
-    password: String,
-}
-
 /// Create new teacher account.
 /// Only accessible with "admin" account.
 #[post("/users/teacher", format = "json", data = "<create_info>")]
 pub fn create_teacher(
     user: User,
     conn: IprpDB,
-    create_info: json::Json<CreateTeacher>,
+    create_info: json::Json<RouteCreateTeacher>,
 ) -> Result<json::Json<u64>, Status> {
     if user.username != "admin" {
         return Err(Status::Forbidden);

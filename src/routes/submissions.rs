@@ -1,28 +1,12 @@
+use crate::db::models::*;
 use crate::db::ReviewTimespan;
-use crate::models::{Role, User};
-use crate::routes::models::{ApiResponse, NumberVec};
+use crate::routes::models::{ApiResponse, RouteNewSubmission, RouteUpdateReview};
 use crate::utils;
 use crate::{db, IprpDB};
-use chrono::{Local};
-
-
-
+use chrono::Local;
 
 use rocket::State;
 use rocket_contrib::json::{Json, JsonValue};
-
-
-
-
-
-
-
-#[derive(FromForm, Deserialize)]
-pub struct NewSubmission {
-    title: String,
-    comment: String,
-    attachments: NumberVec,
-}
 
 /// Create new submission.
 #[post(
@@ -35,7 +19,7 @@ pub fn create_submission(
     conn: IprpDB,
     review_timespan: State<ReviewTimespan>,
     workshop_id: u64,
-    new_submission: Json<NewSubmission>,
+    new_submission: Json<RouteNewSubmission>,
 ) -> Result<Json<JsonValue>, ApiResponse> {
     if user.role == Role::Teacher {
         return Err(ApiResponse::forbidden());
@@ -119,25 +103,13 @@ pub fn get_submission(
     }
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct UpdateReview {
-    pub feedback: String,
-    pub points: Vec<UpdatePoints>,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct UpdatePoints {
-    pub id: u64,
-    pub points: f64,
-}
-
 /// Update existing review.
 #[put("/review/<review_id>", format = "json", data = "<update_review>")]
 pub fn update_review(
     user: User,
     conn: IprpDB,
     review_id: u64,
-    update_review: Json<UpdateReview>,
+    update_review: Json<RouteUpdateReview>,
 ) -> Result<Json<JsonValue>, ApiResponse> {
     if user.role == Role::Teacher {
         return Err(ApiResponse::forbidden());

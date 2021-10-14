@@ -1,5 +1,5 @@
 mod migration;
-mod models;
+pub mod models;
 pub use migration::*;
 
 pub mod attachments;
