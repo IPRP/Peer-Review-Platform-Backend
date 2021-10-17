@@ -179,7 +179,8 @@ Type Definitions:
   "students": [ &lt;i>, ..],
   "criteria": [ {
     "type": &lt;sp>, "title": &lt;s>,
-    "content": &lt;s>, "weight": &lt;f>}, .. ] 
+    "content": &lt;s>, "weight": &lt;f>}, .. ],
+  "attachments": [&lt;i>, ..]
 }
 </pre>
   </td>
@@ -205,7 +206,8 @@ Type Definitions:
   "students": [ &lt;i>, ..],
   "criteria": [ {
     "type": &lt;sp>, "title": &lt;s>,
-    "content": &lt;s>, "weight": &lt;f>}, .. ] 
+    "content": &lt;s>, "weight": &lt;f>}, .. ],
+  "attachments": [&lt;i>, ..]
 }
 </pre>
   </td>
@@ -302,6 +304,7 @@ Query Parameter: <code>?all=&lt;b></code>
 </tr>
 </tbody>
 </table>
+
 
 #### Student
 
