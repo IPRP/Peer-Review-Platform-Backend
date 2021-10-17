@@ -57,7 +57,7 @@ pub fn workshop(
 pub fn create_workshop(
     user: User,
     conn: IprpDB,
-    new_workshop: Json<RouteNewWorkshop>,
+    mut new_workshop: Json<RouteNewWorkshop>,
 ) -> Result<Json<JsonValue>, ApiResponse> {
     if user.role == Role::Student {
         return Err(ApiResponse::forbidden());
@@ -67,8 +67,15 @@ pub fn create_workshop(
     println!("{:?}", new_workshop.students.0);
     println!("{:?}", new_workshop.criteria.0);
 
+    // Add teacher, who wants to create the workshop, to the teachers list
+    // if not already present
+    if !new_workshop.teachers.0.contains(&user.id) {
+        new_workshop.teachers.0.push(user.id);
+    }
+
     let workshop = db::workshops::create(
         &*conn,
+        user.id,
         new_workshop.0.title,
         new_workshop.0.content,
         new_workshop.0.end.0,
@@ -76,6 +83,7 @@ pub fn create_workshop(
         Vec::from(new_workshop.0.teachers),
         Vec::from(new_workshop.0.students),
         Vec::from(new_workshop.0.criteria),
+        Vec::from(new_workshop.0.attachments),
     );
     match workshop {
         Ok(workshop) => Ok(Json(json!({

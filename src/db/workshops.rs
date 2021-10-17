@@ -10,6 +10,7 @@ use crate::schema::users::dsl::{
     firstname as u_firstname, id as u_id, lastname as u_lastname, role as u_role, unit as u_unit,
     users as users_t,
 };
+use crate::schema::workshopattachments::dsl::workshopattachments as wsatt_t;
 use crate::schema::workshoplist::dsl::{
     role as wsl_role, user as wsl_user, workshop as wsl_ws, workshoplist as workshoplist_t,
 };
@@ -65,6 +66,7 @@ pub fn get_by_review_id(conn: &MysqlConnection, review_id: u64) -> Result<Worksh
 /// Create new workshop.
 pub fn create<'a>(
     conn: &MysqlConnection,
+    teacher_id: u64,
     title: String,
     content: String,
     end: chrono::NaiveDateTime,
@@ -72,6 +74,7 @@ pub fn create<'a>(
     teachers: Vec<u64>,
     students: Vec<u64>,
     criteria: Vec<NewCriterion>,
+    attachments: Vec<u64>,
 ) -> Result<Workshop, ()> {
     let new_workshop = NewWorkshop {
         title,
@@ -148,6 +151,31 @@ pub fn create<'a>(
             .values(&new_criteria)
             .execute(conn);
         if criteria_insert.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
+        // Relate attachments to workshop
+        let all_teacher_attachments = db::attachments::get_ids_by_user_id(conn, teacher_id);
+        if all_teacher_attachments.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
+        let all_teacher_attachments = all_teacher_attachments.unwrap();
+        let workshop_attachments: Vec<Workshopattachment> = attachments
+            .into_iter()
+            .filter_map(|att_id| {
+                if all_teacher_attachments.contains(&att_id) {
+                    Some(Workshopattachment {
+                        workshop: workshop.id,
+                        attachment: att_id,
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect();
+        let attachment_insert = diesel::insert_into(wsatt_t)
+            .values(&workshop_attachments)
+            .execute(conn);
+        if attachment_insert.is_err() {
             return Err(Error::RollbackTransaction);
         }
         Ok(workshop)
