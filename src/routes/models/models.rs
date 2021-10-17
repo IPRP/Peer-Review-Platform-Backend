@@ -91,6 +91,12 @@ impl From<NumberVec> for Vec<u64> {
     }
 }
 
+impl Default for NumberVec {
+    fn default() -> Self {
+        NumberVec(Vec::new())
+    }
+}
+
 #[derive(FromForm, Deserialize)]
 pub struct RouteNewWorkshop {
     pub(crate) title: String,
@@ -100,6 +106,10 @@ pub struct RouteNewWorkshop {
     pub(crate) teachers: NumberVec,
     pub(crate) students: NumberVec,
     pub(crate) criteria: RouteCriterionVec,
+    // Use default value
+    // See: https://serde.rs/attr-default.html
+    #[serde(default)]
+    pub(crate) attachments: NumberVec,
 }
 
 #[derive(FromForm, Deserialize)]
