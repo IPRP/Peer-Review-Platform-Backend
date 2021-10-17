@@ -104,14 +104,21 @@ pub fn update_workshop(
     user: User,
     conn: IprpDB,
     workshop_id: u64,
-    update_workshop: Json<RouteUpdateWorkshop>,
+    mut update_workshop: Json<RouteUpdateWorkshop>,
 ) -> Result<Json<JsonValue>, ApiResponse> {
     if user.role == Role::Student {
         return Err(ApiResponse::forbidden());
     }
 
+    // Add teacher, who wants to update the workshop, to the teachers list
+    // if not already present
+    if !update_workshop.teachers.0.contains(&user.id) {
+        update_workshop.teachers.0.push(user.id);
+    }
+
     let workshop = db::workshops::update(
         &*conn,
+        user.id,
         workshop_id,
         update_workshop.0.title,
         update_workshop.0.content,
@@ -119,6 +126,7 @@ pub fn update_workshop(
         Vec::from(update_workshop.0.teachers),
         Vec::from(update_workshop.0.students),
         Vec::from(update_workshop.0.criteria),
+        Vec::from(update_workshop.0.attachments),
     );
     match workshop {
         Ok(_) => Ok(Json(json!({

@@ -120,6 +120,8 @@ pub struct RouteUpdateWorkshop {
     pub(crate) teachers: NumberVec,
     pub(crate) students: NumberVec,
     pub(crate) criteria: RouteCriterionVec,
+    #[serde(default)]
+    pub(crate) attachments: NumberVec,
 }
 
 // Users

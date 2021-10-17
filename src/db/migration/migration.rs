@@ -37,6 +37,7 @@ truncate submissioncriteria;
 truncate submissionattachments;
 truncate reviews;
 truncate reviewpoints;
+truncate workshopattachments;
 SET FOREIGN_KEY_CHECKS = 1;
                     "#,
                 );

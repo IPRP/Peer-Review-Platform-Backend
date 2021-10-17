@@ -10,7 +10,9 @@ use crate::schema::users::dsl::{
     firstname as u_firstname, id as u_id, lastname as u_lastname, role as u_role, unit as u_unit,
     users as users_t,
 };
-use crate::schema::workshopattachments::dsl::workshopattachments as wsatt_t;
+use crate::schema::workshopattachments::dsl::{
+    workshop as wsatt_ws, workshopattachments as wsatt_t,
+};
 use crate::schema::workshoplist::dsl::{
     role as wsl_role, user as wsl_user, workshop as wsl_ws, workshoplist as workshoplist_t,
 };
@@ -189,6 +191,7 @@ pub fn create<'a>(
 /// Update existing workshop.
 pub fn update(
     conn: &MysqlConnection,
+    teacher_id: u64,
     workshop_id: u64,
     title: String,
     content: String,
@@ -196,6 +199,7 @@ pub fn update(
     teachers: Vec<u64>,
     students: Vec<u64>,
     criteria: Vec<NewCriterion>,
+    attachments: Vec<u64>,
 ) -> Result<Workshop, ()> {
     let workshop = workshops_t.filter(ws_id.eq(workshop_id)).first(conn);
     if workshop.is_err() {
@@ -217,7 +221,11 @@ pub fn update(
         if delete.is_err() {
             return Err(Error::RollbackTransaction);
         }
-
+        // Remove attachments
+        let delete = diesel::delete(wsatt_t.filter(wsatt_ws.eq(workshop_id))).execute(conn);
+        if delete.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
         // Filter students & teachers
         let students = users_t
             .filter(u_role.eq(Role::Student).and(u_id.eq_any(students)))
@@ -290,6 +298,32 @@ pub fn update(
             .values(&new_criteria)
             .execute(conn);
         if insert.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
+
+        // Relate attachments to workshop
+        let all_teacher_attachments = db::attachments::get_ids_by_user_id(conn, teacher_id);
+        if all_teacher_attachments.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
+        let all_teacher_attachments = all_teacher_attachments.unwrap();
+        let workshop_attachments: Vec<Workshopattachment> = attachments
+            .into_iter()
+            .filter_map(|att_id| {
+                if all_teacher_attachments.contains(&att_id) {
+                    Some(Workshopattachment {
+                        workshop: workshop.id,
+                        attachment: att_id,
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect();
+        let attachment_insert = diesel::insert_into(wsatt_t)
+            .values(&workshop_attachments)
+            .execute(conn);
+        if attachment_insert.is_err() {
             return Err(Error::RollbackTransaction);
         }
 
