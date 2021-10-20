@@ -80,6 +80,7 @@ fn main() {
                 routes::submissions::get_submission,
                 routes::submissions::update_review,
                 routes::submissions::get_review,
+                routes::users::validation_test,
             ],
         )
         .launch();
