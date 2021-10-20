@@ -511,7 +511,7 @@ Student (Other student submission)
   </td>
 </tr>
 <tr>
-  <td>Update submission<br><code>/submission/{submission_id}</code></td>
+  <td>Update submission<br><code>/submission/{submission_id}</code><br>Not implemented yet</td>
   <td>PUT</td>
   <td>
 <pre lang=json>
@@ -627,6 +627,7 @@ Student (Other student submission)
 </tr>
 </tbody>
 </table>
+
 
 #### Creating user accounts
 

@@ -72,3 +72,22 @@ pub fn create_teacher(
         Err(_) => Err(Status::Conflict),
     };
 }
+
+// See: https://github.com/Keats/validator
+use validator::{Validate, ValidationError};
+
+#[derive(Debug, Validate, Deserialize)]
+struct ValidatorTest {
+    #[validate(length(min = 1))]
+    detail: String,
+    #[validate(custom = "not_empty")]
+    #[serde(default)]
+    details: Vec<String>,
+}
+
+fn not_empty(details: &Vec<String>) -> Result<(), ValidationError> {
+    if details.is_empty() {
+        return Err(ValidationError::new("details cannot be empty"));
+    }
+    Ok(())
+}
