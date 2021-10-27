@@ -77,12 +77,14 @@ pub fn create_teacher(
 }
 
 // See: https://github.com/Keats/validator
+use crate::routes::models::validation::SimpleValidation;
 use validator::{Validate, ValidationError, ValidationErrors};
 
 #[derive(Debug, Validate, Deserialize)]
 pub struct ValidatorTest {
     #[validate(length(min = 1))]
     detail: String,
+    detail2: u64,
     #[validate(custom = "not_empty")]
     #[serde(default)]
     details: Vec<String>,
@@ -90,7 +92,7 @@ pub struct ValidatorTest {
 
 fn not_empty(details: &Vec<String>) -> Result<(), ValidationError> {
     if details.is_empty() {
-        return Err(ValidationError::new("details cannot be empty"));
+        return Err(ValidationError::new("cannot be empty"));
     }
     Ok(())
 }
@@ -98,30 +100,40 @@ fn not_empty(details: &Vec<String>) -> Result<(), ValidationError> {
 // See: https://users.rust-lang.org/t/newbie-rust-rocket/35875/6
 // And: https://github.com/SergioBenitez/Rocket/issues/1045#issuecomment-509036481
 // TODO create trait with default implementation for this
+// impl FromDataSimple for ValidatorTest {
+//     type Error = ValidationErrors;
+//
+//     fn from_data(_request: &Request, data: Data) -> Outcome<Self, Self::Error> {
+//         let json: serde_json::Result<Self> = serde_json::from_reader(data.open());
+//         match json {
+//             Ok(value) => {
+//                 if let Err(val_errors) = value.validate() {
+//                     Outcome::Failure((Status::from_code(422).unwrap(), val_errors))
+//                 } else {
+//                     Outcome::Success(value)
+//                 }
+//             }
+//             Err(parse_error) => {
+//                 let mut val_errors = ValidationErrors::new();
+//                 let error = ValidationError {
+//                     code: Cow::from(parse_error.to_string()),
+//                     message: None,
+//                     params: Default::default(),
+//                 };
+//                 val_errors.add("general", error);
+//                 Outcome::Failure((Status::UnprocessableEntity, val_errors))
+//             }
+//         }
+//     }
+// }
+
+impl SimpleValidation for ValidatorTest {}
+
 impl FromDataSimple for ValidatorTest {
     type Error = ValidationErrors;
 
-    fn from_data(_request: &Request, data: Data) -> Outcome<Self, Self::Error> {
-        let json: serde_json::Result<Self> = serde_json::from_reader(data.open());
-        match json {
-            Ok(value) => {
-                if let Err(val_errors) = value.validate() {
-                    Outcome::Failure((Status::from_code(422).unwrap(), val_errors))
-                } else {
-                    Outcome::Success(value)
-                }
-            }
-            Err(parse_error) => {
-                let mut val_errors = ValidationErrors::new();
-                let error = ValidationError {
-                    code: Cow::from(parse_error.to_string()),
-                    message: None,
-                    params: Default::default(),
-                };
-                val_errors.add("general", error);
-                Outcome::Failure((Status::UnprocessableEntity, val_errors))
-            }
-        }
+    fn from_data(request: &Request, data: Data) -> Outcome<Self, Self::Error> {
+        SimpleValidation::from_data(request, data)
     }
 }
 
