@@ -6,6 +6,7 @@ use rocket::request::Request;
 use rocket::response;
 use rocket::response::{Responder, Response};
 use rocket_contrib::json::JsonValue;
+use validator::ValidationErrors;
 
 // Submissions
 #[derive(FromForm, Deserialize)]
@@ -186,7 +187,8 @@ impl ApiResponse {
         ApiResponse { json, status }
     }
 
-    pub fn unprocessable_entity(validation_errors: Vec<String>) -> Self {
+    pub fn unprocessable_entity(validation_errors: ValidationErrors) -> Self {
+        let validation_errors = validation_errs_to_str_vec(&validation_errors);
         let json = json!(validation_errors);
         let status = Status::UnprocessableEntity;
         ApiResponse { json, status }
@@ -200,4 +202,21 @@ impl<'r> Responder<'r> for ApiResponse {
             .header(ContentType::JSON)
             .ok()
     }
+}
+
+// Source: https://blog.logrocket.com/json-input-validation-in-rust-web-services/
+fn validation_errs_to_str_vec(ve: &ValidationErrors) -> Vec<String> {
+    ve.field_errors()
+        .iter()
+        .map(|fe| {
+            format!(
+                "{}: errors: {}",
+                fe.0,
+                fe.1.iter()
+                    .map(|ve| format!("{}: {:?}", ve.code, ve.params))
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            )
+        })
+        .collect()
 }

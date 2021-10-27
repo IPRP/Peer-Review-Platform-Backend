@@ -9,6 +9,8 @@ pub trait SimpleValidation
 where
     Self: std::marker::Sized + DeserializeOwned + Validate,
 {
+    // See: https://users.rust-lang.org/t/newbie-rust-rocket/35875/6
+    // And: https://github.com/SergioBenitez/Rocket/issues/1045#issuecomment-509036481
     fn from_data<'a>(_request: &Request, data: Data) -> Outcome<Self, ValidationErrors> {
         let json: serde_json::Result<Self> = serde_json::from_reader(data.open());
         match json {

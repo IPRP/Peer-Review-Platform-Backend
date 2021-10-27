@@ -1,9 +1,11 @@
 use crate::db::models::*;
 use crate::{db, IprpDB};
+use diesel::expression::array_comparison::In;
 use rocket::data::{FromDataSimple, Outcome};
 use rocket::http::{Cookie, Cookies, Status};
 use rocket::{Data, Request};
 use std::borrow::Cow;
+use std::ops::Deref;
 
 use crate::routes::models::{ApiResponse, RouteCreateStudent, RouteCreateTeacher};
 use rocket_contrib::json;
@@ -99,7 +101,6 @@ fn not_empty(details: &Vec<String>) -> Result<(), ValidationError> {
 
 // See: https://users.rust-lang.org/t/newbie-rust-rocket/35875/6
 // And: https://github.com/SergioBenitez/Rocket/issues/1045#issuecomment-509036481
-// TODO create trait with default implementation for this
 // impl FromDataSimple for ValidatorTest {
 //     type Error = ValidationErrors;
 //
@@ -143,28 +144,20 @@ pub fn validation_test(
 ) -> Result<json::Json<u64>, ApiResponse> {
     let value = account;
 
-    return match value {
-        Ok(_) => Ok(json::Json(42)),
-        Err(val_errors) => {
-            let errors = validation_errs_to_str_vec(&val_errors);
-            Err(ApiResponse::unprocessable_entity(errors))
-        }
-    };
-}
+    // let ok = match value {
+    //     Ok(_) => Ok(json::Json(42)),
+    //     Err(val_errors) => {
+    //         //let errors = validation_errs_to_str_vec(&val_errors);
+    //         //let errors: Vec<String> = Vec::from(SimpleValidationErrors(val_errors));
+    //         let errors = val_errors;
+    //         return Err(ApiResponse::unprocessable_entity(errors));
+    //     }
+    // };
+    // let do_something = "hello world";
+    // ok
 
-// Source: https://blog.logrocket.com/json-input-validation-in-rust-web-services/
-fn validation_errs_to_str_vec(ve: &ValidationErrors) -> Vec<String> {
-    ve.field_errors()
-        .iter()
-        .map(|fe| {
-            format!(
-                "{}: errors: {}",
-                fe.0,
-                fe.1.iter()
-                    .map(|ve| format!("{}: {:?}", ve.code, ve.params))
-                    .collect::<Vec<String>>()
-                    .join(", ")
-            )
-        })
-        .collect()
+    match value {
+        Ok(_) => Ok(json::Json(42)),
+        Err(val_errors) => Err(ApiResponse::unprocessable_entity(val_errors)),
+    }
 }
