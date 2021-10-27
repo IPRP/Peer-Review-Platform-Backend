@@ -185,6 +185,12 @@ impl ApiResponse {
         let status = Status::NotFound;
         ApiResponse { json, status }
     }
+
+    pub fn unprocessable_entity(validation_errors: Vec<String>) -> Self {
+        let json = json!(validation_errors);
+        let status = Status::UnprocessableEntity;
+        ApiResponse { json, status }
+    }
 }
 
 impl<'r> Responder<'r> for ApiResponse {

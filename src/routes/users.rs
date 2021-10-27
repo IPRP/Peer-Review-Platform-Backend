@@ -3,8 +3,9 @@ use crate::{db, IprpDB};
 use rocket::data::{FromDataSimple, Outcome};
 use rocket::http::{Cookie, Cookies, Status};
 use rocket::{Data, Request};
+use std::borrow::Cow;
 
-use crate::routes::models::{RouteCreateStudent, RouteCreateTeacher};
+use crate::routes::models::{ApiResponse, RouteCreateStudent, RouteCreateTeacher};
 use rocket_contrib::json;
 use rocket_contrib::json::{Json, JsonValue};
 
@@ -101,16 +102,25 @@ impl FromDataSimple for ValidatorTest {
     type Error = ValidationErrors;
 
     fn from_data(_request: &Request, data: Data) -> Outcome<Self, Self::Error> {
-        let json: serde_json::Result<ValidatorTest> = serde_json::from_reader(data.open());
+        let json: serde_json::Result<Self> = serde_json::from_reader(data.open());
         match json {
             Ok(value) => {
-                if let Err(error) = value.validate() {
-                    Outcome::Failure((Status::from_code(422).unwrap(), error))
+                if let Err(val_errors) = value.validate() {
+                    Outcome::Failure((Status::from_code(422).unwrap(), val_errors))
                 } else {
                     Outcome::Success(value)
                 }
             }
-            Err(_) => Outcome::Failure((Status::UnprocessableEntity, ValidationErrors::new())),
+            Err(parse_error) => {
+                let mut val_errors = ValidationErrors::new();
+                let error = ValidationError {
+                    code: Cow::from(parse_error.to_string()),
+                    message: None,
+                    params: Default::default(),
+                };
+                val_errors.add("general", error);
+                Outcome::Failure((Status::UnprocessableEntity, val_errors))
+            }
         }
     }
 }
@@ -118,11 +128,31 @@ impl FromDataSimple for ValidatorTest {
 #[post("/validation", data = "<account>")]
 pub fn validation_test(
     account: Result<ValidatorTest, ValidationErrors>,
-) -> Result<json::Json<u64>, Status> {
+) -> Result<json::Json<u64>, ApiResponse> {
     let value = account;
 
     return match value {
         Ok(_) => Ok(json::Json(42)),
-        Err(_) => Err(Status::BadRequest),
+        Err(val_errors) => {
+            let errors = validation_errs_to_str_vec(&val_errors);
+            Err(ApiResponse::unprocessable_entity(errors))
+        }
     };
+}
+
+// Source: https://blog.logrocket.com/json-input-validation-in-rust-web-services/
+fn validation_errs_to_str_vec(ve: &ValidationErrors) -> Vec<String> {
+    ve.field_errors()
+        .iter()
+        .map(|fe| {
+            format!(
+                "{}: errors: {}",
+                fe.0,
+                fe.1.iter()
+                    .map(|ve| format!("{}: {:?}", ve.code, ve.params))
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            )
+        })
+        .collect()
 }
