@@ -1,11 +1,8 @@
 use crate::db::models::*;
 use crate::{db, IprpDB};
-use diesel::expression::array_comparison::In;
 use rocket::data::{FromDataSimple, Outcome};
 use rocket::http::{Cookie, Cookies, Status};
 use rocket::{Data, Request};
-use std::borrow::Cow;
-use std::ops::Deref;
 
 use crate::routes::models::{ApiResponse, RouteCreateStudent, RouteCreateTeacher};
 use rocket_contrib::json;

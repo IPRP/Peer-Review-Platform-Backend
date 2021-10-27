@@ -234,7 +234,7 @@ pub fn update(
             .iter()
             .map(|update_points| update_points.id)
             .collect();
-        for criterion in criteria {
+        for criterion in &criteria {
             if !update_ids.contains(&criterion.id) {
                 return Err(Error::RollbackTransaction);
             }
@@ -255,10 +255,24 @@ pub fn update(
         let review_points: Vec<ReviewPoints> = update_review
             .points
             .into_iter()
-            .map(|update_points| ReviewPoints {
-                review: review_id,
-                criterion: update_points.id,
-                points: update_points.points,
+            .map(|update_points| {
+                // Validate & Correct points
+                let criterion = criteria
+                    .iter()
+                    .filter(|c| c.id == update_points.id)
+                    .next()
+                    .unwrap();
+                let max_points = criterion.kind.max_points();
+                let points = if update_points.points > max_points {
+                    max_points
+                } else {
+                    update_points.points
+                };
+                ReviewPoints {
+                    review: review_id,
+                    criterion: update_points.id,
+                    points,
+                }
             })
             .collect();
 

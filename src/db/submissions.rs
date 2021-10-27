@@ -415,6 +415,8 @@ fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), ()
                 return Err(Error::RollbackTransaction);
             }
         } else {
+            // TODO Streamline Calculate points, because input is now validated/corrected
+
             // Calculate mean points and max points (based on criterion and weights)
             // Max points
             let point_range = 10.0;

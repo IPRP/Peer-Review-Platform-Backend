@@ -134,6 +134,15 @@ impl Kind {
             Err(String::new())
         }
     }
+
+    pub fn max_points(&self) -> f64 {
+        (match *self {
+            Kind::Point => 10,
+            Kind::Grade => 5,
+            Kind::Percentage => 100,
+            Kind::Truefalse => 1,
+        }) as f64
+    }
 }
 
 #[derive(Queryable, Clone, Serialize)]
