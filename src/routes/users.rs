@@ -96,35 +96,6 @@ fn not_empty(details: &Vec<String>) -> Result<(), ValidationError> {
     Ok(())
 }
 
-// See: https://users.rust-lang.org/t/newbie-rust-rocket/35875/6
-// And: https://github.com/SergioBenitez/Rocket/issues/1045#issuecomment-509036481
-// impl FromDataSimple for ValidatorTest {
-//     type Error = ValidationErrors;
-//
-//     fn from_data(_request: &Request, data: Data) -> Outcome<Self, Self::Error> {
-//         let json: serde_json::Result<Self> = serde_json::from_reader(data.open());
-//         match json {
-//             Ok(value) => {
-//                 if let Err(val_errors) = value.validate() {
-//                     Outcome::Failure((Status::from_code(422).unwrap(), val_errors))
-//                 } else {
-//                     Outcome::Success(value)
-//                 }
-//             }
-//             Err(parse_error) => {
-//                 let mut val_errors = ValidationErrors::new();
-//                 let error = ValidationError {
-//                     code: Cow::from(parse_error.to_string()),
-//                     message: None,
-//                     params: Default::default(),
-//                 };
-//                 val_errors.add("general", error);
-//                 Outcome::Failure((Status::UnprocessableEntity, val_errors))
-//             }
-//         }
-//     }
-// }
-
 impl SimpleValidation for ValidatorTest {}
 
 impl FromDataSimple for ValidatorTest {
@@ -167,4 +138,36 @@ pub fn validation_test(
 pub fn validation_test2(account: ValidatorTest) -> json::Json<u64> {
     let _ = account;
     json::Json(42)
+}
+
+// See: https://doc.rust-lang.org/rust-by-example/testing/unit_testing.html
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn validator_test_ok() {
+        let vt = ValidatorTest {
+            detail: "abc".to_string(),
+            detail2: 42,
+            details: vec!["Hello".to_string(), "World".to_string()],
+        };
+        assert!(vt.validate().is_ok());
+    }
+
+    #[test]
+    fn validator_test_not_ok() {
+        let vt = ValidatorTest {
+            detail: "".to_string(),
+            detail2: 42,
+            details: vec!["Hello".to_string(), "World".to_string()],
+        };
+        assert!(vt.validate().is_err());
+        let vt = ValidatorTest {
+            detail: "abc".to_string(),
+            detail2: 42,
+            details: vec![],
+        };
+        assert!(vt.validate().is_err());
+    }
 }
