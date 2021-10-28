@@ -76,7 +76,7 @@ pub fn create_teacher(
 }
 
 // See: https://github.com/Keats/validator
-use crate::routes::models::validation::SimpleValidation;
+use crate::routes::validation::SimpleValidation;
 use validator::{Validate, ValidationError, ValidationErrors};
 
 #[derive(Debug, Validate, Deserialize)]
@@ -153,8 +153,18 @@ pub fn validation_test(
     // let do_something = "hello world";
     // ok
 
-    match value {
-        Ok(_) => Ok(json::Json(42)),
-        Err(val_errors) => Err(ApiResponse::unprocessable_entity(val_errors)),
-    }
+    // match value {
+    //     Ok(_) => Ok(json::Json(42)),
+    //     Err(val_errors) => Err(ApiResponse::unprocessable_entity(val_errors)),
+    // }
+
+    value
+        .map(|_| json::Json(42))
+        .map_err(|val_errors| ApiResponse::unprocessable_entity(&val_errors))
+}
+
+#[post("/validation2", data = "<account>")]
+pub fn validation_test2(account: ValidatorTest) -> json::Json<u64> {
+    let _ = account;
+    json::Json(42)
 }

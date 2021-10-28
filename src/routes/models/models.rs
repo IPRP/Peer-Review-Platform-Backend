@@ -187,7 +187,7 @@ impl ApiResponse {
         ApiResponse { json, status }
     }
 
-    pub fn unprocessable_entity(validation_errors: ValidationErrors) -> Self {
+    pub fn unprocessable_entity(validation_errors: &ValidationErrors) -> Self {
         let validation_errors = validation_errs_to_str_vec(&validation_errors);
         let json = json!(validation_errors);
         let status = Status::UnprocessableEntity;
