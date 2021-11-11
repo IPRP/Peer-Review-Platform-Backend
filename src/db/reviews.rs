@@ -1,9 +1,9 @@
 //! CRUD operations for reviews.
 
 use crate::db;
+use crate::db::models::*;
 use crate::db::ReviewTimespan;
-use crate::models::{Kind, NewReview, Review, ReviewPoints, Role};
-use crate::routes::submissions::UpdateReview;
+use crate::routes::models::RouteUpdateReview;
 use crate::schema::criterion::dsl::{
     content as c_content, criterion as criterion_t, id as c_id, kind as c_kind, title as c_title,
     weight as c_weight,
@@ -26,15 +26,13 @@ use crate::schema::users::dsl::{
 use crate::schema::workshoplist::dsl::{
     role as wsl_role, user as wsl_user, workshop as wsl_ws, workshoplist as workshoplist_t,
 };
-use crate::schema::workshops::dsl::{id as ws_id, title as ws_title, workshops as workshops_t};
-use chrono::{DateTime, Duration, Local, NaiveDateTime, TimeZone, Utc};
+use crate::schema::workshops::dsl::{id as ws_id, workshops as workshops_t};
+use chrono::{Duration, Local, TimeZone, Utc};
 use diesel::connection::SimpleConnection;
-use diesel::dsl::count;
 use diesel::prelude::*;
 use diesel::result::Error;
 use diesel::sql_types::BigInt;
 use std::convert::TryInto;
-use std::ops::Add;
 
 /// Assign reviews from a given submission.
 pub fn assign(
@@ -95,9 +93,13 @@ pub fn assign(
             error: false,
         })
         .collect();
-    diesel::insert_into(reviews_t)
+    let review_insert = diesel::insert_into(reviews_t)
         .values(&reviews)
         .execute(conn);
+    if review_insert.is_err() {
+        return Err(());
+    }
+
     let reviews = reviews_t
         .order(reviews_id.desc())
         .limit(review_count.try_into().unwrap())
@@ -202,7 +204,7 @@ pub fn assign(
 /// Can be performed multiple times until review is locked on deadline.
 pub fn update(
     conn: &MysqlConnection,
-    update_review: UpdateReview,
+    update_review: RouteUpdateReview,
     review_id: u64,
     user_id: u64,
 ) -> bool {
@@ -232,7 +234,7 @@ pub fn update(
             .iter()
             .map(|update_points| update_points.id)
             .collect();
-        for criterion in criteria {
+        for criterion in &criteria {
             if !update_ids.contains(&criterion.id) {
                 return Err(Error::RollbackTransaction);
             }
@@ -241,19 +243,36 @@ pub fn update(
         // Update review
         review.feedback = update_review.feedback;
         review.done = true;
-        diesel::update(reviews_t.filter(reviews_id.eq(review.id)))
+        let review_update = diesel::update(reviews_t.filter(reviews_id.eq(review.id)))
             .set(&review)
             .execute(conn);
+        if review_update.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
 
         // Update review points
         // First `update_review` needs to be changed into a insertable form
         let review_points: Vec<ReviewPoints> = update_review
             .points
             .into_iter()
-            .map(|update_points| ReviewPoints {
-                review: review_id,
-                criterion: update_points.id,
-                points: update_points.points,
+            .map(|update_points| {
+                // Validate & Correct points
+                let criterion = criteria
+                    .iter()
+                    .filter(|c| c.id == update_points.id)
+                    .next()
+                    .unwrap();
+                let max_points = criterion.kind.max_points();
+                let points = if update_points.points > max_points {
+                    max_points
+                } else {
+                    update_points.points
+                };
+                ReviewPoints {
+                    review: review_id,
+                    criterion: update_points.id,
+                    points,
+                }
             })
             .collect();
 
@@ -278,14 +297,6 @@ pub fn update(
         Ok(_) => true,
         Err(_) => false,
     }
-}
-
-/// Simplified representation of review points.
-#[derive(Serialize)]
-pub struct SimpleReviewPoints {
-    pub weight: f64,
-    pub kind: Kind,
-    pub points: f64,
 }
 
 /// Get simplified review points from a submission.
@@ -324,44 +335,6 @@ pub fn get_simple_review_points(
         simple_reviews.push(points);
     }
     Ok(simple_reviews)
-}
-
-/// Detailed representation of a review.
-#[derive(Serialize)]
-pub struct FullReview {
-    pub id: u64,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub firstname: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub lastname: Option<String>,
-    pub feedback: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "notSubmitted")]
-    pub not_submitted: Option<bool>,
-    pub points: Vec<FullReviewPoints>,
-}
-
-/// Detailed representation of review points.
-#[derive(Debug, Serialize)]
-pub struct FullReviewPoints {
-    #[serde(rename = "id")]
-    pub criterion_id: u64,
-    pub title: String,
-    pub content: String,
-    pub weight: f64,
-    #[serde(rename = "type")]
-    pub kind: Kind,
-    pub points: f64,
-}
-
-/// Representation of a missing review
-#[derive(Serialize)]
-pub struct MissingReview {
-    pub id: u64,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub firstname: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub lastname: Option<String>,
 }
 
 // Get all detailed reviews from a submission.
@@ -608,21 +581,9 @@ pub fn is_submission_owner(conn: &MysqlConnection, review_id: u64, student_id: u
 }
 
 /// Get review by review id.
+#[allow(dead_code)]
 pub fn get_by_id(conn: &MysqlConnection, review_id: u64) -> Result<Review, Error> {
     reviews_t.filter(reviews_id.eq(review_id)).first(conn)
-}
-
-/// Workshop representation of a review.
-#[derive(Serialize)]
-pub struct WorkshopReview {
-    pub id: u64,
-    pub done: bool,
-    pub deadline: chrono::NaiveDateTime,
-    pub title: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub firstname: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub lastname: Option<String>,
 }
 
 /// Get all reviews from a student in one workshop.

@@ -1,6 +1,6 @@
 //! CRUD operations for users.
 
-use crate::models::{NewStudent, NewTeacher, Role, User};
+use crate::db::models::*;
 use crate::schema::users::dsl::{
     firstname as dsl_firstname, id as dsl_id, lastname as dsl_lastname, role as dls_role,
     unit as dsl_unit, username as dsl_username, users,
@@ -61,17 +61,6 @@ pub fn get_by_id(conn: &MysqlConnection, id: u64) -> Result<User, Error> {
 /// Get user by username.
 pub fn get_by_name(conn: &MysqlConnection, username: &str) -> Result<User, Error> {
     users.filter(dsl_username.eq(username)).first(conn)
-}
-
-/// Simplified representation of an user.
-#[derive(Serialize, Clone)]
-pub struct SimpleUser {
-    pub id: u64,
-    pub firstname: String,
-    pub lastname: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "group")]
-    pub unit: Option<String>,
 }
 
 /// Get all students in simplified representation.

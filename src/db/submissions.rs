@@ -1,17 +1,11 @@
 //! CRUD operations for submissions.
 
 use crate::db;
-use crate::db::reviews::{FullReview, MissingReview};
+use crate::db::models::*;
 use crate::db::ReviewTimespan;
-use crate::models::{
-    Criterion, Kind, NewSubmission, Role, SimpleAttachment, Submission, Submissionattachment,
-    Submissioncriteria,
-};
-use crate::schema::criteria::dsl::workshop;
+
 use crate::schema::criterion::dsl::{criterion as criterion_t, id as c_id};
-use crate::schema::submissionattachments::dsl::{
-    attachment as subatt_att, submission as subatt_sub, submissionattachments as subatt_t,
-};
+use crate::schema::submissionattachments::dsl::submissionattachments as subatt_t;
 use crate::schema::submissioncriteria::dsl::{
     criterion as subcrit_crit, submission as subcrit_sub, submissioncriteria as subcrit_t,
 };
@@ -22,7 +16,6 @@ use crate::schema::submissions::dsl::{
 };
 use diesel::prelude::*;
 use diesel::result::Error;
-use std::ops::Add;
 
 /// Create a new submission for a workshop.
 pub fn create<'a>(
@@ -53,9 +46,12 @@ pub fn create<'a>(
 
     let submission = conn.transaction::<Submission, Error, _>(|| {
         // Insert submission
-        diesel::insert_into(submissions_t)
+        let submission_insert = diesel::insert_into(submissions_t)
             .values(&new_submission)
             .execute(conn);
+        if submission_insert.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
         let submission: Submission = submissions_t.order(sub_id.desc()).first(conn).unwrap();
 
         // Relate attachments to submission
@@ -77,9 +73,12 @@ pub fn create<'a>(
                 }
             })
             .collect();
-        diesel::insert_into(subatt_t)
+        let attachment_insert = diesel::insert_into(subatt_t)
             .values(&submission_attachments)
             .execute(conn);
+        if attachment_insert.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
 
         // Relate criteria to submission
         let workshop_criteria = db::workshops::get_criteria(conn, workshop_id);
@@ -94,9 +93,12 @@ pub fn create<'a>(
                 criterion,
             })
             .collect();
-        diesel::insert_into(subcrit_t)
+        let criteria_insert = diesel::insert_into(subcrit_t)
             .values(&submission_criteria)
             .execute(conn);
+        if criteria_insert.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
 
         // Assign reviews
         let assign = db::reviews::assign(
@@ -130,33 +132,6 @@ pub fn is_owner(conn: &MysqlConnection, submission_id: u64, student_id: u64) -> 
     } else {
         false
     }
-}
-
-/// Representation of a submission for owner.
-#[derive(Serialize)]
-pub struct OwnSubmission {
-    pub title: String,
-    pub comment: String,
-    pub attachments: Vec<SimpleAttachment>,
-    pub locked: bool,
-    pub date: chrono::NaiveDateTime,
-    #[serde(rename(serialize = "reviewsDone"))]
-    pub reviews_done: bool,
-    #[serde(rename(serialize = "noReviews"))]
-    pub no_reviews: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub points: Option<f64>,
-    #[serde(rename(serialize = "maxPoints"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub max_points: Option<f64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub firstname: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub lastname: Option<String>,
-    pub reviews: Vec<FullReview>,
-    #[serde(rename(serialize = "missingReviews"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub missing_reviews: Option<Vec<MissingReview>>,
 }
 
 // Get detailed submission from submission id.
@@ -259,15 +234,6 @@ pub fn get_teacher_submission(
     get_full_submission(conn, submission_id, true)
 }
 
-/// Representation of a submission for other students like reviewers.
-#[derive(Serialize)]
-pub struct OtherSubmission {
-    pub title: String,
-    pub comment: String,
-    pub attachments: Vec<SimpleAttachment>,
-    pub criteria: Vec<Criterion>,
-}
-
 /// Get simplified submission from submission id.
 /// Also locks submission so that submission owner can no longer update it.
 pub fn get_student_submission(
@@ -318,28 +284,6 @@ pub fn get_student_submission(
     })
 }
 
-/// Workshop representation of a submission.
-#[derive(Serialize)]
-pub struct WorkshopSubmission {
-    pub id: u64,
-    pub title: String,
-    pub date: chrono::NaiveDateTime,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub locked: Option<bool>,
-    #[serde(rename(serialize = "studentid"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub student_id: Option<u64>,
-    #[serde(rename(serialize = "reviewsDone"))]
-    pub reviews_done: bool,
-    #[serde(rename(serialize = "noReviews"))]
-    pub no_reviews: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub points: Option<f64>,
-    #[serde(rename(serialize = "maxPoints"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub max_points: Option<f64>,
-}
-
 // Get all workshop submissions.
 fn get_workshop_submissions_internal(
     conn: &MysqlConnection,
@@ -356,7 +300,9 @@ fn get_workshop_submissions_internal(
     }
     let submissions = submissions.unwrap();
     for submission_id in submissions {
-        calculate_points(conn, submission_id);
+        if calculate_points(conn, submission_id).is_err() {
+            return Err(());
+        }
     }
     let submissions: Result<Vec<Submission>, _> = submissions_t
         .filter(sub_workshop.eq(workshop_id).and(sub_student.eq(student_id)))
@@ -469,6 +415,8 @@ fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), ()
                 return Err(Error::RollbackTransaction);
             }
         } else {
+            // TODO Streamline Calculate points, because input is now validated/corrected
+
             // Calculate mean points and max points (based on criterion and weights)
             // Max points
             let point_range = 10.0;
@@ -485,16 +433,16 @@ fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), ()
                 for point in points {
                     let weighted_points = match point.kind {
                         Kind::Point => (point.points % (point_range + 1.0)) * point.weight,
-                        Kind::Grade => match point.points {
-                            1.0 => point_range,
-                            2.0 => point_range * 0.8,
-                            3.0 => point_range * 0.6,
-                            4.0 => point_range * 0.5,
+                        Kind::Grade => match point.points.round() as i64 {
+                            1 => point_range,
+                            2 => point_range * 0.8,
+                            3 => point_range * 0.6,
+                            4 => point_range * 0.5,
                             _ => 0.0,
                         },
                         Kind::Percentage => ((point.points % 101.0) / point_range) * point.weight,
-                        Kind::Truefalse => match point.points {
-                            1.0 => point_range * point.weight,
+                        Kind::Truefalse => match point.points.round() as i64 {
+                            1 => point_range * point.weight,
                             _ => 0.0,
                         },
                     };

@@ -179,7 +179,8 @@ Type Definitions:
   "students": [ &lt;i>, ..],
   "criteria": [ {
     "type": &lt;sp>, "title": &lt;s>,
-    "content": &lt;s>, "weight": &lt;f>}, .. ] 
+    "content": &lt;s>, "weight": &lt;f>}, .. ],
+  "attachments": [&lt;i>, ..]
 }
 </pre>
   </td>
@@ -205,7 +206,8 @@ Type Definitions:
   "students": [ &lt;i>, ..],
   "criteria": [ {
     "type": &lt;sp>, "title": &lt;s>,
-    "content": &lt;s>, "weight": &lt;f>}, .. ] 
+    "content": &lt;s>, "weight": &lt;f>}, .. ],
+  "attachments": [&lt;i>, ..]
 }
 </pre>
   </td>
@@ -302,6 +304,7 @@ Query Parameter: <code>?all=&lt;b></code>
 </tr>
 </tbody>
 </table>
+
 
 #### Student
 
@@ -508,7 +511,7 @@ Student (Other student submission)
   </td>
 </tr>
 <tr>
-  <td>Update submission<br><code>/submission/{submission_id}</code></td>
+  <td>Update submission<br><code>/submission/{submission_id}</code><br>Not implemented yet</td>
   <td>PUT</td>
   <td>
 <pre lang=json>
@@ -624,6 +627,7 @@ Student (Other student submission)
 </tr>
 </tbody>
 </table>
+
 
 #### Creating user accounts
 

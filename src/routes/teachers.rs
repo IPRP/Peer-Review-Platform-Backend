@@ -1,17 +1,14 @@
-use crate::db::workshops::TeacherWorkshop;
-use crate::models::{Kind, NewCriterion, Role, User};
-use crate::routes::models::{ApiResponse, NumberVec, WorkshopResponse};
+use crate::db::models::*;
+use crate::routes::models::{
+    ApiResponse, Date, NumberVec, RouteCriterionVec, RouteNewWorkshop, RouteSearchStudent,
+    RouteUpdateWorkshop, RouteWorkshopResponse,
+};
 use crate::{db, IprpDB};
-use chrono::Utc;
-use diesel::result::Error;
-use rocket::http::{RawStr, Status};
+
+use rocket::http::RawStr;
 use rocket::request::FromFormValue;
-use rocket::response::content;
+
 use rocket_contrib::json::{Json, JsonValue};
-use serde::{de, Deserialize, Deserializer};
-use std::fmt::Display;
-use std::num::{ParseFloatError, ParseIntError};
-use std::str::FromStr;
 
 /// Get all workshops.
 #[get("/teacher/workshops")]
@@ -23,11 +20,11 @@ pub fn workshops(user: User, conn: IprpDB) -> Result<Json<JsonValue>, ApiRespons
     let workshops = db::workshops::get_by_user(&*conn, user.id);
     let workshop_infos = workshops
         .into_iter()
-        .map(|ws| WorkshopResponse {
+        .map(|ws| RouteWorkshopResponse {
             id: ws.id,
             title: ws.title,
         })
-        .collect::<Vec<WorkshopResponse>>();
+        .collect::<Vec<RouteWorkshopResponse>>();
     Ok(Json(json!({
         "ok": true,
         "workshops": workshop_infos
@@ -55,62 +52,12 @@ pub fn workshop(
     }
 }
 
-// Expected format is ISO 8601 combined date and time without timezone like `2007-04-05T14:30:30`
-// In JS that would mean creating a Date like this `(new Date()).toISOString().split(".")[0]`
-// https://github.com/serde-rs/json/issues/531#issuecomment-479738561
-#[derive(Deserialize)]
-pub struct Date(chrono::NaiveDateTime);
-
-#[derive(Debug, Deserialize)]
-pub struct Criterion {
-    title: String,
-    content: String,
-    weight: f64,
-    #[serde(rename = "type")]
-    kind: Kind,
-}
-
-impl From<Criterion> for NewCriterion {
-    fn from(item: Criterion) -> Self {
-        NewCriterion {
-            title: item.title,
-            content: item.content,
-            weight: item.weight,
-            kind: item.kind,
-        }
-    }
-}
-
-impl From<CriterionVec> for Vec<NewCriterion> {
-    fn from(items: CriterionVec) -> Self {
-        items
-            .0
-            .into_iter()
-            .map(|item| NewCriterion::from(item))
-            .collect()
-    }
-}
-
-#[derive(Deserialize)]
-pub struct CriterionVec(Vec<Criterion>);
-
-#[derive(FromForm, Deserialize)]
-pub struct NewWorkshop {
-    title: String,
-    content: String,
-    end: Date,
-    anonymous: bool,
-    teachers: NumberVec,
-    students: NumberVec,
-    criteria: CriterionVec,
-}
-
 /// Create new workshop.
 #[post("/teacher/workshop", format = "json", data = "<new_workshop>")]
 pub fn create_workshop(
     user: User,
     conn: IprpDB,
-    new_workshop: Json<NewWorkshop>,
+    mut new_workshop: Json<RouteNewWorkshop>,
 ) -> Result<Json<JsonValue>, ApiResponse> {
     if user.role == Role::Student {
         return Err(ApiResponse::forbidden());
@@ -120,8 +67,15 @@ pub fn create_workshop(
     println!("{:?}", new_workshop.students.0);
     println!("{:?}", new_workshop.criteria.0);
 
+    // Add teacher, who wants to create the workshop, to the teachers list
+    // if not already present
+    if !new_workshop.teachers.0.contains(&user.id) {
+        new_workshop.teachers.0.push(user.id);
+    }
+
     let workshop = db::workshops::create(
         &*conn,
+        user.id,
         new_workshop.0.title,
         new_workshop.0.content,
         new_workshop.0.end.0,
@@ -129,6 +83,7 @@ pub fn create_workshop(
         Vec::from(new_workshop.0.teachers),
         Vec::from(new_workshop.0.students),
         Vec::from(new_workshop.0.criteria),
+        Vec::from(new_workshop.0.attachments),
     );
     match workshop {
         Ok(workshop) => Ok(Json(json!({
@@ -137,16 +92,6 @@ pub fn create_workshop(
         }))),
         Err(_) => Err(ApiResponse::conflict()),
     }
-}
-
-#[derive(FromForm, Deserialize)]
-pub struct UpdateWorkshop {
-    title: String,
-    content: String,
-    end: Date,
-    teachers: NumberVec,
-    students: NumberVec,
-    criteria: CriterionVec,
 }
 
 /// Update workshop.
@@ -159,14 +104,21 @@ pub fn update_workshop(
     user: User,
     conn: IprpDB,
     workshop_id: u64,
-    update_workshop: Json<UpdateWorkshop>,
+    mut update_workshop: Json<RouteUpdateWorkshop>,
 ) -> Result<Json<JsonValue>, ApiResponse> {
     if user.role == Role::Student {
         return Err(ApiResponse::forbidden());
     }
 
+    // Add teacher, who wants to update the workshop, to the teachers list
+    // if not already present
+    if !update_workshop.teachers.0.contains(&user.id) {
+        update_workshop.teachers.0.push(user.id);
+    }
+
     let workshop = db::workshops::update(
         &*conn,
+        user.id,
         workshop_id,
         update_workshop.0.title,
         update_workshop.0.content,
@@ -174,6 +126,7 @@ pub fn update_workshop(
         Vec::from(update_workshop.0.teachers),
         Vec::from(update_workshop.0.students),
         Vec::from(update_workshop.0.criteria),
+        Vec::from(update_workshop.0.attachments),
     );
     match workshop {
         Ok(_) => Ok(Json(json!({
@@ -197,15 +150,6 @@ pub fn delete_workshop(user: User, conn: IprpDB, id: u64) -> Result<Json<JsonVal
     }
 }
 
-#[derive(FromForm, Deserialize)]
-pub struct SearchStudent {
-    all: bool,
-    id: Option<u64>,
-    firstname: Option<String>,
-    lastname: Option<String>,
-    group: Option<String>,
-}
-
 /// Search students.
 /// Different Query Parameter yield different results.
 #[get("/teacher/search/student?<all>&<id>&<firstname>&<lastname>&<group>")]
@@ -219,7 +163,7 @@ pub fn search_student(
     group: Option<String>,
 ) -> Result<Json<JsonValue>, ApiResponse> {
     let all = all.unwrap_or(false);
-    let search_info = SearchStudent {
+    let search_info = RouteSearchStudent {
         all,
         id,
         firstname,
@@ -290,7 +234,7 @@ pub fn search_student(
 impl<'v> FromFormValue<'v> for Date {
     type Error = &'v RawStr;
 
-    fn from_form_value(form_value: &'v RawStr) -> Result<Self, Self::Error> {
+    fn from_form_value(_form_value: &'v RawStr) -> Result<Self, Self::Error> {
         unimplemented!()
     }
 
@@ -307,15 +251,10 @@ impl<'v> FromFormValue<'v> for Date {
     }*/
 }
 
-// See: https://stackoverflow.com/a/26370894/12347616
-fn parse_str_to_u64(input: &&str) -> Result<u64, ParseIntError> {
-    input.parse::<u64>()
-}
-
 impl<'v> FromFormValue<'v> for NumberVec {
     type Error = &'v RawStr;
 
-    fn from_form_value(form_value: &'v RawStr) -> Result<Self, Self::Error> {
+    fn from_form_value(_form_value: &'v RawStr) -> Result<Self, Self::Error> {
         unimplemented!()
     }
 
@@ -337,15 +276,21 @@ impl<'v> FromFormValue<'v> for NumberVec {
     }*/
 }
 
-// See: https://stackoverflow.com/a/38447886/12347616
-fn crop_letters(s: &str, pos: usize) -> String {
-    match s.char_indices().skip(pos).next() {
-        Some((pos, _)) => String::from(&s[pos..]),
-        None => "".to_string(),
-    }
-}
+// See: https://stackoverflow.com/a/26370894/12347616
+// use std::num::ParseIntError;
+// fn parse_str_to_u64(input: &&str) -> Result<u64, ParseIntError> {
+//     input.parse::<u64>()
+// }
+//
+// // See: https://stackoverflow.com/a/38447886/12347616
+// fn crop_letters(s: &str, pos: usize) -> String {
+//     match s.char_indices().skip(pos).next() {
+//         Some((pos, _)) => String::from(&s[pos..]),
+//         None => "".to_string(),
+//     }
+// }
 
-impl<'v> FromFormValue<'v> for CriterionVec {
+impl<'v> FromFormValue<'v> for RouteCriterionVec {
     type Error = &'v RawStr;
 
     /*
@@ -405,7 +350,7 @@ impl<'v> FromFormValue<'v> for CriterionVec {
 
     // It seems that a dummy implementation is sufficient?
     // Serde is triggered internally?
-    fn from_form_value(form_value: &'v RawStr) -> Result<CriterionVec, &'v RawStr> {
+    fn from_form_value(_form_value: &'v RawStr) -> Result<RouteCriterionVec, &'v RawStr> {
         unimplemented!()
     }
 }

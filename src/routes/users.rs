@@ -1,10 +1,12 @@
-use crate::models::User;
+use crate::db::models::*;
 use crate::{db, IprpDB};
+use rocket::data::{FromDataSimple, Outcome};
 use rocket::http::{Cookie, Cookies, Status};
-use rocket::response::content;
+use rocket::{Data, Request};
+
+use crate::routes::models::{ApiResponse, RouteCreateStudent, RouteCreateTeacher};
 use rocket_contrib::json;
 use rocket_contrib::json::{Json, JsonValue};
-use serde::{Deserialize, Serialize};
 
 /// Use Basic Auth header to trigger this.
 /// Using cookies will resend the cookie.
@@ -22,23 +24,13 @@ pub fn logout(_user: User, mut cookies: Cookies) -> Status {
     Status::Ok
 }
 
-#[derive(FromForm, Deserialize)]
-pub struct CreateStudent {
-    username: String,
-    firstname: String,
-    lastname: String,
-    password: String,
-    #[serde(rename(deserialize = "group"))]
-    unit: String,
-}
-
 /// Create new student account.
 /// Only accessible with "admin" account.
 #[post("/users/student", format = "json", data = "<create_info>")]
 pub fn create_student(
     user: User,
     conn: IprpDB,
-    create_info: json::Json<CreateStudent>,
+    create_info: json::Json<RouteCreateStudent>,
 ) -> Result<json::Json<u64>, Status> {
     if user.username != "admin" {
         return Err(Status::Forbidden);
@@ -58,21 +50,13 @@ pub fn create_student(
     };
 }
 
-#[derive(FromForm, Deserialize)]
-pub struct CreateTeacher {
-    username: String,
-    firstname: String,
-    lastname: String,
-    password: String,
-}
-
 /// Create new teacher account.
 /// Only accessible with "admin" account.
 #[post("/users/teacher", format = "json", data = "<create_info>")]
 pub fn create_teacher(
     user: User,
     conn: IprpDB,
-    create_info: json::Json<CreateTeacher>,
+    create_info: json::Json<RouteCreateTeacher>,
 ) -> Result<json::Json<u64>, Status> {
     if user.username != "admin" {
         return Err(Status::Forbidden);
@@ -89,4 +73,101 @@ pub fn create_teacher(
         Ok(user) => Ok(json::Json(user.id)),
         Err(_) => Err(Status::Conflict),
     };
+}
+
+// See: https://github.com/Keats/validator
+use crate::routes::validation::SimpleValidation;
+use validator::{Validate, ValidationError, ValidationErrors};
+
+#[derive(Debug, Validate, Deserialize)]
+pub struct ValidatorTest {
+    #[validate(length(min = 1))]
+    detail: String,
+    detail2: u64,
+    #[validate(custom = "not_empty")]
+    #[serde(default)]
+    details: Vec<String>,
+}
+
+fn not_empty(details: &Vec<String>) -> Result<(), ValidationError> {
+    if details.is_empty() {
+        return Err(ValidationError::new("cannot be empty"));
+    }
+    Ok(())
+}
+
+impl SimpleValidation for ValidatorTest {}
+
+impl FromDataSimple for ValidatorTest {
+    type Error = ValidationErrors;
+
+    fn from_data(request: &Request, data: Data) -> Outcome<Self, Self::Error> {
+        SimpleValidation::from_data(request, data)
+    }
+}
+
+#[post("/validation", data = "<account>")]
+pub fn validation_test(
+    account: Result<ValidatorTest, ValidationErrors>,
+) -> Result<json::Json<u64>, ApiResponse> {
+    let value = account;
+
+    // let ok = match value {
+    //     Ok(_) => Ok(json::Json(42)),
+    //     Err(val_errors) => {
+    //         //let errors = validation_errs_to_str_vec(&val_errors);
+    //         //let errors: Vec<String> = Vec::from(SimpleValidationErrors(val_errors));
+    //         let errors = val_errors;
+    //         return Err(ApiResponse::unprocessable_entity(errors));
+    //     }
+    // };
+    // let do_something = "hello world";
+    // ok
+
+    // match value {
+    //     Ok(_) => Ok(json::Json(42)),
+    //     Err(val_errors) => Err(ApiResponse::unprocessable_entity(val_errors)),
+    // }
+
+    value
+        .map(|_| json::Json(42))
+        .map_err(|val_errors| ApiResponse::unprocessable_entity(&val_errors))
+}
+
+#[post("/validation2", data = "<account>")]
+pub fn validation_test2(account: ValidatorTest) -> json::Json<u64> {
+    let _ = account;
+    json::Json(42)
+}
+
+// See: https://doc.rust-lang.org/rust-by-example/testing/unit_testing.html
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn validator_test_ok() {
+        let vt = ValidatorTest {
+            detail: "abc".to_string(),
+            detail2: 42,
+            details: vec!["Hello".to_string(), "World".to_string()],
+        };
+        assert!(vt.validate().is_ok());
+    }
+
+    #[test]
+    fn validator_test_not_ok() {
+        let vt = ValidatorTest {
+            detail: "".to_string(),
+            detail2: 42,
+            details: vec!["Hello".to_string(), "World".to_string()],
+        };
+        assert!(vt.validate().is_err());
+        let vt = ValidatorTest {
+            detail: "abc".to_string(),
+            detail2: 42,
+            details: vec![],
+        };
+        assert!(vt.validate().is_err());
+    }
 }

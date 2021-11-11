@@ -1,4 +1,5 @@
 #![feature(proc_macro_hygiene, decl_macro)]
+#![feature(associated_type_defaults)]
 
 #[macro_use]
 extern crate rocket;
@@ -18,7 +19,7 @@ extern crate base64;
 extern crate crypto;
 
 use rocket::fairing::AdHoc;
-use rocket_cors::{AllowedMethods, AllowedOrigins, CorsOptions};
+use rocket_cors::CorsOptions;
 
 // Import database operations
 mod db;
@@ -80,7 +81,10 @@ fn main() {
                 routes::submissions::get_submission,
                 routes::submissions::update_review,
                 routes::submissions::get_review,
+                routes::users::validation_test,
+                routes::users::validation_test2,
             ],
         )
+        .register(catchers![routes::validation::catcher::unprocessable_entity,])
         .launch();
 }

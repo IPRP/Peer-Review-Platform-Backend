@@ -1,3 +1,7 @@
+// schema.rs is is auto generated, some table! macros need
+// the use crate::models::* import, some do not
+#![allow(unused_imports)]
+
 table! {
     use diesel::sql_types::*;
     use crate::models::*;

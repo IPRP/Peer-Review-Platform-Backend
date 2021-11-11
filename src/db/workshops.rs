@@ -1,12 +1,7 @@
 //! CRUD operations for workshops.
 
 use crate::db;
-use crate::db::reviews::WorkshopReview;
-use crate::db::submissions::WorkshopSubmission;
-use crate::models::{
-    Criteria as NewCriteria, Criterion, NewCriterion, NewStudent, NewWorkshop, Role, Submission,
-    User, Workshop, Workshoplist,
-};
+use crate::db::models::*;
 use crate::schema::criteria::dsl::{
     criteria as criteria_t, criterion as criteria_criterion, workshop as criteria_workshop,
 };
@@ -15,12 +10,14 @@ use crate::schema::users::dsl::{
     firstname as u_firstname, id as u_id, lastname as u_lastname, role as u_role, unit as u_unit,
     users as users_t,
 };
+use crate::schema::workshopattachments::dsl::{
+    workshop as wsatt_ws, workshopattachments as wsatt_t,
+};
 use crate::schema::workshoplist::dsl::{
     role as wsl_role, user as wsl_user, workshop as wsl_ws, workshoplist as workshoplist_t,
 };
 use crate::schema::workshops::dsl::{
-    anonymous as ws_anonymous, content as ws_content, end as ws_end, id as ws_id,
-    title as ws_title, workshops as workshops_t,
+    anonymous as ws_anonymous, id as ws_id, workshops as workshops_t,
 };
 use diesel::prelude::*;
 use diesel::result::Error;
@@ -58,6 +55,7 @@ pub fn get_by_submission_id(conn: &MysqlConnection, submission_id: u64) -> Resul
 }
 
 /// Get workshop by review id.
+#[allow(dead_code)]
 pub fn get_by_review_id(conn: &MysqlConnection, review_id: u64) -> Result<Workshop, Error> {
     let review = db::reviews::get_by_id(conn, review_id);
     if review.is_err() {
@@ -70,6 +68,7 @@ pub fn get_by_review_id(conn: &MysqlConnection, review_id: u64) -> Result<Worksh
 /// Create new workshop.
 pub fn create<'a>(
     conn: &MysqlConnection,
+    teacher_id: u64,
     title: String,
     content: String,
     end: chrono::NaiveDateTime,
@@ -77,6 +76,7 @@ pub fn create<'a>(
     teachers: Vec<u64>,
     students: Vec<u64>,
     criteria: Vec<NewCriterion>,
+    attachments: Vec<u64>,
 ) -> Result<Workshop, ()> {
     let new_workshop = NewWorkshop {
         title,
@@ -103,9 +103,12 @@ pub fn create<'a>(
         let mut teachers = teachers.unwrap();
         println!("{:?}", teachers);
         // Insert criteria
-        diesel::insert_into(criterion_t)
+        let criterion_insert = diesel::insert_into(criterion_t)
             .values(&criteria)
             .execute(conn);
+        if criterion_insert.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
         let mut last_criterion_id = criterion_t
             .select(c_id)
             .order(c_id.desc())
@@ -132,20 +135,51 @@ pub fn create<'a>(
                 role: u.role,
             })
             .collect::<Vec<Workshoplist>>();
-        diesel::insert_into(workshoplist_t)
+        let workshop_insert = diesel::insert_into(workshoplist_t)
             .values(&new_workshoplist)
             .execute(conn);
+        if workshop_insert.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
         // Assign criteria to workshop
         let new_criteria = criterion_ids
             .into_iter()
-            .map(|c| NewCriteria {
+            .map(|c| Criteria {
                 workshop: workshop.id,
                 criterion: c,
             })
-            .collect::<Vec<NewCriteria>>();
-        diesel::insert_into(criteria_t)
+            .collect::<Vec<Criteria>>();
+        let criteria_insert = diesel::insert_into(criteria_t)
             .values(&new_criteria)
             .execute(conn);
+        if criteria_insert.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
+        // Relate attachments to workshop
+        let all_teacher_attachments = db::attachments::get_ids_by_user_id(conn, teacher_id);
+        if all_teacher_attachments.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
+        let all_teacher_attachments = all_teacher_attachments.unwrap();
+        let workshop_attachments: Vec<Workshopattachment> = attachments
+            .into_iter()
+            .filter_map(|att_id| {
+                if all_teacher_attachments.contains(&att_id) {
+                    Some(Workshopattachment {
+                        workshop: workshop.id,
+                        attachment: att_id,
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect();
+        let attachment_insert = diesel::insert_into(wsatt_t)
+            .values(&workshop_attachments)
+            .execute(conn);
+        if attachment_insert.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
         Ok(workshop)
     });
     match ws {
@@ -157,6 +191,7 @@ pub fn create<'a>(
 /// Update existing workshop.
 pub fn update(
     conn: &MysqlConnection,
+    teacher_id: u64,
     workshop_id: u64,
     title: String,
     content: String,
@@ -164,6 +199,7 @@ pub fn update(
     teachers: Vec<u64>,
     students: Vec<u64>,
     criteria: Vec<NewCriterion>,
+    attachments: Vec<u64>,
 ) -> Result<Workshop, ()> {
     let workshop = workshops_t.filter(ws_id.eq(workshop_id)).first(conn);
     if workshop.is_err() {
@@ -185,7 +221,11 @@ pub fn update(
         if delete.is_err() {
             return Err(Error::RollbackTransaction);
         }
-
+        // Remove attachments
+        let delete = diesel::delete(wsatt_t.filter(wsatt_ws.eq(workshop_id))).execute(conn);
+        if delete.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
         // Filter students & teachers
         let students = users_t
             .filter(u_role.eq(Role::Student).and(u_id.eq_any(students)))
@@ -249,15 +289,41 @@ pub fn update(
         // Assign criteria to workshop
         let new_criteria = criterion_ids
             .into_iter()
-            .map(|c| NewCriteria {
+            .map(|c| Criteria {
                 workshop: workshop.id,
                 criterion: c,
             })
-            .collect::<Vec<NewCriteria>>();
+            .collect::<Vec<Criteria>>();
         let insert = diesel::insert_into(criteria_t)
             .values(&new_criteria)
             .execute(conn);
         if insert.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
+
+        // Relate attachments to workshop
+        let all_teacher_attachments = db::attachments::get_ids_by_user_id(conn, teacher_id);
+        if all_teacher_attachments.is_err() {
+            return Err(Error::RollbackTransaction);
+        }
+        let all_teacher_attachments = all_teacher_attachments.unwrap();
+        let workshop_attachments: Vec<Workshopattachment> = attachments
+            .into_iter()
+            .filter_map(|att_id| {
+                if all_teacher_attachments.contains(&att_id) {
+                    Some(Workshopattachment {
+                        workshop: workshop.id,
+                        attachment: att_id,
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect();
+        let attachment_insert = diesel::insert_into(wsatt_t)
+            .values(&workshop_attachments)
+            .execute(conn);
+        if attachment_insert.is_err() {
             return Err(Error::RollbackTransaction);
         }
 
@@ -275,8 +341,12 @@ pub fn delete(conn: &MysqlConnection, id: u64) -> Result<(), ()> {
     let workshop: Result<Workshop, diesel::result::Error> =
         workshops_t.filter(ws_id.eq(id)).first(conn);
     if workshop.is_ok() {
-        diesel::delete(workshops_t.filter(ws_id.eq(id))).execute(conn);
-        Ok(())
+        let workshop_delete = diesel::delete(workshops_t.filter(ws_id.eq(id))).execute(conn);
+        if workshop_delete.is_ok() {
+            Ok(())
+        } else {
+            Err(())
+        }
     } else {
         Err(())
     }
@@ -296,18 +366,6 @@ pub fn student_in_workshop(conn: &MysqlConnection, student_id: u64, workshop_id:
     } else {
         false
     }
-}
-
-/// Workshop representation of an user.
-#[derive(Serialize)]
-pub struct WorkshopUser {
-    pub id: u64,
-    pub firstname: String,
-    pub lastname: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub group: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub submissions: Option<Vec<WorkshopSubmission>>,
 }
 
 // Gets students/teachers of a workshop.
@@ -360,6 +418,7 @@ fn roles_in_workshop(
 }
 
 /// Gets students of a workshop.
+#[allow(dead_code)]
 pub fn students_in_workshop(
     conn: &MysqlConnection,
     workshop_id: u64,
@@ -369,24 +428,13 @@ pub fn students_in_workshop(
 }
 
 /// Gets teachers of a workshop.
+#[allow(dead_code)]
 pub fn teachers_in_workshop(
     conn: &MysqlConnection,
     workshop_id: u64,
     is_teacher: bool,
 ) -> Result<Vec<WorkshopUser>, ()> {
     roles_in_workshop(conn, workshop_id, Role::Teacher, is_teacher)
-}
-
-/// Teacher representation of a workshop.
-#[derive(Serialize)]
-pub struct TeacherWorkshop {
-    pub title: String,
-    pub content: String,
-    pub end: chrono::NaiveDateTime,
-    pub anonymous: bool,
-    pub students: Vec<WorkshopUser>,
-    pub teachers: Vec<WorkshopUser>,
-    pub criteria: Vec<Criterion>,
 }
 
 /// Get teacher workshop by workshop id.
@@ -436,19 +484,6 @@ pub fn get_teacher_workshop(
         teachers,
         criteria,
     })
-}
-
-/// Student representation of a workshop.
-#[derive(Serialize)]
-pub struct StudentWorkshop {
-    pub title: String,
-    pub content: String,
-    pub end: chrono::NaiveDateTime,
-    pub anonymous: bool,
-    pub students: Vec<WorkshopUser>,
-    pub teachers: Vec<WorkshopUser>,
-    pub submissions: Vec<WorkshopSubmission>,
-    pub reviews: Vec<WorkshopReview>,
 }
 
 /// Get student workshop by workshop id.
