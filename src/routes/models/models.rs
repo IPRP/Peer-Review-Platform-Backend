@@ -3,10 +3,11 @@
 use crate::db::models::{Kind, NewCriterion};
 use crate::routes::validation::SimpleValidation;
 use chrono::Local;
+use rocket::data::{FromDataSimple, Outcome};
 use rocket::http::{ContentType, Status};
 use rocket::request::Request;
-use rocket::response;
 use rocket::response::{Responder, Response};
+use rocket::{response, Data};
 use rocket_contrib::json::JsonValue;
 use validator::{Validate, ValidationError, ValidationErrors};
 
@@ -20,12 +21,33 @@ pub struct RouteNewSubmission {
     pub attachments: NumberVec,
 }
 
+// TODO Define Macro for automatic code generation?
+impl SimpleValidation for RouteNewSubmission {}
+
+impl FromDataSimple for RouteNewSubmission {
+    type Error = ValidationErrors;
+
+    fn from_data(request: &Request, data: Data) -> Outcome<Self, Self::Error> {
+        SimpleValidation::from_data(request, data)
+    }
+}
+
 #[derive(Serialize, Deserialize, Validate)]
 pub struct RouteUpdateReview {
     pub feedback: String,
     #[serde(default)]
     #[validate]
     pub points: Vec<RouteUpdatePoints>,
+}
+
+impl SimpleValidation for RouteUpdateReview {}
+
+impl FromDataSimple for RouteUpdateReview {
+    type Error = ValidationErrors;
+
+    fn from_data(request: &Request, data: Data) -> Outcome<Self, Self::Error> {
+        SimpleValidation::from_data(request, data)
+    }
 }
 
 #[derive(Serialize, Deserialize, Validate)]
@@ -128,6 +150,7 @@ pub struct RouteNewWorkshop {
     #[validate(length(min = 1))]
     pub(crate) title: String,
     pub(crate) content: String,
+    #[serde(flatten, rename = "baum")]
     #[validate(custom = "deadline_check")]
     pub(crate) end: Date,
     pub(crate) anonymous: bool,
@@ -139,6 +162,16 @@ pub struct RouteNewWorkshop {
     // See: https://serde.rs/attr-default.html
     #[serde(default)]
     pub(crate) attachments: NumberVec,
+}
+
+impl SimpleValidation for RouteNewWorkshop {}
+
+impl FromDataSimple for RouteNewWorkshop {
+    type Error = ValidationErrors;
+
+    fn from_data(request: &Request, data: Data) -> Outcome<Self, Self::Error> {
+        SimpleValidation::from_data(request, data)
+    }
 }
 
 #[derive(FromForm, Deserialize, Validate)]
@@ -164,6 +197,16 @@ fn deadline_check(date: &Date) -> Result<(), ValidationError> {
     Ok(())
 }
 
+impl SimpleValidation for RouteUpdateWorkshop {}
+
+impl FromDataSimple for RouteUpdateWorkshop {
+    type Error = ValidationErrors;
+
+    fn from_data(request: &Request, data: Data) -> Outcome<Self, Self::Error> {
+        SimpleValidation::from_data(request, data)
+    }
+}
+
 // Users
 #[derive(FromForm, Deserialize, Validate)]
 pub struct RouteCreateStudent {
@@ -179,6 +222,16 @@ pub struct RouteCreateStudent {
     pub(crate) unit: String,
 }
 
+impl SimpleValidation for RouteCreateStudent {}
+
+impl FromDataSimple for RouteCreateStudent {
+    type Error = ValidationErrors;
+
+    fn from_data(request: &Request, data: Data) -> Outcome<Self, Self::Error> {
+        SimpleValidation::from_data(request, data)
+    }
+}
+
 #[derive(FromForm, Deserialize, Validate)]
 pub struct RouteCreateTeacher {
     #[validate(length(min = 1))]
@@ -189,6 +242,16 @@ pub struct RouteCreateTeacher {
     pub(crate) lastname: String,
     #[validate(length(min = 1))]
     pub(crate) password: String,
+}
+
+impl SimpleValidation for RouteCreateTeacher {}
+
+impl FromDataSimple for RouteCreateTeacher {
+    type Error = ValidationErrors;
+
+    fn from_data(request: &Request, data: Data) -> Outcome<Self, Self::Error> {
+        SimpleValidation::from_data(request, data)
+    }
 }
 
 // General

@@ -48,11 +48,13 @@ impl<'a, 'r> FromRequest<'a, 'r> for User {
                         });
                     match auth_result {
                         Ok(user) => Outcome::Success(user.clone()),
-                        Err(_) => Outcome::Failure((Status::BadRequest, LoginError::WrongPassword)),
+                        Err(_) => {
+                            Outcome::Failure((Status::Unauthorized, LoginError::WrongPassword))
+                        }
                     }
                 }
                 Err(_) => {
-                    return Outcome::Failure((Status::BadRequest, LoginError::InvalidData));
+                    return Outcome::Failure((Status::Unauthorized, LoginError::InvalidData));
                 }
             }
         }
@@ -71,12 +73,12 @@ impl<'a, 'r> FromRequest<'a, 'r> for User {
             });
             match auth_result {
                 Ok(user) => Outcome::Success(user.clone()),
-                Err(_) => Outcome::Failure((Status::BadRequest, LoginError::UserDoesNotExist)),
+                Err(_) => Outcome::Failure((Status::Unauthorized, LoginError::UserDoesNotExist)),
             }
         }
         // Bad request
         else {
-            Outcome::Failure((Status::BadRequest, LoginError::InvalidData))
+            Outcome::Failure((Status::Unauthorized, LoginError::InvalidData))
         }
     }
 }
