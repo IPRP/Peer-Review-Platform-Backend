@@ -63,9 +63,9 @@ pub fn create_workshop(
         return Err(ApiResponse::forbidden());
     }
 
-    println!("{:?}", new_workshop.end.0);
+    println!("{:?}", new_workshop.end.inner);
     println!("{:?}", new_workshop.students.0);
-    println!("{:?}", new_workshop.criteria.0);
+    println!("{:?}", new_workshop.criteria.inner);
 
     // Add teacher, who wants to create the workshop, to the teachers list
     // if not already present
@@ -78,7 +78,7 @@ pub fn create_workshop(
         user.id,
         new_workshop.0.title,
         new_workshop.0.content,
-        new_workshop.0.end.0,
+        new_workshop.0.end.inner,
         new_workshop.0.anonymous,
         Vec::from(new_workshop.0.teachers),
         Vec::from(new_workshop.0.students),
@@ -122,7 +122,7 @@ pub fn update_workshop(
         workshop_id,
         update_workshop.0.title,
         update_workshop.0.content,
-        update_workshop.0.end.0,
+        update_workshop.0.end.inner,
         Vec::from(update_workshop.0.teachers),
         Vec::from(update_workshop.0.students),
         Vec::from(update_workshop.0.criteria),

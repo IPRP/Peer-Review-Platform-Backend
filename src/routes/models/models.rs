@@ -2,6 +2,7 @@
 
 use crate::db::models::{Kind, NewCriterion};
 use crate::routes::validation::SimpleValidation;
+use chrono::Local;
 use rocket::http::{ContentType, Status};
 use rocket::request::Request;
 use rocket::response;
@@ -84,7 +85,7 @@ impl From<RouteCriterion> for NewCriterion {
 impl From<RouteCriterionVec> for Vec<NewCriterion> {
     fn from(items: RouteCriterionVec) -> Self {
         items
-            .0
+            .inner
             .into_iter()
             .map(|item| NewCriterion::from(item))
             .collect()
@@ -93,14 +94,19 @@ impl From<RouteCriterionVec> for Vec<NewCriterion> {
 
 // TODO convert to struct with named fields because of error
 // #[derive(Validate)] can only be used on structs with named fields
-#[derive(Deserialize)]
-pub struct RouteCriterionVec(pub(crate) Vec<RouteCriterion>);
+#[derive(Deserialize, Validate)]
+pub struct RouteCriterionVec {
+    #[validate]
+    pub(crate) inner: Vec<RouteCriterion>,
+}
 
 // Expected format is ISO 8601 combined date and time without timezone like `2007-04-05T14:30:30`
 // In JS that would mean creating a Date like this `(new Date()).toISOString().split(".")[0]`
 // https://github.com/serde-rs/json/issues/531#issuecomment-479738561
-#[derive(Deserialize)]
-pub struct Date(pub(crate) chrono::NaiveDateTime);
+#[derive(Deserialize, Serialize, Validate)]
+pub struct Date {
+    pub(crate) inner: chrono::NaiveDateTime,
+}
 
 #[derive(Deserialize)]
 pub struct NumberVec(pub(crate) Vec<u64>);
@@ -122,11 +128,12 @@ pub struct RouteNewWorkshop {
     #[validate(length(min = 1))]
     pub(crate) title: String,
     pub(crate) content: String,
+    #[validate(custom = "deadline_check")]
     pub(crate) end: Date,
     pub(crate) anonymous: bool,
     pub(crate) teachers: NumberVec,
     pub(crate) students: NumberVec,
-    //#[validate]
+    #[validate]
     pub(crate) criteria: RouteCriterionVec,
     // Use default value
     // See: https://serde.rs/attr-default.html
@@ -134,34 +141,53 @@ pub struct RouteNewWorkshop {
     pub(crate) attachments: NumberVec,
 }
 
-#[derive(FromForm, Deserialize)]
+#[derive(FromForm, Deserialize, Validate)]
 pub struct RouteUpdateWorkshop {
+    #[validate(length(min = 1))]
     pub(crate) title: String,
     pub(crate) content: String,
+    #[validate(custom = "deadline_check")]
     pub(crate) end: Date,
     pub(crate) teachers: NumberVec,
     pub(crate) students: NumberVec,
+    #[validate]
     pub(crate) criteria: RouteCriterionVec,
     #[serde(default)]
     pub(crate) attachments: NumberVec,
 }
 
+fn deadline_check(date: &Date) -> Result<(), ValidationError> {
+    let current_date = Local::now().naive_local();
+    if current_date > date.inner {
+        return Err(ValidationError::new("Deadline cannot be in the past"));
+    }
+    Ok(())
+}
+
 // Users
-#[derive(FromForm, Deserialize)]
+#[derive(FromForm, Deserialize, Validate)]
 pub struct RouteCreateStudent {
+    #[validate(length(min = 1))]
     pub(crate) username: String,
+    #[validate(length(min = 1))]
     pub(crate) firstname: String,
+    #[validate(length(min = 1))]
     pub(crate) lastname: String,
+    #[validate(length(min = 1))]
     pub(crate) password: String,
     #[serde(rename(deserialize = "group"))]
     pub(crate) unit: String,
 }
 
-#[derive(FromForm, Deserialize)]
+#[derive(FromForm, Deserialize, Validate)]
 pub struct RouteCreateTeacher {
+    #[validate(length(min = 1))]
     pub(crate) username: String,
+    #[validate(length(min = 1))]
     pub(crate) firstname: String,
+    #[validate(length(min = 1))]
     pub(crate) lastname: String,
+    #[validate(length(min = 1))]
     pub(crate) password: String,
 }
 
