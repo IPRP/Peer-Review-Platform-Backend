@@ -132,7 +132,9 @@ impl Validate for RouteCriterionVec {
             match criterion.validate() {
                 Ok(_) => {}
                 Err(val_errors) => {
-                    return Err(val_errors);
+                    println!("{}", &val_errors);
+                    //return Err(val_errors);
+                    return Err(ValidationErrors::new());
                 }
             }
         }
@@ -394,6 +396,7 @@ impl<'r> Responder<'r> for ApiResponse {
 
 // Source: https://blog.logrocket.com/json-input-validation-in-rust-web-services/
 fn validation_errs_to_str_vec(ve: &ValidationErrors) -> Vec<String> {
+    println!("{}", &ve);
     ve.field_errors()
         .iter()
         .map(|fe| {
