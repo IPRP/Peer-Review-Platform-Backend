@@ -171,6 +171,8 @@ pub fn search_student(
         group,
     };
 
+    // TODO struct level validation
+
     if user.role == Role::Student {
         return Err(ApiResponse::forbidden());
     }

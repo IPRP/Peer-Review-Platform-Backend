@@ -1,28 +1,33 @@
 //! Structs used throughout routes
 
 use crate::db::models::{Kind, NewCriterion};
+use crate::routes::validation::SimpleValidation;
 use rocket::http::{ContentType, Status};
 use rocket::request::Request;
 use rocket::response;
 use rocket::response::{Responder, Response};
 use rocket_contrib::json::JsonValue;
-use validator::ValidationErrors;
+use validator::{Validate, ValidationError, ValidationErrors};
 
 // Submissions
-#[derive(FromForm, Deserialize)]
+#[derive(FromForm, Deserialize, Validate)]
 pub struct RouteNewSubmission {
+    #[validate(length(min = 1))]
     pub title: String,
     pub comment: String,
+    #[serde(default)]
     pub attachments: NumberVec,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Validate)]
 pub struct RouteUpdateReview {
     pub feedback: String,
+    #[serde(default)]
+    #[validate]
     pub points: Vec<RouteUpdatePoints>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Validate)]
 pub struct RouteUpdatePoints {
     pub id: u64,
     pub points: f64,
@@ -35,6 +40,9 @@ pub struct RouteWorkshopResponse {
     pub(crate) title: String,
 }
 
+// TODO: Struct Level validation
+// See: https://github.com/Keats/validator/blob/master/validator_derive_tests/tests/schema.rs
+
 #[derive(FromForm, Deserialize)]
 pub struct RouteSearchStudent {
     pub(crate) all: bool,
@@ -44,13 +52,22 @@ pub struct RouteSearchStudent {
     pub(crate) group: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct RouteCriterion {
+    #[validate(length(min = 1))]
     title: String,
     content: String,
+    #[serde(default = "route_criterion_default_weight")]
+    #[validate(range(min = 0.0, max = 100.0))]
     weight: f64,
     #[serde(rename = "type")]
     kind: Kind,
+}
+// Pass default value to serde
+// See: https://stackoverflow.com/a/65973982/12347616
+const ROUTE_CRITERION_DEFAULT_WEIGHT: f64 = 1.0;
+fn route_criterion_default_weight() -> f64 {
+    ROUTE_CRITERION_DEFAULT_WEIGHT
 }
 
 impl From<RouteCriterion> for NewCriterion {
@@ -74,6 +91,8 @@ impl From<RouteCriterionVec> for Vec<NewCriterion> {
     }
 }
 
+// TODO convert to struct with named fields because of error
+// #[derive(Validate)] can only be used on structs with named fields
 #[derive(Deserialize)]
 pub struct RouteCriterionVec(pub(crate) Vec<RouteCriterion>);
 
@@ -98,14 +117,16 @@ impl Default for NumberVec {
     }
 }
 
-#[derive(FromForm, Deserialize)]
+#[derive(FromForm, Deserialize, Validate)]
 pub struct RouteNewWorkshop {
+    #[validate(length(min = 1))]
     pub(crate) title: String,
     pub(crate) content: String,
     pub(crate) end: Date,
     pub(crate) anonymous: bool,
     pub(crate) teachers: NumberVec,
     pub(crate) students: NumberVec,
+    //#[validate]
     pub(crate) criteria: RouteCriterionVec,
     // Use default value
     // See: https://serde.rs/attr-default.html
