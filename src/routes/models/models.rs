@@ -2,23 +2,17 @@
 
 use crate::db::models::{Kind, NewCriterion};
 use crate::routes::validation::SimpleValidation;
-use chrono::{Local, ParseResult};
+use chrono::Local;
 use rocket::data::{FromDataSimple, Outcome};
 use rocket::http::{ContentType, Status};
 use rocket::request::Request;
 use rocket::response::{Responder, Response};
 use rocket::{response, Data};
 use rocket_contrib::json::JsonValue;
-use serde::de::{Error, MapAccess, Visitor};
-use serde::{de, Deserialize, Deserializer};
 use serde_json::Value;
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::fmt;
-use std::marker::PhantomData;
-use std::str::FromStr;
 use validator::{Validate, ValidationError, ValidationErrors, ValidationErrorsKind};
-use void::Void;
 
 // Submissions
 #[derive(FromForm, Deserialize, Validate)]
@@ -75,7 +69,7 @@ pub struct RouteWorkshopResponse {
 // TODO: Struct Level validation
 // See: https://github.com/Keats/validator/blob/master/validator_derive_tests/tests/schema.rs
 
-#[derive(FromForm, Deserialize)]
+#[derive(FromForm, Deserialize, Validate)]
 pub struct RouteSearchStudent {
     pub(crate) all: bool,
     pub(crate) id: Option<u64>,
@@ -347,27 +341,11 @@ impl<'r> Responder<'r> for ApiResponse {
 // Source: https://blog.logrocket.com/json-input-validation-in-rust-web-services/
 fn validation_errs_to_str_vec(ve: &ValidationErrors, root_name: Option<String>) -> Vec<String> {
     let root_name = root_name.unwrap_or(String::from(""));
-    println!("{}", &ve);
     let mut error_msg: Vec<String> = Vec::new();
     for (name, error) in ve.errors() {
         if let ValidationErrorsKind::Struct(errors) = error {
             let root_name = format!("{}{}: ", root_name, name);
             let mut struct_errors = validation_errs_to_str_vec(errors, Some(root_name));
-            // let mut struct_errors: Vec<String> = errors
-            //     .field_errors()
-            //     .iter()
-            //     .map(|fe| {
-            //         format!(
-            //             "{}: {}: errors: {}",
-            //             name,
-            //             fe.0,
-            //             fe.1.iter()
-            //                 .map(|ve| format!("{}: {:?}", ve.code, ve.params))
-            //                 .collect::<Vec<String>>()
-            //                 .join(", ")
-            //         )
-            //     })
-            //     .collect();
             error_msg.append(&mut struct_errors);
         } else if let ValidationErrorsKind::Field(errors) = error {
             // Needed for structs without named fields (e.g. Date)
