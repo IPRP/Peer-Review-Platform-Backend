@@ -63,7 +63,7 @@ pub fn create_workshop(
         return Err(ApiResponse::forbidden());
     }
 
-    println!("{:?}", new_workshop.end.inner);
+    println!("{:?}", new_workshop.end.0);
     println!("{:?}", new_workshop.students.0);
     println!("{:?}", new_workshop.criteria.0);
 
@@ -78,7 +78,7 @@ pub fn create_workshop(
         user.id,
         new_workshop.title,
         new_workshop.content,
-        new_workshop.end.inner,
+        new_workshop.end.0,
         new_workshop.anonymous,
         Vec::from(new_workshop.teachers),
         Vec::from(new_workshop.students),
@@ -122,7 +122,7 @@ pub fn update_workshop(
         workshop_id,
         update_workshop.title,
         update_workshop.content,
-        update_workshop.end.inner,
+        update_workshop.end.0,
         Vec::from(update_workshop.teachers),
         Vec::from(update_workshop.students),
         Vec::from(update_workshop.criteria),

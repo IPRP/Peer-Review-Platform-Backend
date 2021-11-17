@@ -11,6 +11,9 @@ use rocket::{response, Data};
 use rocket_contrib::json::JsonValue;
 use serde::de::{Error, MapAccess, Visitor};
 use serde::{de, Deserialize, Deserializer};
+use serde_json::Value;
+use std::borrow::Cow;
+use std::collections::HashMap;
 use std::fmt;
 use std::marker::PhantomData;
 use std::str::FromStr;
@@ -120,19 +123,15 @@ impl From<RouteCriterionVec> for Vec<NewCriterion> {
     }
 }
 
-// TODO convert to struct with named fields because of error
-// #[derive(Validate)] can only be used on structs with named fields
 #[derive(Deserialize)]
 pub struct RouteCriterionVec(pub(crate) Vec<RouteCriterion>);
 
 impl Validate for RouteCriterionVec {
     fn validate(&self) -> Result<(), ValidationErrors> {
-        //let mut val_errors = ValidationErrors::new();
         for criterion in &self.0 {
             match criterion.validate() {
                 Ok(_) => {}
                 Err(val_errors) => {
-                    println!("{}", &val_errors);
                     return Err(val_errors);
                 }
             }
@@ -144,9 +143,29 @@ impl Validate for RouteCriterionVec {
 // Expected format is ISO 8601 combined date and time without timezone like `2007-04-05T14:30:30`
 // In JS that would mean creating a Date like this `(new Date()).toISOString().split(".")[0]`
 // https://github.com/serde-rs/json/issues/531#issuecomment-479738561
-#[derive(Deserialize, Serialize, Validate)]
-pub struct Date {
-    pub(crate) inner: chrono::NaiveDateTime,
+#[derive(Deserialize, Serialize)]
+pub struct Date(pub(crate) chrono::NaiveDateTime);
+
+impl Validate for Date {
+    fn validate(&self) -> Result<(), ValidationErrors> {
+        let current_date = Local::now().naive_local();
+        if current_date > self.0 {
+            let mut val_errors = ValidationErrors::new();
+            let code = Cow::from("Deadline cannot be in the past".to_string());
+            let mut params: HashMap<Cow<'static, str>, Value> = HashMap::new();
+            params.insert(Cow::from("value"), serde_json::to_value(self.0).unwrap());
+            val_errors.add(
+                "",
+                ValidationError {
+                    code,
+                    message: None,
+                    params,
+                },
+            );
+            return Err(val_errors);
+        }
+        Ok(())
+    }
 }
 
 #[derive(Deserialize)]
@@ -170,8 +189,7 @@ pub struct RouteNewWorkshop {
     pub(crate) title: String,
     pub(crate) content: String,
     // See: https://serde.rs/string-or-struct.html
-    #[serde(deserialize_with = "string_or_struct")]
-    #[validate(custom = "deadline_check")]
+    #[validate]
     pub(crate) end: Date,
     pub(crate) anonymous: bool,
     pub(crate) teachers: NumberVec,
@@ -184,54 +202,6 @@ pub struct RouteNewWorkshop {
     pub(crate) attachments: NumberVec,
 }
 
-// Hacky code used to reverse flatten JSON input
-//   { .., "date": "2020-07-31T16:26:00", .. }
-// to struct structure
-//   (expects normally JSON input { .., "date": { inner: "2020-07-31T16:26:00" } }, .. }
-fn string_or_struct<'de, T, D>(deserializer: D) -> Result<T, D::Error>
-where
-    T: Deserialize<'de> + FromStr<Err = serde_json::error::Error>,
-    D: Deserializer<'de>,
-{
-    // This is a Visitor that forwards string types to T's `FromStr` impl and
-    // forwards map types to T's `Deserialize` impl. The `PhantomData` is to
-    // keep the compiler from complaining about T being an unused generic type
-    // parameter. We need T in order to know the Value type for the Visitor
-    // impl.
-    struct StringOrStruct<T>(PhantomData<fn() -> T>);
-
-    impl<'de, T> Visitor<'de> for StringOrStruct<T>
-    where
-        T: Deserialize<'de> + FromStr<Err = serde_json::error::Error>,
-    {
-        type Value = T;
-
-        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-            formatter.write_str("string or map")
-        }
-
-        fn visit_str<E>(self, value: &str) -> Result<T, E>
-        where
-            E: de::Error,
-        {
-            Ok(FromStr::from_str(value).unwrap())
-        }
-
-        fn visit_map<M>(self, map: M) -> Result<T, M::Error>
-        where
-            M: MapAccess<'de>,
-        {
-            // `MapAccessDeserializer` is a wrapper that turns a `MapAccess`
-            // into a `Deserializer`, allowing it to be used as the input to T's
-            // `Deserialize` implementation. T then deserializes itself using
-            // the entries from the map visitor.
-            Deserialize::deserialize(de::value::MapAccessDeserializer::new(map))
-        }
-    }
-
-    deserializer.deserialize_any(StringOrStruct(PhantomData))
-}
-
 impl SimpleValidation for RouteNewWorkshop {}
 
 impl FromDataSimple for RouteNewWorkshop {
@@ -242,23 +212,12 @@ impl FromDataSimple for RouteNewWorkshop {
     }
 }
 
-impl FromStr for Date {
-    type Err = serde_json::error::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match chrono::NaiveDateTime::from_str(s) {
-            Ok(date) => Ok(Date { inner: date }),
-            Err(_) => Err(Error::custom("Invalid Date")),
-        }
-    }
-}
-
 #[derive(FromForm, Deserialize, Validate)]
 pub struct RouteUpdateWorkshop {
     #[validate(length(min = 1))]
     pub(crate) title: String,
     pub(crate) content: String,
-    #[validate(custom = "deadline_check")]
+    #[validate]
     pub(crate) end: Date,
     pub(crate) teachers: NumberVec,
     pub(crate) students: NumberVec,
@@ -266,14 +225,6 @@ pub struct RouteUpdateWorkshop {
     pub(crate) criteria: RouteCriterionVec,
     #[serde(default)]
     pub(crate) attachments: NumberVec,
-}
-
-fn deadline_check(date: &Date) -> Result<(), ValidationError> {
-    let current_date = Local::now().naive_local();
-    if current_date > date.inner {
-        return Err(ValidationError::new("Deadline cannot be in the past"));
-    }
-    Ok(())
 }
 
 impl SimpleValidation for RouteUpdateWorkshop {}
@@ -419,8 +370,14 @@ fn validation_errs_to_str_vec(ve: &ValidationErrors, root_name: Option<String>) 
             //     .collect();
             error_msg.append(&mut struct_errors);
         } else if let ValidationErrorsKind::Field(errors) = error {
+            // Needed for structs without named fields (e.g. Date)
+            let name = if name.len() == 0 {
+                String::from("")
+            } else {
+                String::from(format!("{}: ", name))
+            };
             error_msg.push(format!(
-                "{}{}: errors: {}",
+                "{}{}errors: {}",
                 root_name,
                 name,
                 errors
