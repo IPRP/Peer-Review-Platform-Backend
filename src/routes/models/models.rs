@@ -14,7 +14,7 @@ use serde::{de, Deserialize, Deserializer};
 use std::fmt;
 use std::marker::PhantomData;
 use std::str::FromStr;
-use validator::{Validate, ValidationError, ValidationErrors};
+use validator::{Validate, ValidationError, ValidationErrors, ValidationErrorsKind};
 use void::Void;
 
 // Submissions
@@ -133,8 +133,7 @@ impl Validate for RouteCriterionVec {
                 Ok(_) => {}
                 Err(val_errors) => {
                     println!("{}", &val_errors);
-                    //return Err(val_errors);
-                    return Err(ValidationErrors::new());
+                    return Err(val_errors);
                 }
             }
         }
@@ -397,17 +396,72 @@ impl<'r> Responder<'r> for ApiResponse {
 // Source: https://blog.logrocket.com/json-input-validation-in-rust-web-services/
 fn validation_errs_to_str_vec(ve: &ValidationErrors) -> Vec<String> {
     println!("{}", &ve);
-    ve.field_errors()
-        .iter()
-        .map(|fe| {
-            format!(
+    // ve.field_errors()
+    //     .iter()
+    //     .map(|fe| {
+    //         format!(
+    //             "{}: errors: {}",
+    //             fe.0,
+    //             fe.1.iter()
+    //                 .map(|ve| format!("{}: {:?}", ve.code, ve.params))
+    //                 .collect::<Vec<String>>()
+    //                 .join(", ")
+    //         )
+    //     })
+    //     .collect();
+
+    // ve.errors()
+    //     .iter()
+    //     .map(|v| {
+    //         if let ValidationErrorsKind::Struct(errors) = v.1 {
+    //             format!("Struct")
+    //         } else {
+    //             if let ValidationErrorsKind::Field(errors) = v.1 {
+    //                 format!(
+    //                     "{}: errors: {}",
+    //                     v.0,
+    //                     errors
+    //                         .iter()
+    //                         .map(|ve| format!("{}: {:?}", ve.code, ve.params))
+    //                         .collect::<Vec<String>>()
+    //                         .join(", ")
+    //                 )
+    //             } else {
+    //                 format!("Unkown")
+    //             }
+    //         }
+    //     })
+    //     .collect()
+    let mut error_msg: Vec<String> = Vec::new();
+    for (name, error) in ve.errors() {
+        if let ValidationErrorsKind::Struct(errors) = error {
+            let mut struct_errors: Vec<String> = errors
+                .field_errors()
+                .iter()
+                .map(|fe| {
+                    format!(
+                        "{}: {}: errors: {}",
+                        name,
+                        fe.0,
+                        fe.1.iter()
+                            .map(|ve| format!("{}: {:?}", ve.code, ve.params))
+                            .collect::<Vec<String>>()
+                            .join(", ")
+                    )
+                })
+                .collect();
+            error_msg.append(&mut struct_errors);
+        } else if let ValidationErrorsKind::Field(errors) = error {
+            error_msg.push(format!(
                 "{}: errors: {}",
-                fe.0,
-                fe.1.iter()
+                name,
+                errors
+                    .iter()
                     .map(|ve| format!("{}: {:?}", ve.code, ve.params))
                     .collect::<Vec<String>>()
                     .join(", ")
-            )
-        })
-        .collect()
+            ));
+        }
+    }
+    error_msg
 }
