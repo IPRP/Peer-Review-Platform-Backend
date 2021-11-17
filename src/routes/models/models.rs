@@ -377,7 +377,7 @@ impl ApiResponse {
     }
 
     pub fn unprocessable_entity(validation_errors: &ValidationErrors) -> Self {
-        let validation_errors = validation_errs_to_str_vec(&validation_errors);
+        let validation_errors = validation_errs_to_str_vec(&validation_errors, None);
         let json = json!(validation_errors);
         let status = Status::UnprocessableEntity;
         ApiResponse { json, status }
@@ -394,66 +394,34 @@ impl<'r> Responder<'r> for ApiResponse {
 }
 
 // Source: https://blog.logrocket.com/json-input-validation-in-rust-web-services/
-fn validation_errs_to_str_vec(ve: &ValidationErrors) -> Vec<String> {
+fn validation_errs_to_str_vec(ve: &ValidationErrors, root_name: Option<String>) -> Vec<String> {
+    let root_name = root_name.unwrap_or(String::from(""));
     println!("{}", &ve);
-    // ve.field_errors()
-    //     .iter()
-    //     .map(|fe| {
-    //         format!(
-    //             "{}: errors: {}",
-    //             fe.0,
-    //             fe.1.iter()
-    //                 .map(|ve| format!("{}: {:?}", ve.code, ve.params))
-    //                 .collect::<Vec<String>>()
-    //                 .join(", ")
-    //         )
-    //     })
-    //     .collect();
-
-    // ve.errors()
-    //     .iter()
-    //     .map(|v| {
-    //         if let ValidationErrorsKind::Struct(errors) = v.1 {
-    //             format!("Struct")
-    //         } else {
-    //             if let ValidationErrorsKind::Field(errors) = v.1 {
-    //                 format!(
-    //                     "{}: errors: {}",
-    //                     v.0,
-    //                     errors
-    //                         .iter()
-    //                         .map(|ve| format!("{}: {:?}", ve.code, ve.params))
-    //                         .collect::<Vec<String>>()
-    //                         .join(", ")
-    //                 )
-    //             } else {
-    //                 format!("Unkown")
-    //             }
-    //         }
-    //     })
-    //     .collect()
     let mut error_msg: Vec<String> = Vec::new();
     for (name, error) in ve.errors() {
         if let ValidationErrorsKind::Struct(errors) = error {
-            let mut struct_errors: Vec<String> = errors
-                .field_errors()
-                .iter()
-                .map(|fe| {
-                    format!(
-                        "{}: {}: errors: {}",
-                        name,
-                        fe.0,
-                        fe.1.iter()
-                            .map(|ve| format!("{}: {:?}", ve.code, ve.params))
-                            .collect::<Vec<String>>()
-                            .join(", ")
-                    )
-                })
-                .collect();
+            let root_name = format!("{}{}: ", root_name, name);
+            let mut struct_errors = validation_errs_to_str_vec(errors, Some(root_name));
+            // let mut struct_errors: Vec<String> = errors
+            //     .field_errors()
+            //     .iter()
+            //     .map(|fe| {
+            //         format!(
+            //             "{}: {}: errors: {}",
+            //             name,
+            //             fe.0,
+            //             fe.1.iter()
+            //                 .map(|ve| format!("{}: {:?}", ve.code, ve.params))
+            //                 .collect::<Vec<String>>()
+            //                 .join(", ")
+            //         )
+            //     })
+            //     .collect();
             error_msg.append(&mut struct_errors);
         } else if let ValidationErrorsKind::Field(errors) = error {
             error_msg.push(format!(
-                "{}: errors: {}",
+                "{}{}: errors: {}",
+                root_name,
                 name,
                 errors
                     .iter()
