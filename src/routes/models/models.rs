@@ -368,3 +368,28 @@ fn validation_errs_to_str_vec(ve: &ValidationErrors, root_name: Option<String>) 
     }
     error_msg
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn route_new_submission_valid_data_ok() {
+        let rts = RouteNewSubmission {
+            title: "Great Title".to_string(),
+            comment: "".to_string(),
+            attachments: Default::default(),
+        };
+        assert!(rts.validate().is_ok());
+    }
+
+    #[test]
+    fn route_new_submission_invalid_data_not_ok() {
+        let rts = RouteNewSubmission {
+            title: "".to_string(), // Empty title!
+            comment: "".to_string(),
+            attachments: Default::default(),
+        };
+        assert!(rts.validate().is_err());
+    }
+}
