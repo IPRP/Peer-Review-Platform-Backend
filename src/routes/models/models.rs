@@ -497,4 +497,281 @@ mod tests {
         let rcv = RouteCriterionVec { 0: vec![rc] };
         assert!(rcv.validate().is_err());
     }
+
+    #[test]
+    fn date_valid_data_ok() {
+        let future_date = Local::now().naive_local() + chrono::Duration::days(1);
+        let d = Date { 0: future_date };
+        assert!(d.validate().is_ok());
+    }
+
+    #[test]
+    fn date_invalid_past_date_not_ok() {
+        let past_date = Local::now().naive_local() - chrono::Duration::days(1);
+        let d = Date { 0: past_date };
+        assert!(d.validate().is_err());
+    }
+
+    #[test]
+    fn route_new_workshop_valid_data_ok() {
+        let future_date = Local::now().naive_local() + chrono::Duration::days(1);
+        let d = Date { 0: future_date };
+        let rc = RouteCriterion {
+            title: "Great Title".to_string(),
+            content: "".to_string(),
+            weight: 0.0,
+            kind: Kind::Point,
+        };
+        let rcv = RouteCriterionVec { 0: vec![rc] };
+        let rnw = RouteNewWorkshop {
+            title: "Great Title".to_string(),
+            content: "".to_string(),
+            end: d,
+            anonymous: false,
+            teachers: Default::default(),
+            students: Default::default(),
+            criteria: rcv,
+            attachments: Default::default(),
+        };
+        assert!(rnw.validate().is_ok());
+    }
+
+    #[test]
+    fn route_new_workshop_invalid_title_and_end_and_criteria_not_ok() {
+        let future_date = Local::now().naive_local() + chrono::Duration::days(1);
+        let d = Date { 0: future_date };
+        let rc = RouteCriterion {
+            title: "Great Title".to_string(),
+            content: "".to_string(),
+            weight: 0.0,
+            kind: Kind::Point,
+        };
+        let rcv = RouteCriterionVec { 0: vec![rc] };
+        let rnw = RouteNewWorkshop {
+            title: "".to_string(),
+            content: "".to_string(),
+            end: d,
+            anonymous: false,
+            teachers: Default::default(),
+            students: Default::default(),
+            criteria: rcv,
+            attachments: Default::default(),
+        };
+        let past_date = Local::now().naive_local() - chrono::Duration::days(1);
+        let d = Date { 0: past_date };
+        let rc = RouteCriterion {
+            title: "Great Title".to_string(),
+            content: "".to_string(),
+            weight: 0.0,
+            kind: Kind::Point,
+        };
+        let rcv = RouteCriterionVec { 0: vec![rc] };
+        let rnw2 = RouteNewWorkshop {
+            title: "Great Title".to_string(),
+            content: "".to_string(),
+            end: d,
+            anonymous: false,
+            teachers: Default::default(),
+            students: Default::default(),
+            criteria: rcv,
+            attachments: Default::default(),
+        };
+        let future_date = Local::now().naive_local() + chrono::Duration::days(1);
+        let d = Date { 0: future_date };
+        let rc = RouteCriterion {
+            title: "".to_string(),
+            content: "".to_string(),
+            weight: -0.1,
+            kind: Kind::Point,
+        };
+        let rcv = RouteCriterionVec { 0: vec![rc] };
+        let rnw3 = RouteNewWorkshop {
+            title: "Great Title".to_string(),
+            content: "".to_string(),
+            end: d,
+            anonymous: false,
+            teachers: Default::default(),
+            students: Default::default(),
+            criteria: rcv,
+            attachments: Default::default(),
+        };
+        assert!(rnw.validate().is_err());
+        assert!(rnw2.validate().is_err());
+        assert!(rnw3.validate().is_err());
+    }
+
+    #[test]
+    fn route_update_workshop_valid_data_ok() {
+        let future_date = Local::now().naive_local() + chrono::Duration::days(1);
+        let d = Date { 0: future_date };
+        let rc = RouteCriterion {
+            title: "Great Title".to_string(),
+            content: "".to_string(),
+            weight: 0.0,
+            kind: Kind::Point,
+        };
+        let rcv = RouteCriterionVec { 0: vec![rc] };
+        let rup = RouteUpdateWorkshop {
+            title: "Great Title".to_string(),
+            content: "".to_string(),
+            end: d,
+            teachers: Default::default(),
+            students: Default::default(),
+            criteria: rcv,
+            attachments: Default::default(),
+        };
+        assert!(rup.validate().is_ok());
+    }
+
+    #[test]
+    fn route_update_workshop_invalid_title_and_end_and_criteria_not_ok() {
+        let future_date = Local::now().naive_local() + chrono::Duration::days(1);
+        let d = Date { 0: future_date };
+        let rc = RouteCriterion {
+            title: "Great Title".to_string(),
+            content: "".to_string(),
+            weight: 0.0,
+            kind: Kind::Point,
+        };
+        let rcv = RouteCriterionVec { 0: vec![rc] };
+        let rup = RouteUpdateWorkshop {
+            title: "".to_string(),
+            content: "".to_string(),
+            end: d,
+            teachers: Default::default(),
+            students: Default::default(),
+            criteria: rcv,
+            attachments: Default::default(),
+        };
+        let past_date = Local::now().naive_local() - chrono::Duration::days(1);
+        let d = Date { 0: past_date };
+        let rc = RouteCriterion {
+            title: "Great Title".to_string(),
+            content: "".to_string(),
+            weight: 0.0,
+            kind: Kind::Point,
+        };
+        let rcv = RouteCriterionVec { 0: vec![rc] };
+        let rup2 = RouteUpdateWorkshop {
+            title: "Great Title".to_string(),
+            content: "".to_string(),
+            end: d,
+            teachers: Default::default(),
+            students: Default::default(),
+            criteria: rcv,
+            attachments: Default::default(),
+        };
+        let future_date = Local::now().naive_local() + chrono::Duration::days(1);
+        let d = Date { 0: future_date };
+        let rc = RouteCriterion {
+            title: "".to_string(),
+            content: "".to_string(),
+            weight: -0.1,
+            kind: Kind::Point,
+        };
+        let rcv = RouteCriterionVec { 0: vec![rc] };
+        let rup3 = RouteUpdateWorkshop {
+            title: "Great Title".to_string(),
+            content: "".to_string(),
+            end: d,
+            teachers: Default::default(),
+            students: Default::default(),
+            criteria: rcv,
+            attachments: Default::default(),
+        };
+        assert!(rup.validate().is_err());
+        assert!(rup2.validate().is_err());
+        assert!(rup3.validate().is_err());
+    }
+
+    #[test]
+    fn route_create_student_valid_data_ok() {
+        let rcs = RouteCreateStudent {
+            username: "User".to_string(),
+            firstname: "Max".to_string(),
+            lastname: "Mustermann".to_string(),
+            password: "1234".to_string(),
+            unit: "5A".to_string(),
+        };
+        assert!(rcs.validate().is_ok());
+    }
+
+    #[test]
+    fn route_create_student_invalid_username_and_firstname_and_lastname_and_password_not_ok() {
+        let rcs = RouteCreateStudent {
+            username: "".to_string(),
+            firstname: "Max".to_string(),
+            lastname: "Mustermann".to_string(),
+            password: "1234".to_string(),
+            unit: "5A".to_string(),
+        };
+        let rcs2 = RouteCreateStudent {
+            username: "User".to_string(),
+            firstname: "".to_string(),
+            lastname: "Mustermann".to_string(),
+            password: "1234".to_string(),
+            unit: "5A".to_string(),
+        };
+        let rcs3 = RouteCreateStudent {
+            username: "User".to_string(),
+            firstname: "Max".to_string(),
+            lastname: "".to_string(),
+            password: "1234".to_string(),
+            unit: "5A".to_string(),
+        };
+        let rcs4 = RouteCreateStudent {
+            username: "User".to_string(),
+            firstname: "Max".to_string(),
+            lastname: "Mustermann".to_string(),
+            password: "".to_string(),
+            unit: "5A".to_string(),
+        };
+        assert!(rcs.validate().is_err());
+        assert!(rcs2.validate().is_err());
+        assert!(rcs3.validate().is_err());
+        assert!(rcs4.validate().is_err());
+    }
+
+    #[test]
+    fn route_create_teacher_valid_data_ok() {
+        let rct = RouteCreateTeacher {
+            username: "User".to_string(),
+            firstname: "Max".to_string(),
+            lastname: "Mustermann".to_string(),
+            password: "1234".to_string(),
+        };
+        assert!(rct.validate().is_ok());
+    }
+
+    #[test]
+    fn route_create_teacher_invalid_username_and_firstname_and_lastname_and_password_not_ok() {
+        let rct = RouteCreateTeacher {
+            username: "".to_string(),
+            firstname: "Max".to_string(),
+            lastname: "Mustermann".to_string(),
+            password: "1234".to_string(),
+        };
+        let rct2 = RouteCreateTeacher {
+            username: "User".to_string(),
+            firstname: "".to_string(),
+            lastname: "Mustermann".to_string(),
+            password: "1234".to_string(),
+        };
+        let rct3 = RouteCreateTeacher {
+            username: "User".to_string(),
+            firstname: "Max".to_string(),
+            lastname: "".to_string(),
+            password: "1234".to_string(),
+        };
+        let rct4 = RouteCreateTeacher {
+            username: "User".to_string(),
+            firstname: "Max".to_string(),
+            lastname: "Mustermann".to_string(),
+            password: "".to_string(),
+        };
+        assert!(rct.validate().is_err());
+        assert!(rct2.validate().is_err());
+        assert!(rct3.validate().is_err());
+        assert!(rct4.validate().is_err());
+    }
 }
