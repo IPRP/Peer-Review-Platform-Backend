@@ -56,6 +56,7 @@ impl FromDataSimple for RouteUpdateReview {
 #[derive(Serialize, Deserialize, Validate)]
 pub struct RouteUpdatePoints {
     pub id: u64,
+    #[validate(range(min = 0.0, max = 100.0))]
     pub points: f64,
 }
 
@@ -384,12 +385,116 @@ mod tests {
     }
 
     #[test]
-    fn route_new_submission_invalid_data_not_ok() {
+    fn route_new_submission_invalid_title_not_ok() {
         let rts = RouteNewSubmission {
             title: "".to_string(), // Empty title!
             comment: "".to_string(),
             attachments: Default::default(),
         };
         assert!(rts.validate().is_err());
+    }
+
+    #[test]
+    fn route_update_points_valid_data_ok() {
+        let rts = RouteUpdatePoints { id: 0, points: 0.0 };
+        assert!(rts.validate().is_ok());
+    }
+
+    #[test]
+    fn route_update_points_invalid_points_not_ok() {
+        let rts = RouteUpdatePoints {
+            id: 0,
+            points: -0.1, // Under 0.0
+        };
+        let rts2 = RouteUpdatePoints {
+            id: 0,
+            points: 100.1, // Above 100.0
+        };
+        assert!(rts.validate().is_err());
+        assert!(rts2.validate().is_err());
+    }
+
+    #[test]
+    fn route_update_reviews_valid_data_ok() {
+        let rur = RouteUpdateReview {
+            feedback: "".to_string(),
+            points: vec![],
+        };
+        assert!(rur.validate().is_ok());
+    }
+
+    #[test]
+    fn route_update_reviews_invalid_rts_not_ok() {
+        let rts = RouteUpdatePoints {
+            id: 0,
+            points: -0.1, // Under 0.0
+        };
+        let rur = RouteUpdateReview {
+            feedback: "".to_string(),
+            points: vec![rts],
+        };
+        assert!(rur.validate().is_err());
+    }
+
+    #[test]
+    fn route_criterion_valid_data_ok() {
+        let rc = RouteCriterion {
+            title: "Great Title".to_string(),
+            content: "".to_string(),
+            weight: 0.0,
+            kind: Kind::Point,
+        };
+        assert!(rc.validate().is_ok());
+    }
+
+    #[test]
+    fn route_criterion_invalid_title_and_weights_not_ok() {
+        let rc = RouteCriterion {
+            title: "".to_string(),
+            content: "".to_string(),
+            weight: 0.0,
+            kind: Kind::Point,
+        };
+        let rc2 = RouteCriterion {
+            title: "Great Title".to_string(),
+            content: "".to_string(),
+            weight: -0.1,
+            kind: Kind::Point,
+        };
+        let rc3 = RouteCriterion {
+            title: "Great Title".to_string(),
+            content: "".to_string(),
+            weight: 100.1,
+            kind: Kind::Point,
+        };
+        assert!(rc.validate().is_err());
+        assert!(rc2.validate().is_err());
+        assert!(rc3.validate().is_err());
+    }
+
+    #[test]
+    fn route_criterion_vec_valid_data_ok() {
+        let rcv = RouteCriterionVec { 0: vec![] };
+        let rc = RouteCriterion {
+            title: "Great Title".to_string(),
+            content: "".to_string(),
+            weight: 0.0,
+            kind: Kind::Point,
+        };
+        let rcv2 = RouteCriterionVec { 0: vec![rc] };
+        assert!(rcv.validate().is_ok());
+        assert!(rcv2.validate().is_ok());
+    }
+
+    #[test]
+    fn route_criterion_vec_invali_rc_not_ok() {
+        let rc = RouteCriterion {
+            title: "".to_string(),
+            content: "".to_string(),
+            weight: -0.1,
+            kind: Kind::Point,
+        };
+        let rcv = RouteCriterionVec { 0: vec![rc] };
+        assert!(rcv.validate().is_err());
     }
 }
