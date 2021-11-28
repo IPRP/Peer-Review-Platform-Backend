@@ -7,6 +7,7 @@ use crate::{db, IprpDB};
 
 use rocket::http::RawStr;
 use rocket::request::FromFormValue;
+use validator::Validate;
 
 use rocket_contrib::json::{Json, JsonValue};
 
@@ -171,10 +172,13 @@ pub fn search_student(
         group,
     };
 
-    // TODO struct level validation
-
     if user.role == Role::Student {
         return Err(ApiResponse::forbidden());
+    }
+
+    // Struct Level Validation
+    if let Err(val_errors) = search_info.validate() {
+        return Err(ApiResponse::unprocessable_entity(&val_errors));
     }
 
     if search_info.all {

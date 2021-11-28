@@ -292,6 +292,10 @@ fn validate_route_search_student(rss: &RouteSearchStudent) -> Result<(), Validat
             return Err(ValidationError::new("Lastname cannot be empty"));
         }
         Ok(())
+    } else if let Some(_) = &rss.firstname {
+        Err(ValidationError::new("Lastname not given"))
+    } else if let Some(_) = &rss.lastname {
+        Err(ValidationError::new("Firstname not given"))
     } else if let Some(group) = &rss.group {
         if group.len() == 0 {
             return Err(ValidationError::new("Group cannot be empty"));
