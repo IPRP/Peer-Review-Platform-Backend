@@ -68,15 +68,40 @@ pub struct RouteWorkshopResponse {
 }
 
 // TODO: Struct Level validation
-// See: https://github.com/Keats/validator/blob/master/validator_derive_tests/tests/schema.rs
 
 #[derive(FromForm, Deserialize, Validate)]
+#[validate(schema(function = "validate_route_search_student"))]
 pub struct RouteSearchStudent {
     pub(crate) all: bool,
     pub(crate) id: Option<u64>,
     pub(crate) firstname: Option<String>,
     pub(crate) lastname: Option<String>,
     pub(crate) group: Option<String>,
+}
+
+// Struct Level validation
+// See: https://github.com/Keats/validator/blob/master/validator_derive_tests/tests/schema.rs
+fn validate_route_search_student(rss: &RouteSearchStudent) -> Result<(), ValidationError> {
+    if rss.all {
+        Ok(())
+    } else if let Some(_) = &rss.id {
+        Ok(())
+    } else if let (Some(firstname), Some(lastname)) = (&rss.firstname, &rss.lastname) {
+        if firstname.len() == 0 {
+            return Err(ValidationError::new("Firstname cannot be empty"));
+        }
+        if lastname.len() == 0 {
+            return Err(ValidationError::new("Lastname cannot be empty"));
+        }
+        Ok(())
+    } else if let Some(group) = &rss.group {
+        if group.len() == 0 {
+            return Err(ValidationError::new("Group cannot be empty"));
+        }
+        Ok(())
+    } else {
+        Err(ValidationError::new("No parameters given"))
+    }
 }
 
 #[derive(Debug, Deserialize, Validate)]
