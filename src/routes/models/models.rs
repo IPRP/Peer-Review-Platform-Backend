@@ -2,6 +2,7 @@
 
 use crate::db::models::{Kind, NewCriterion};
 use crate::routes::validation::SimpleValidation;
+use backend_macro_derive::SimpleValidation;
 use chrono::Local;
 use rocket::data::{FromDataSimple, Outcome};
 use rocket::http::{ContentType, Status};
@@ -15,7 +16,18 @@ use std::collections::HashMap;
 use validator::{Validate, ValidationError, ValidationErrors, ValidationErrorsKind};
 
 // Submissions
-#[derive(FromForm, Deserialize, Validate)]
+// Simple Validation Macro generates following code automatically!
+// ===============================================================
+// impl SimpleValidation for RouteNewSubmission {}
+//
+// impl FromDataSimple for RouteNewSubmission {
+//     type Error = ValidationErrors;
+//
+//     fn from_data(request: &Request, data: Data) -> Outcome<Self, Self::Error> {
+//         SimpleValidation::from_data(request, data)
+//     }
+// }
+#[derive(FromForm, Deserialize, Validate, SimpleValidation)]
 pub struct RouteNewSubmission {
     #[validate(length(min = 1))]
     pub title: String,
@@ -24,33 +36,12 @@ pub struct RouteNewSubmission {
     pub attachments: NumberVec,
 }
 
-// TODO Define Macro for automatic code generation?
-impl SimpleValidation for RouteNewSubmission {}
-
-impl FromDataSimple for RouteNewSubmission {
-    type Error = ValidationErrors;
-
-    fn from_data(request: &Request, data: Data) -> Outcome<Self, Self::Error> {
-        SimpleValidation::from_data(request, data)
-    }
-}
-
-#[derive(Serialize, Deserialize, Validate)]
+#[derive(Serialize, Deserialize, Validate, SimpleValidation)]
 pub struct RouteUpdateReview {
     pub feedback: String,
     #[serde(default)]
     #[validate]
     pub points: Vec<RouteUpdatePoints>,
-}
-
-impl SimpleValidation for RouteUpdateReview {}
-
-impl FromDataSimple for RouteUpdateReview {
-    type Error = ValidationErrors;
-
-    fn from_data(request: &Request, data: Data) -> Outcome<Self, Self::Error> {
-        SimpleValidation::from_data(request, data)
-    }
 }
 
 #[derive(Serialize, Deserialize, Validate)]
@@ -166,7 +157,7 @@ impl Default for NumberVec {
     }
 }
 
-#[derive(FromForm, Deserialize, Validate)]
+#[derive(FromForm, Deserialize, Validate, SimpleValidation)]
 pub struct RouteNewWorkshop {
     #[validate(length(min = 1))]
     pub(crate) title: String,
@@ -185,17 +176,7 @@ pub struct RouteNewWorkshop {
     pub(crate) attachments: NumberVec,
 }
 
-impl SimpleValidation for RouteNewWorkshop {}
-
-impl FromDataSimple for RouteNewWorkshop {
-    type Error = ValidationErrors;
-
-    fn from_data(request: &Request, data: Data) -> Outcome<Self, Self::Error> {
-        SimpleValidation::from_data(request, data)
-    }
-}
-
-#[derive(FromForm, Deserialize, Validate)]
+#[derive(FromForm, Deserialize, Validate, SimpleValidation)]
 pub struct RouteUpdateWorkshop {
     #[validate(length(min = 1))]
     pub(crate) title: String,
@@ -210,18 +191,8 @@ pub struct RouteUpdateWorkshop {
     pub(crate) attachments: NumberVec,
 }
 
-impl SimpleValidation for RouteUpdateWorkshop {}
-
-impl FromDataSimple for RouteUpdateWorkshop {
-    type Error = ValidationErrors;
-
-    fn from_data(request: &Request, data: Data) -> Outcome<Self, Self::Error> {
-        SimpleValidation::from_data(request, data)
-    }
-}
-
 // Users
-#[derive(FromForm, Deserialize, Validate)]
+#[derive(FromForm, Deserialize, Validate, SimpleValidation)]
 pub struct RouteCreateStudent {
     #[validate(length(min = 1))]
     pub(crate) username: String,
@@ -235,17 +206,7 @@ pub struct RouteCreateStudent {
     pub(crate) unit: String,
 }
 
-impl SimpleValidation for RouteCreateStudent {}
-
-impl FromDataSimple for RouteCreateStudent {
-    type Error = ValidationErrors;
-
-    fn from_data(request: &Request, data: Data) -> Outcome<Self, Self::Error> {
-        SimpleValidation::from_data(request, data)
-    }
-}
-
-#[derive(FromForm, Deserialize, Validate)]
+#[derive(FromForm, Deserialize, Validate, SimpleValidation)]
 pub struct RouteCreateTeacher {
     #[validate(length(min = 1))]
     pub(crate) username: String,
@@ -255,16 +216,6 @@ pub struct RouteCreateTeacher {
     pub(crate) lastname: String,
     #[validate(length(min = 1))]
     pub(crate) password: String,
-}
-
-impl SimpleValidation for RouteCreateTeacher {}
-
-impl FromDataSimple for RouteCreateTeacher {
-    type Error = ValidationErrors;
-
-    fn from_data(request: &Request, data: Data) -> Outcome<Self, Self::Error> {
-        SimpleValidation::from_data(request, data)
-    }
 }
 
 #[derive(FromForm, Deserialize, Validate)]
