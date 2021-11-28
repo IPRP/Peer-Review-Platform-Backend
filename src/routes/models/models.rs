@@ -67,43 +67,6 @@ pub struct RouteWorkshopResponse {
     pub(crate) title: String,
 }
 
-// TODO: Struct Level validation
-
-#[derive(FromForm, Deserialize, Validate)]
-#[validate(schema(function = "validate_route_search_student"))]
-pub struct RouteSearchStudent {
-    pub(crate) all: bool,
-    pub(crate) id: Option<u64>,
-    pub(crate) firstname: Option<String>,
-    pub(crate) lastname: Option<String>,
-    pub(crate) group: Option<String>,
-}
-
-// Struct Level validation
-// See: https://github.com/Keats/validator/blob/master/validator_derive_tests/tests/schema.rs
-fn validate_route_search_student(rss: &RouteSearchStudent) -> Result<(), ValidationError> {
-    if rss.all {
-        Ok(())
-    } else if let Some(_) = &rss.id {
-        Ok(())
-    } else if let (Some(firstname), Some(lastname)) = (&rss.firstname, &rss.lastname) {
-        if firstname.len() == 0 {
-            return Err(ValidationError::new("Firstname cannot be empty"));
-        }
-        if lastname.len() == 0 {
-            return Err(ValidationError::new("Lastname cannot be empty"));
-        }
-        Ok(())
-    } else if let Some(group) = &rss.group {
-        if group.len() == 0 {
-            return Err(ValidationError::new("Group cannot be empty"));
-        }
-        Ok(())
-    } else {
-        Err(ValidationError::new("No parameters given"))
-    }
-}
-
 #[derive(Debug, Deserialize, Validate)]
 pub struct RouteCriterion {
     #[validate(length(min = 1))]
@@ -301,6 +264,41 @@ impl FromDataSimple for RouteCreateTeacher {
 
     fn from_data(request: &Request, data: Data) -> Outcome<Self, Self::Error> {
         SimpleValidation::from_data(request, data)
+    }
+}
+
+#[derive(FromForm, Deserialize, Validate)]
+#[validate(schema(function = "validate_route_search_student"))]
+pub struct RouteSearchStudent {
+    pub(crate) all: bool,
+    pub(crate) id: Option<u64>,
+    pub(crate) firstname: Option<String>,
+    pub(crate) lastname: Option<String>,
+    pub(crate) group: Option<String>,
+}
+
+// Struct Level validation
+// See: https://github.com/Keats/validator/blob/master/validator_derive_tests/tests/schema.rs
+fn validate_route_search_student(rss: &RouteSearchStudent) -> Result<(), ValidationError> {
+    if rss.all {
+        Ok(())
+    } else if let Some(_) = &rss.id {
+        Ok(())
+    } else if let (Some(firstname), Some(lastname)) = (&rss.firstname, &rss.lastname) {
+        if firstname.len() == 0 {
+            return Err(ValidationError::new("Firstname cannot be empty"));
+        }
+        if lastname.len() == 0 {
+            return Err(ValidationError::new("Lastname cannot be empty"));
+        }
+        Ok(())
+    } else if let Some(group) = &rss.group {
+        if group.len() == 0 {
+            return Err(ValidationError::new("Group cannot be empty"));
+        }
+        Ok(())
+    } else {
+        Err(ValidationError::new("No parameters given"))
     }
 }
 
@@ -798,5 +796,137 @@ mod tests {
         assert!(rct2.validate().is_err());
         assert!(rct3.validate().is_err());
         assert!(rct4.validate().is_err());
+    }
+
+    #[test]
+    fn route_search_student_valid_all_search_ok() {
+        let rss = RouteSearchStudent {
+            all: true,
+            id: None,
+            firstname: None,
+            lastname: None,
+            group: None,
+        };
+        assert!(rss.validate().is_ok());
+    }
+
+    #[test]
+    fn route_search_student_valid_id_search_ok() {
+        let rss = RouteSearchStudent {
+            all: false,
+            id: Some(1),
+            firstname: None,
+            lastname: None,
+            group: None,
+        };
+        assert!(rss.validate().is_ok());
+    }
+
+    #[test]
+    fn route_search_student_valid_student_search_ok() {
+        let rss = RouteSearchStudent {
+            all: false,
+            id: None,
+            firstname: Some("Max".to_string()),
+            lastname: Some("Mustermann".to_string()),
+            group: None,
+        };
+        assert!(rss.validate().is_ok());
+    }
+
+    #[test]
+    fn route_search_student_valid_group_search_ok() {
+        let rss = RouteSearchStudent {
+            all: false,
+            id: None,
+            firstname: None,
+            lastname: None,
+            group: Some("5A".to_string()),
+        };
+        assert!(rss.validate().is_ok());
+    }
+
+    #[test]
+    fn route_search_student_no_parameters_not_ok() {
+        let rss = RouteSearchStudent {
+            all: false,
+            id: None,
+            firstname: None,
+            lastname: None,
+            group: None,
+        };
+        assert!(rss.validate().is_err());
+    }
+
+    #[test]
+    fn route_search_student_no_firstname_not_ok() {
+        let rss = RouteSearchStudent {
+            all: false,
+            id: None,
+            firstname: None,
+            lastname: Some("Mustermann".to_string()),
+            group: None,
+        };
+        assert!(rss.validate().is_err());
+    }
+
+    #[test]
+    fn route_search_student_no_lastname_not_ok() {
+        let rss = RouteSearchStudent {
+            all: false,
+            id: None,
+            firstname: Some("Max".to_string()),
+            lastname: None,
+            group: None,
+        };
+        assert!(rss.validate().is_err());
+    }
+
+    #[test]
+    fn route_search_student_invalid_firstname_not_ok() {
+        let rss = RouteSearchStudent {
+            all: false,
+            id: None,
+            firstname: Some("".to_string()),
+            lastname: Some("Mustermann".to_string()),
+            group: None,
+        };
+        assert!(rss.validate().is_err());
+    }
+
+    #[test]
+    fn route_search_student_invalid_lastname_not_ok() {
+        let rss = RouteSearchStudent {
+            all: false,
+            id: None,
+            firstname: Some("Max".to_string()),
+            lastname: Some("".to_string()),
+            group: None,
+        };
+        assert!(rss.validate().is_err());
+    }
+
+    #[test]
+    fn route_search_student_invalid_firstname_and_lastname_not_ok() {
+        let rss = RouteSearchStudent {
+            all: false,
+            id: None,
+            firstname: Some("".to_string()),
+            lastname: Some("".to_string()),
+            group: None,
+        };
+        assert!(rss.validate().is_err());
+    }
+
+    #[test]
+    fn route_search_student_invalid_group_not_ok() {
+        let rss = RouteSearchStudent {
+            all: false,
+            id: None,
+            firstname: None,
+            lastname: None,
+            group: Some("".to_string()),
+        };
+        assert!(rss.validate().is_err());
     }
 }
