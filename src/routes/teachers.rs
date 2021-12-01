@@ -7,6 +7,7 @@ use crate::{db, IprpDB};
 
 use rocket::http::RawStr;
 use rocket::request::FromFormValue;
+use validator::Validate;
 
 use rocket_contrib::json::{Json, JsonValue};
 
@@ -57,7 +58,7 @@ pub fn workshop(
 pub fn create_workshop(
     user: User,
     conn: IprpDB,
-    mut new_workshop: Json<RouteNewWorkshop>,
+    mut new_workshop: RouteNewWorkshop,
 ) -> Result<Json<JsonValue>, ApiResponse> {
     if user.role == Role::Student {
         return Err(ApiResponse::forbidden());
@@ -76,14 +77,14 @@ pub fn create_workshop(
     let workshop = db::workshops::create(
         &*conn,
         user.id,
-        new_workshop.0.title,
-        new_workshop.0.content,
-        new_workshop.0.end.0,
-        new_workshop.0.anonymous,
-        Vec::from(new_workshop.0.teachers),
-        Vec::from(new_workshop.0.students),
-        Vec::from(new_workshop.0.criteria),
-        Vec::from(new_workshop.0.attachments),
+        new_workshop.title,
+        new_workshop.content,
+        new_workshop.end.0,
+        new_workshop.anonymous,
+        Vec::from(new_workshop.teachers),
+        Vec::from(new_workshop.students),
+        Vec::from(new_workshop.criteria),
+        Vec::from(new_workshop.attachments),
     );
     match workshop {
         Ok(workshop) => Ok(Json(json!({
@@ -104,7 +105,7 @@ pub fn update_workshop(
     user: User,
     conn: IprpDB,
     workshop_id: u64,
-    mut update_workshop: Json<RouteUpdateWorkshop>,
+    mut update_workshop: RouteUpdateWorkshop,
 ) -> Result<Json<JsonValue>, ApiResponse> {
     if user.role == Role::Student {
         return Err(ApiResponse::forbidden());
@@ -120,13 +121,13 @@ pub fn update_workshop(
         &*conn,
         user.id,
         workshop_id,
-        update_workshop.0.title,
-        update_workshop.0.content,
-        update_workshop.0.end.0,
-        Vec::from(update_workshop.0.teachers),
-        Vec::from(update_workshop.0.students),
-        Vec::from(update_workshop.0.criteria),
-        Vec::from(update_workshop.0.attachments),
+        update_workshop.title,
+        update_workshop.content,
+        update_workshop.end.0,
+        Vec::from(update_workshop.teachers),
+        Vec::from(update_workshop.students),
+        Vec::from(update_workshop.criteria),
+        Vec::from(update_workshop.attachments),
     );
     match workshop {
         Ok(_) => Ok(Json(json!({
@@ -173,6 +174,11 @@ pub fn search_student(
 
     if user.role == Role::Student {
         return Err(ApiResponse::forbidden());
+    }
+
+    // Struct Level Validation
+    if let Err(val_errors) = search_info.validate() {
+        return Err(ApiResponse::unprocessable_entity(&val_errors));
     }
 
     if search_info.all {

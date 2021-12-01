@@ -30,19 +30,19 @@ pub fn logout(_user: User, mut cookies: Cookies) -> Status {
 pub fn create_student(
     user: User,
     conn: IprpDB,
-    create_info: json::Json<RouteCreateStudent>,
+    create_info: RouteCreateStudent,
 ) -> Result<json::Json<u64>, Status> {
     if user.username != "admin" {
         return Err(Status::Forbidden);
     }
-    let hashed_password = crate::auth::crypto::hash_password(&create_info.0.password);
+    let hashed_password = crate::auth::crypto::hash_password(&create_info.password);
     let user = db::users::create_student(
         &*conn,
-        create_info.0.username,
-        create_info.0.firstname,
-        create_info.0.lastname,
+        create_info.username,
+        create_info.firstname,
+        create_info.lastname,
         hashed_password,
-        create_info.0.unit,
+        create_info.unit,
     );
     return match user {
         Ok(user) => Ok(json::Json(user.id)),
@@ -56,17 +56,17 @@ pub fn create_student(
 pub fn create_teacher(
     user: User,
     conn: IprpDB,
-    create_info: json::Json<RouteCreateTeacher>,
+    create_info: RouteCreateTeacher,
 ) -> Result<json::Json<u64>, Status> {
     if user.username != "admin" {
         return Err(Status::Forbidden);
     }
-    let hashed_password = crate::auth::crypto::hash_password(&create_info.0.password);
+    let hashed_password = crate::auth::crypto::hash_password(&create_info.password);
     let user = db::users::create_teacher(
         &*conn,
-        create_info.0.username,
-        create_info.0.firstname,
-        create_info.0.lastname,
+        create_info.username,
+        create_info.firstname,
+        create_info.lastname,
         hashed_password,
     );
     return match user {

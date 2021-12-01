@@ -19,7 +19,7 @@ pub fn create_submission(
     conn: IprpDB,
     review_timespan: State<ReviewTimespan>,
     workshop_id: u64,
-    new_submission: Json<RouteNewSubmission>,
+    new_submission: RouteNewSubmission,
 ) -> Result<Json<JsonValue>, ApiResponse> {
     if user.role == Role::Teacher {
         return Err(ApiResponse::forbidden());
@@ -32,9 +32,9 @@ pub fn create_submission(
     let submission = db::submissions::create(
         &*conn,
         review_timespan.inner(),
-        new_submission.0.title,
-        new_submission.0.comment,
-        Vec::from(new_submission.0.attachments),
+        new_submission.title,
+        new_submission.comment,
+        Vec::from(new_submission.attachments),
         date,
         user.id,
         workshop_id,
@@ -109,13 +109,13 @@ pub fn update_review(
     user: User,
     conn: IprpDB,
     review_id: u64,
-    update_review: Json<RouteUpdateReview>,
+    update_review: RouteUpdateReview,
 ) -> Result<Json<JsonValue>, ApiResponse> {
     if user.role == Role::Teacher {
         return Err(ApiResponse::forbidden());
     }
 
-    let res = db::reviews::update(&*conn, update_review.0, review_id, user.id);
+    let res = db::reviews::update(&*conn, update_review, review_id, user.id);
 
     match res {
         true => Ok(Json(json!({

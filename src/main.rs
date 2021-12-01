@@ -82,7 +82,7 @@ fn main() {
                 routes::submissions::update_review,
                 routes::submissions::get_review,
                 routes::users::validation_test,
-                routes::users::validation_test2,
+                routes::users::validation_test2
             ],
         )
         .register(catchers![routes::validation::catcher::unprocessable_entity,])

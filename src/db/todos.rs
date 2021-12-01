@@ -100,7 +100,7 @@ pub fn get(conn: &MysqlConnection, student_id: u64) -> Result<Todo, ()> {
             wsl_user
                 .eq(student_id)
                 .and(not(exists(
-                    submissions_t.filter(sub_student.eq(student_id)),
+                    submissions_t.filter(sub_student.eq(student_id).and(sub_ws.eq(ws_id))),
                 )))
                 .and(ws_end.ge(date)),
         )
