@@ -1,7 +1,7 @@
 //! CRUD operations for reviews.
 
 use crate::db;
-use crate::db::error::error::{DbError, DbErrorKind};
+use crate::db::error::{DbError, DbErrorKind};
 use crate::db::models::*;
 use crate::db::ReviewTimespan;
 use crate::routes::models::RouteUpdateReview;
@@ -317,7 +317,16 @@ pub fn update(
         Ok(())
     });
 
-    t_error
+    if res.is_err() {
+        // Transaction error should have custom DbError, use it
+        // If not, return general error message
+        Err(t_error.err().unwrap_or(DbError::new(
+            DbErrorKind::TransactionFailed,
+            "Unknown error",
+        )))
+    } else {
+        Ok(())
+    }
 }
 
 /// Get simplified review points from a submission.

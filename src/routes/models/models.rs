@@ -1,5 +1,6 @@
 //! Structs used throughout routes
 
+use crate::db::error::DbError;
 use crate::db::models::{Kind, NewCriterion};
 use crate::routes::validation::SimpleValidation;
 use backend_macro_derive::SimpleValidation;
@@ -287,6 +288,15 @@ impl ApiResponse {
     pub fn forbidden() -> Self {
         let json = json!({
             "ok": false
+        });
+        let status = Status::Forbidden;
+        ApiResponse { json, status }
+    }
+
+    pub fn forbidden_with_error(error: DbError) -> Self {
+        let json = json!({
+            "ok": false,
+            "error": error.description()
         });
         let status = Status::Forbidden;
         ApiResponse { json, status }

@@ -11,6 +11,7 @@ pub enum DbErrorKind {
     UpdateFailed,
     DeleteFailed,
     InsertFailed,
+    TransactionFailed,
 }
 
 impl fmt::Display for DbErrorKind {
@@ -36,6 +37,10 @@ impl DbError {
             kind,
             error: error.into(),
         }
+    }
+
+    pub fn description(&self) -> String {
+        self.error.to_string()
     }
 }
 

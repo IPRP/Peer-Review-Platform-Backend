@@ -123,7 +123,7 @@ pub fn update_review(
         }))),
         Err(err) => {
             println!("Error occurred {}", err);
-            Err(ApiResponse::forbidden())
+            Err(ApiResponse::forbidden_with_error(err))
         }
     }
 }
