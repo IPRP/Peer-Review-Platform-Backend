@@ -118,10 +118,13 @@ pub fn update_review(
     let res = db::reviews::update(&*conn, update_review, review_id, user.id);
 
     match res {
-        true => Ok(Json(json!({
+        Ok(_) => Ok(Json(json!({
             "ok": true
         }))),
-        false => Err(ApiResponse::forbidden()),
+        Err(err) => {
+            println!("Error occurred {}", err);
+            Err(ApiResponse::forbidden())
+        }
     }
 }
 

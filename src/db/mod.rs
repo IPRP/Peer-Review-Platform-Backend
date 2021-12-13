@@ -1,3 +1,5 @@
+mod error;
+pub use error::*;
 mod migration;
 pub mod models;
 pub use migration::*;
