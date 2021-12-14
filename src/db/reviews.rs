@@ -346,13 +346,16 @@ pub fn update(
 pub fn get_simple_review_points(
     conn: &MysqlConnection,
     submission_id: u64,
-) -> Result<Vec<Vec<SimpleReviewPoints>>, ()> {
+) -> Result<Vec<Vec<SimpleReviewPoints>>, DbError> {
     let reviews = reviews_t
         .filter(reviews_sub.eq(submission_id).and(reviews_error.eq(false)))
         .select(reviews_id)
         .get_results::<u64>(conn);
     if reviews.is_err() {
-        return Err(());
+        return Err(DbError::new(
+            DbErrorKind::ReadFailed,
+            format!("No Reviews for Submission {} found", submission_id),
+        ));
     }
     let reviews: Vec<u64> = reviews.unwrap();
 
@@ -364,7 +367,10 @@ pub fn get_simple_review_points(
             .select((c_weight, c_kind, rp_points))
             .get_results::<(f64, Kind, Option<f64>)>(conn);
         if points.is_err() {
-            return Err(());
+            return Err(DbError::new(
+                DbErrorKind::ReadFailed,
+                format!("No Points for Review {} found", review),
+            ));
         }
         let points: Vec<(f64, Kind, Option<f64>)> = points.unwrap();
         let points: Vec<SimpleReviewPoints> = points
