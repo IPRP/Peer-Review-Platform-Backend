@@ -43,7 +43,7 @@ pub fn assign(
     submission_id: u64,
     submission_student_id: u64,
     workshop_id: u64,
-) -> Result<(), ()> {
+) -> Result<(), DbError> {
     // Calculate deadline
     let deadline = review_timespan.deadline(&date);
 
@@ -74,7 +74,10 @@ pub fn assign(
         .limit(3)
         .get_results::<(u64, u64)>(conn);
     if reviews.is_err() {
-        return Err(());
+        return Err(DbError::new(
+            DbErrorKind::ReadFailed,
+            "Could not get reviewers",
+        ));
     }
     let reviews: Vec<(u64, u64)> = reviews.unwrap();
     let review_count = reviews.len();
@@ -98,7 +101,10 @@ pub fn assign(
         .values(&reviews)
         .execute(conn);
     if review_insert.is_err() {
-        return Err(());
+        return Err(DbError::new(
+            DbErrorKind::CreateFailed,
+            "Review Insert failed",
+        ));
     }
 
     let reviews = reviews_t
@@ -106,7 +112,10 @@ pub fn assign(
         .limit(review_count.try_into().unwrap())
         .get_results::<Review>(conn);
     if reviews.is_err() {
-        return Err(());
+        return Err(DbError::new(
+            DbErrorKind::ReadFailed,
+            "Could not get reviews",
+        ));
     }
     let reviews: Vec<Review> = reviews.unwrap();
 
@@ -144,7 +153,10 @@ pub fn assign(
         ));
         if res.is_err() {
             println!("{}", res.err().unwrap());
-            return Err(());
+            return Err(DbError::new(
+                DbErrorKind::EventCreateFailed,
+                "Event Insert failed",
+            ));
         }
     }
 
@@ -170,7 +182,10 @@ pub fn assign(
     ));
     if res.is_err() {
         println!("{}", res.err().unwrap());
-        return Err(());
+        return Err(DbError::new(
+            DbErrorKind::EventCreateFailed,
+            "Event Insert failed",
+        ));
     }
     /*
     select r.id, r.done, r.deadline, s.id, s.student, s.workshop
@@ -231,11 +246,10 @@ pub fn update(
         // Check if all point criteria were given for update
         let criteria = db::submissions::get_criteria(conn, review.submission);
         if criteria.is_err() {
-            t_error = Err(DbError::new(
-                DbErrorKind::NotFound,
-                "Criteria for review not found",
-            ));
-            return Err(Error::RollbackTransaction);
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::NotFound, "Criteria for review not found"),
+            );
         }
         let criteria = criteria.unwrap();
         let update_ids: Vec<u64> = update_review
@@ -309,7 +323,7 @@ pub fn update(
             .execute(conn);
         if insert.is_err() {
             t_error = Err(DbError::new(
-                DbErrorKind::InsertFailed,
+                DbErrorKind::CreateFailed,
                 "Review Insert failed",
             ));
             return Err(Error::RollbackTransaction);

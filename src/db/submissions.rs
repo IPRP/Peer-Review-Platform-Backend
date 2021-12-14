@@ -4,6 +4,7 @@ use crate::db;
 use crate::db::models::*;
 use crate::db::ReviewTimespan;
 
+use crate::db::error::{DbError, DbErrorKind};
 use crate::schema::criterion::dsl::{criterion as criterion_t, id as c_id};
 use crate::schema::submissionattachments::dsl::submissionattachments as subatt_t;
 use crate::schema::submissioncriteria::dsl::{
@@ -27,10 +28,13 @@ pub fn create<'a>(
     date: chrono::NaiveDateTime,
     student_id: u64,
     workshop_id: u64,
-) -> Result<Submission, ()> {
+) -> Result<Submission, DbError> {
     // Check if student is part of the workshop
     if !db::workshops::student_in_workshop(conn, student_id, workshop_id) {
-        return Err(());
+        return Err(DbError::new(
+            DbErrorKind::NotFound,
+            "Student not in workshop",
+        ));
     }
 
     let new_submission = NewSubmission {
@@ -44,13 +48,17 @@ pub fn create<'a>(
         error: false,
     };
 
+    let mut t_error: Result<(), DbError> = Ok(());
     let submission = conn.transaction::<Submission, Error, _>(|| {
         // Insert submission
         let submission_insert = diesel::insert_into(submissions_t)
             .values(&new_submission)
             .execute(conn);
         if submission_insert.is_err() {
-            return Err(Error::RollbackTransaction);
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::CreateFailed, "Submission Insert failed"),
+            );
         }
         let submission: Submission = submissions_t.order(sub_id.desc()).first(conn).unwrap();
 
@@ -118,7 +126,7 @@ pub fn create<'a>(
 
     match submission {
         Ok(submission) => Ok(submission),
-        Err(_) => Err(()),
+        Err(_) => Err(DbError::new(DbErrorKind::TransactionFailed, "")),
     }
 }
 
