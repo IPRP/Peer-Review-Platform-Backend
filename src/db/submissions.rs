@@ -4,6 +4,7 @@ use crate::db;
 use crate::db::models::*;
 use crate::db::ReviewTimespan;
 
+use crate::db::error::{DbError, DbErrorKind};
 use crate::schema::criterion::dsl::{criterion as criterion_t, id as c_id};
 use crate::schema::submissionattachments::dsl::submissionattachments as subatt_t;
 use crate::schema::submissioncriteria::dsl::{
@@ -27,10 +28,13 @@ pub fn create<'a>(
     date: chrono::NaiveDateTime,
     student_id: u64,
     workshop_id: u64,
-) -> Result<Submission, ()> {
+) -> Result<Submission, DbError> {
     // Check if student is part of the workshop
     if !db::workshops::student_in_workshop(conn, student_id, workshop_id) {
-        return Err(());
+        return Err(DbError::new(
+            DbErrorKind::NotFound,
+            format!("Student {} not in Workshop {}", student_id, workshop_id),
+        ));
     }
 
     let new_submission = NewSubmission {
@@ -44,20 +48,27 @@ pub fn create<'a>(
         error: false,
     };
 
+    let mut t_error: Result<(), DbError> = Ok(());
     let submission = conn.transaction::<Submission, Error, _>(|| {
         // Insert submission
         let submission_insert = diesel::insert_into(submissions_t)
             .values(&new_submission)
             .execute(conn);
         if submission_insert.is_err() {
-            return Err(Error::RollbackTransaction);
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::CreateFailed, "Submission Insert failed"),
+            );
         }
         let submission: Submission = submissions_t.order(sub_id.desc()).first(conn).unwrap();
 
         // Relate attachments to submission
         let all_student_attachments = db::attachments::get_ids_by_user_id(conn, student_id);
         if all_student_attachments.is_err() {
-            return Err(Error::RollbackTransaction);
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::ReadFailed, "Student attachments not found"),
+            );
         }
         let all_student_attachments = all_student_attachments.unwrap();
         let submission_attachments: Vec<Submissionattachment> = attachments
@@ -77,13 +88,19 @@ pub fn create<'a>(
             .values(&submission_attachments)
             .execute(conn);
         if attachment_insert.is_err() {
-            return Err(Error::RollbackTransaction);
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::CreateFailed, "Attachment Insert failed"),
+            );
         }
 
         // Relate criteria to submission
         let workshop_criteria = db::workshops::get_criteria(conn, workshop_id);
         if workshop_criteria.is_err() {
-            return Err(Error::RollbackTransaction);
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::ReadFailed, "Workshop Criteria not found"),
+            );
         }
         let workshop_criteria = workshop_criteria.unwrap();
         let submission_criteria: Vec<Submissioncriteria> = workshop_criteria
@@ -97,7 +114,10 @@ pub fn create<'a>(
             .values(&submission_criteria)
             .execute(conn);
         if criteria_insert.is_err() {
-            return Err(Error::RollbackTransaction);
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::CreateFailed, "Criteria Insert failed"),
+            );
         }
 
         // Assign reviews
@@ -110,7 +130,13 @@ pub fn create<'a>(
             workshop_id,
         );
         if assign.is_err() {
-            return Err(Error::RollbackTransaction);
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                assign.err().unwrap_or(DbError::new(
+                    DbErrorKind::TransactionFailed,
+                    "Review Assignment failed",
+                )),
+            );
         }
 
         Ok(submission)
@@ -118,7 +144,10 @@ pub fn create<'a>(
 
     match submission {
         Ok(submission) => Ok(submission),
-        Err(_) => Err(()),
+        Err(_) => Err(t_error.err().unwrap_or(DbError::new(
+            DbErrorKind::TransactionFailed,
+            "Unknown error",
+        ))),
     }
 }
 
@@ -139,20 +168,26 @@ fn get_full_submission(
     conn: &MysqlConnection,
     submission_id: u64,
     is_teacher: bool,
-) -> Result<OwnSubmission, ()> {
+) -> Result<OwnSubmission, DbError> {
     let points_calculation = calculate_points(conn, submission_id);
-    if points_calculation.is_err() {
-        return Err(());
+    if let Err(err) = points_calculation {
+        return Err(err);
     }
     let attachments = db::attachments::get_by_submission_id(conn, submission_id);
     if attachments.is_err() {
-        return Err(());
+        return Err(DbError::new(
+            DbErrorKind::NotFound,
+            format!("No Attachments for Submission {} found", submission_id),
+        ));
     }
     let attachments = attachments.unwrap();
     let submission: Result<Submission, _> =
         submissions_t.filter(sub_id.eq(submission_id)).first(conn);
     if submission.is_err() {
-        return Err(());
+        return Err(DbError::new(
+            DbErrorKind::NotFound,
+            format!("Submission {} not found", submission_id),
+        ));
     }
     let submission = submission.unwrap();
 
@@ -222,7 +257,10 @@ fn get_full_submission(
 }
 
 /// Get detailed submission from submission id.
-pub fn get_own_submission(conn: &MysqlConnection, submission_id: u64) -> Result<OwnSubmission, ()> {
+pub fn get_own_submission(
+    conn: &MysqlConnection,
+    submission_id: u64,
+) -> Result<OwnSubmission, DbError> {
     get_full_submission(conn, submission_id, false)
 }
 
@@ -230,7 +268,7 @@ pub fn get_own_submission(conn: &MysqlConnection, submission_id: u64) -> Result<
 pub fn get_teacher_submission(
     conn: &MysqlConnection,
     submission_id: u64,
-) -> Result<OwnSubmission, ()> {
+) -> Result<OwnSubmission, DbError> {
     get_full_submission(conn, submission_id, true)
 }
 
@@ -240,22 +278,25 @@ pub fn get_student_submission(
     conn: &MysqlConnection,
     submission_id: u64,
     _user_id: u64,
-) -> Result<OtherSubmission, ()> {
+) -> Result<OtherSubmission, DbError> {
     let points_calculation = calculate_points(conn, submission_id);
-    if points_calculation.is_err() {
-        return Err(());
+    if let Err(err) = points_calculation {
+        return Err(err);
     }
     let attachments =
         db::attachments::get_by_submission_id_and_lock_submission(conn, submission_id);
-    if attachments.is_err() {
-        return Err(());
+    if let Err(err) = attachments {
+        return Err(err);
     }
-    let attachments = attachments.unwrap();
+    let attachments = attachments.ok().unwrap();
 
     let submission: Result<Submission, _> =
         submissions_t.filter(sub_id.eq(submission_id)).first(conn);
     if submission.is_err() {
-        return Err(());
+        return Err(DbError::new(
+            DbErrorKind::ReadFailed,
+            format!("Submission {} not found", submission_id),
+        ));
     }
     let submission = submission.unwrap();
 
@@ -264,7 +305,10 @@ pub fn get_student_submission(
         .select(subcrit_crit)
         .get_results(conn);
     if submission_criteria.is_err() {
-        return Err(());
+        return Err(DbError::new(
+            DbErrorKind::ReadFailed,
+            format!("Criteria for Submission {} not found", submission_id),
+        ));
     }
     let submission_criteria = submission_criteria.unwrap();
 
@@ -272,7 +316,10 @@ pub fn get_student_submission(
         .filter(c_id.eq_any(submission_criteria))
         .get_results(conn);
     if submission_criteria.is_err() {
-        return Err(());
+        return Err(DbError::new(
+            DbErrorKind::ReadFailed,
+            format!("Criteria Data for Submission {} not found", submission_id),
+        ));
     }
     let submission_criteria = submission_criteria.unwrap();
 
@@ -380,7 +427,7 @@ pub fn get_student_workshop_submissions(
 }
 
 // Calculate points of a submission.
-fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), ()> {
+fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), DbError> {
     let submission = submissions_t
         .filter(
             sub_id.eq(submission_id).and(
@@ -398,11 +445,12 @@ fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), ()
     let mut submission: Submission = submission.unwrap();
     // Get all reviews without errors
     let reviews = db::reviews::get_simple_review_points(conn, submission_id);
-    if reviews.is_err() {
-        return Err(());
+    if let Err(err) = reviews {
+        return Err(err);
     }
-    let reviews = reviews.unwrap();
+    let reviews = reviews.ok().unwrap();
     // Perform updates
+    let mut t_error: Result<(), DbError> = Ok(());
     let res = conn.transaction::<_, _, _>(|| {
         // If there are no reviews, a submissions cannot be graded
         if reviews.len() == 0 {
@@ -412,7 +460,13 @@ fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), ()
                 .set(&submission)
                 .execute(conn);
             if update.is_err() {
-                return Err(Error::RollbackTransaction);
+                return DbError::assign_and_rollback(
+                    &mut t_error,
+                    DbError::new(
+                        DbErrorKind::UpdateFailed,
+                        "Submission Error State Update failed",
+                    ),
+                );
             }
         } else {
             // TODO Streamline Calculate points, because input is now validated/corrected
@@ -458,14 +512,22 @@ fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), ()
                 .set(&submission)
                 .execute(conn);
             if update.is_err() {
-                return Err(Error::RollbackTransaction);
+                return DbError::assign_and_rollback(
+                    &mut t_error,
+                    DbError::new(DbErrorKind::UpdateFailed, "Submission Update failed"),
+                );
             }
         }
         Ok(())
     });
-    match res {
-        Ok(_) => Ok(()),
-        Err(_) => Err(()),
+
+    if res.is_ok() {
+        Ok(())
+    } else {
+        Err(t_error.err().unwrap_or(DbError::new(
+            DbErrorKind::TransactionFailed,
+            "Unknown error",
+        )))
     }
 }
 

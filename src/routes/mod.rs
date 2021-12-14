@@ -1,4 +1,5 @@
 pub mod attachments;
+pub mod error;
 pub mod models;
 pub mod students;
 pub mod submissions;

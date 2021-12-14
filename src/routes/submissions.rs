@@ -5,6 +5,7 @@ use crate::utils;
 use crate::{db, IprpDB};
 use chrono::Local;
 
+use crate::routes::error::{RouteError, RouteErrorKind};
 use rocket::State;
 use rocket_contrib::json::{Json, JsonValue};
 
@@ -45,7 +46,10 @@ pub fn create_submission(
             "ok": true,
             "id": submission.id
         }))),
-        Err(_) => Err(ApiResponse::conflict()),
+        Err(err) => {
+            println!("Error occurred {}", err);
+            Err(ApiResponse::conflict_with_error(err))
+        }
     }
 }
 
@@ -67,7 +71,10 @@ pub fn get_submission(
                 utils::json::merge(&mut json_response, &*json_additional_info);
                 Ok(Json(JsonValue::from(json_response)))
             }
-            Err(_) => Err(ApiResponse::forbidden()),
+            Err(err) => {
+                println!("Error occurred {}", err);
+                Err(ApiResponse::forbidden_with_error(err))
+            }
         }
     } else if db::submissions::is_owner(&*conn, submission_id, user.id) {
         let submission = db::submissions::get_own_submission(&*conn, submission_id);
@@ -80,7 +87,10 @@ pub fn get_submission(
                 utils::json::merge(&mut json_response, &*json_additional_info);
                 Ok(Json(JsonValue::from(json_response)))
             }
-            Err(_) => Err(ApiResponse::forbidden()),
+            Err(err) => {
+                println!("Error occurred {}", err);
+                Err(ApiResponse::forbidden_with_error(err))
+            }
         }
     } else {
         if db::reviews::is_reviewer(&*conn, submission_id, user.id) {
@@ -95,10 +105,21 @@ pub fn get_submission(
                     utils::json::merge(&mut json_response, &*json_additional_info);
                     Ok(Json(JsonValue::from(json_response)))
                 }
-                Err(_) => Err(ApiResponse::forbidden()),
+                Err(err) => {
+                    println!("Error occurred {}", err);
+                    Err(ApiResponse::forbidden_with_error(err))
+                }
             }
         } else {
-            Err(ApiResponse::bad_request())
+            let err = RouteError::new(
+                RouteErrorKind::BadRequest,
+                format!(
+                    "User {} is not a teacher, owner or reviewer for Submission {}",
+                    user.id, submission_id
+                ),
+            );
+            println!("Error occurred {}", err);
+            Err(ApiResponse::bad_request_with_error(err))
         }
     }
 }

@@ -1,3 +1,4 @@
+use crate::utils::error::AppError;
 use std::error::Error;
 use std::fmt;
 use std::fmt::{Debug, Formatter};
@@ -8,10 +9,12 @@ pub enum DbErrorKind {
     NotFound,
     PastDeadline,
     Mismatch,
+    CreateFailed,
+    ReadFailed,
     UpdateFailed,
     DeleteFailed,
-    InsertFailed,
     TransactionFailed,
+    EventCreateFailed,
 }
 
 impl fmt::Display for DbErrorKind {
@@ -39,7 +42,17 @@ impl DbError {
         }
     }
 
-    pub fn description(&self) -> String {
+    pub fn assign_and_rollback<T>(
+        t_error: &mut Result<(), DbError>,
+        error: DbError,
+    ) -> Result<T, diesel::result::Error> {
+        *t_error = Err(error);
+        return Err(diesel::result::Error::RollbackTransaction);
+    }
+}
+
+impl AppError for DbError {
+    fn description(&self) -> String {
         self.error.to_string()
     }
 }
