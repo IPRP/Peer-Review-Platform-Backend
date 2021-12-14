@@ -277,6 +277,15 @@ impl ApiResponse {
         ApiResponse { json, status }
     }
 
+    pub fn bad_request_with_error(error: impl AppError) -> Self {
+        let json = json!({
+            "ok": false,
+            "error": error.description()
+        });
+        let status = Status::BadRequest;
+        ApiResponse { json, status }
+    }
+
     pub fn conflict() -> Self {
         let json = json!({
             "ok": false

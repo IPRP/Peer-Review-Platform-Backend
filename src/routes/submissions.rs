@@ -5,6 +5,7 @@ use crate::utils;
 use crate::{db, IprpDB};
 use chrono::Local;
 
+use crate::routes::error::{RouteError, RouteErrorKind};
 use rocket::State;
 use rocket_contrib::json::{Json, JsonValue};
 
@@ -110,7 +111,15 @@ pub fn get_submission(
                 }
             }
         } else {
-            Err(ApiResponse::bad_request())
+            let err = RouteError::new(
+                RouteErrorKind::BadRequest,
+                format!(
+                    "User {} is not a teacher, owner or reviewer for Submission {}",
+                    user.id, submission_id
+                ),
+            );
+            println!("Error occurred {}", err);
+            Err(ApiResponse::bad_request_with_error(err))
         }
     }
 }
