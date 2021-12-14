@@ -230,7 +230,7 @@ pub fn update(
         .first(conn);
     if review.is_err() {
         // No matching review
-        return Err(DbError::new(DbErrorKind::NotFound, "No matching Review"));
+        return Err(DbError::new(DbErrorKind::ReadFailed, "No matching Review"));
     }
     let mut review = review.unwrap();
     if Local::now().naive_local() > review.deadline {
@@ -248,7 +248,7 @@ pub fn update(
         if criteria.is_err() {
             return DbError::assign_and_rollback(
                 &mut t_error,
-                DbError::new(DbErrorKind::NotFound, "Criteria for review not found"),
+                DbError::new(DbErrorKind::ReadFailed, "Criteria for Review not found"),
             );
         }
         let criteria = criteria.unwrap();
@@ -259,11 +259,13 @@ pub fn update(
             .collect();
         for criterion in &criteria {
             if !update_ids.contains(&criterion.id) {
-                t_error = Err(DbError::new(
-                    DbErrorKind::Mismatch,
-                    format!("Criterion Id {} is missing in update", &criterion.id),
-                ));
-                return Err(Error::RollbackTransaction);
+                return DbError::assign_and_rollback(
+                    &mut t_error,
+                    DbError::new(
+                        DbErrorKind::Mismatch,
+                        format!("Criterion Id {} is missing in Update", &criterion.id),
+                    ),
+                );
             }
         }
 
@@ -274,11 +276,10 @@ pub fn update(
             .set(&review)
             .execute(conn);
         if review_update.is_err() {
-            t_error = Err(DbError::new(
-                DbErrorKind::UpdateFailed,
-                "Review Update failed",
-            ));
-            return Err(Error::RollbackTransaction);
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::UpdateFailed, "Review Update failed"),
+            );
         }
 
         // Update review points
@@ -310,11 +311,10 @@ pub fn update(
         // Drop already given review points
         let delete = diesel::delete(reviewpoints_t.filter(rp_review.eq(review_id))).execute(conn);
         if delete.is_err() {
-            t_error = Err(DbError::new(
-                DbErrorKind::DeleteFailed,
-                "Review Points Delete failed",
-            ));
-            return Err(Error::RollbackTransaction);
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::DeleteFailed, "Review Points Delete failed"),
+            );
         }
 
         // Insert new review points
@@ -322,24 +322,23 @@ pub fn update(
             .values(&review_points)
             .execute(conn);
         if insert.is_err() {
-            t_error = Err(DbError::new(
-                DbErrorKind::CreateFailed,
-                "Review Insert failed",
-            ));
-            return Err(Error::RollbackTransaction);
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::CreateFailed, "Review Insert failed"),
+            );
         }
         Ok(())
     });
 
-    if res.is_err() {
+    if res.is_ok() {
+        Ok(())
+    } else {
         // Transaction error should have custom DbError, use it
         // If not, return general error message
         Err(t_error.err().unwrap_or(DbError::new(
             DbErrorKind::TransactionFailed,
             "Unknown error",
         )))
-    } else {
-        Ok(())
     }
 }
 

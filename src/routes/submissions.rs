@@ -45,7 +45,10 @@ pub fn create_submission(
             "ok": true,
             "id": submission.id
         }))),
-        Err(_) => Err(ApiResponse::conflict()),
+        Err(err) => {
+            println!("Error occurred {}", err);
+            Err(ApiResponse::conflict_with_error(err))
+        }
     }
 }
 

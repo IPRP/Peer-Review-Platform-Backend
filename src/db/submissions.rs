@@ -33,7 +33,7 @@ pub fn create<'a>(
     if !db::workshops::student_in_workshop(conn, student_id, workshop_id) {
         return Err(DbError::new(
             DbErrorKind::NotFound,
-            "Student not in workshop",
+            format!("Student {} not in Workshop {}", student_id, workshop_id),
         ));
     }
 
@@ -65,7 +65,10 @@ pub fn create<'a>(
         // Relate attachments to submission
         let all_student_attachments = db::attachments::get_ids_by_user_id(conn, student_id);
         if all_student_attachments.is_err() {
-            return Err(Error::RollbackTransaction);
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::ReadFailed, "Student attachments not found"),
+            );
         }
         let all_student_attachments = all_student_attachments.unwrap();
         let submission_attachments: Vec<Submissionattachment> = attachments
@@ -85,13 +88,19 @@ pub fn create<'a>(
             .values(&submission_attachments)
             .execute(conn);
         if attachment_insert.is_err() {
-            return Err(Error::RollbackTransaction);
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::CreateFailed, "Attachment Insert failed"),
+            );
         }
 
         // Relate criteria to submission
         let workshop_criteria = db::workshops::get_criteria(conn, workshop_id);
         if workshop_criteria.is_err() {
-            return Err(Error::RollbackTransaction);
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::ReadFailed, "Workshop Criteria not found"),
+            );
         }
         let workshop_criteria = workshop_criteria.unwrap();
         let submission_criteria: Vec<Submissioncriteria> = workshop_criteria
@@ -105,7 +114,10 @@ pub fn create<'a>(
             .values(&submission_criteria)
             .execute(conn);
         if criteria_insert.is_err() {
-            return Err(Error::RollbackTransaction);
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::CreateFailed, "Criteria Insert failed"),
+            );
         }
 
         // Assign reviews
@@ -118,7 +130,13 @@ pub fn create<'a>(
             workshop_id,
         );
         if assign.is_err() {
-            return Err(Error::RollbackTransaction);
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                assign.err().unwrap_or(DbError::new(
+                    DbErrorKind::TransactionFailed,
+                    "Review Assignment failed",
+                )),
+            );
         }
 
         Ok(submission)
@@ -126,7 +144,10 @@ pub fn create<'a>(
 
     match submission {
         Ok(submission) => Ok(submission),
-        Err(_) => Err(DbError::new(DbErrorKind::TransactionFailed, "")),
+        Err(_) => Err(t_error.err().unwrap_or(DbError::new(
+            DbErrorKind::TransactionFailed,
+            "Unknown error",
+        ))),
     }
 }
 

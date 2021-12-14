@@ -285,6 +285,15 @@ impl ApiResponse {
         ApiResponse { json, status }
     }
 
+    pub fn conflict_with_error(error: DbError) -> Self {
+        let json = json!({
+            "ok": false,
+            "error": error.description()
+        });
+        let status = Status::Conflict;
+        ApiResponse { json, status }
+    }
+
     pub fn forbidden() -> Self {
         let json = json!({
             "ok": false
