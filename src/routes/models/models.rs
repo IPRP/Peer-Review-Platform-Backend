@@ -1,8 +1,8 @@
 //! Structs used throughout routes
 
-use crate::db::error::DbError;
 use crate::db::models::{Kind, NewCriterion};
 use crate::routes::validation::SimpleValidation;
+use crate::utils::error::AppError;
 use backend_macro_derive::SimpleValidation;
 use chrono::Local;
 use rocket::data::{FromDataSimple, Outcome};
@@ -285,7 +285,7 @@ impl ApiResponse {
         ApiResponse { json, status }
     }
 
-    pub fn conflict_with_error(error: DbError) -> Self {
+    pub fn conflict_with_error(error: impl AppError) -> Self {
         let json = json!({
             "ok": false,
             "error": error.description()
@@ -302,7 +302,7 @@ impl ApiResponse {
         ApiResponse { json, status }
     }
 
-    pub fn forbidden_with_error(error: DbError) -> Self {
+    pub fn forbidden_with_error(error: impl AppError) -> Self {
         let json = json!({
             "ok": false,
             "error": error.description()
