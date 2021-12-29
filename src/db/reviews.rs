@@ -342,6 +342,38 @@ pub fn update(
     }
 }
 
+pub fn close_reviews(conn: &MysqlConnection, submission_id: u64) -> Result<(), DbError> {
+    // // Get all reviews
+    // let reviews = reviews_t
+    //     .filter(reviews_sub.eq(submission_id))
+    //     .get_results::<Review>(conn);
+    //
+    // if reviews.is_err() {
+    //     return Err(DbError::new(
+    //         DbErrorKind::ReadFailed,
+    //         format!("No Reviews for Submission {} found", submission_id),
+    //     ));
+    // }
+    //
+    // let mut reviews: Vec<Review> = reviews.unwrap();
+    // if reviews.len() > 0 {
+    //     let mut t_error: Result<(), DbError> = Ok(());
+    //     let res = conn.transaction::<_, _, _>(|| {
+    //         let time = Local::now().naive_local();
+    //
+    //         for mut review in reviews {
+    //             review.done = true;
+    //             review.locked = true;
+    //
+    //         }
+    //
+    //         Ok(())
+    //     });
+    // }
+
+    Ok(())
+}
+
 /// Get simplified review points from a submission.
 pub fn get_simple_review_points(
     conn: &MysqlConnection,
