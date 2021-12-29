@@ -448,6 +448,11 @@ fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), Db
     }
     let mut submission: Submission = submission.unwrap();
     // If past deadline lock submission
+
+    // TODO: date shows creation date, not deadline!
+    let mut test = Local::now().naive_local();
+    test += chrono::Duration::minutes(20);
+
     if Local::now().naive_local() > submission.date && !submission.locked {
         let lock = db::submissions::lock(conn, submission_id);
         if lock.is_err() {
