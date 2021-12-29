@@ -30,8 +30,10 @@ use crate::schema::workshoplist::dsl::{
 use crate::schema::workshops::dsl::{id as ws_id, workshops as workshops_t};
 use chrono::{Duration, Local, TimeZone, Utc};
 use diesel::connection::SimpleConnection;
+use diesel::dsl::exists;
 use diesel::prelude::*;
 use diesel::result::Error;
+use diesel::select;
 use diesel::sql_types::BigInt;
 use std::convert::TryInto;
 
@@ -342,36 +344,64 @@ pub fn update(
     }
 }
 
-pub fn close_reviews(conn: &MysqlConnection, submission_id: u64) -> Result<(), DbError> {
-    // // Get all reviews
-    // let reviews = reviews_t
-    //     .filter(reviews_sub.eq(submission_id))
-    //     .get_results::<Review>(conn);
-    //
-    // if reviews.is_err() {
-    //     return Err(DbError::new(
-    //         DbErrorKind::ReadFailed,
-    //         format!("No Reviews for Submission {} found", submission_id),
-    //     ));
-    // }
-    //
-    // let mut reviews: Vec<Review> = reviews.unwrap();
-    // if reviews.len() > 0 {
-    //     let mut t_error: Result<(), DbError> = Ok(());
-    //     let res = conn.transaction::<_, _, _>(|| {
-    //         let time = Local::now().naive_local();
-    //
-    //         for mut review in reviews {
-    //             review.done = true;
-    //             review.locked = true;
-    //
-    //         }
-    //
-    //         Ok(())
-    //     });
-    // }
-
-    Ok(())
+pub(crate) fn close_reviews(conn: &MysqlConnection, submission_id: u64) -> Result<(), DbError> {
+    // Get all reviews
+    let reviews = reviews_t
+        .filter(reviews_sub.eq(submission_id))
+        .get_results::<Review>(conn);
+    if reviews.is_err() {
+        return Err(DbError::new(
+            DbErrorKind::ReadFailed,
+            format!("No Reviews for Submission {} found", submission_id),
+        ));
+    }
+    // Check if reviews are present
+    let reviews: Vec<Review> = reviews.unwrap();
+    if reviews.len() > 0 {
+        let mut t_error: Result<(), DbError> = Ok(());
+        let res = conn.transaction::<_, _, _>(|| {
+            // Iterate over found reviews
+            for mut review in reviews {
+                // Mark them as finished
+                review.done = true;
+                review.locked = true;
+                // Check if review was done
+                // If not, mark as error case
+                // --------------------------
+                // exists(select * from reviewpoints where review={id})
+                let error =
+                    select(exists(reviewpoints_t.filter(rp_review.eq(review.id)))).get_result(conn);
+                if error.is_err() {
+                    return DbError::assign_and_rollback(
+                        &mut t_error,
+                        DbError::new(DbErrorKind::ReadFailed, "Could not get Review state"),
+                    );
+                }
+                review.error = error.unwrap();
+                // Update review
+                let review_update = diesel::update(reviews_t.filter(reviews_id.eq(review.id)))
+                    .set(&review)
+                    .execute(conn);
+                if review_update.is_err() {
+                    return DbError::assign_and_rollback(
+                        &mut t_error,
+                        DbError::new(DbErrorKind::UpdateFailed, "Review Update failed"),
+                    );
+                }
+            }
+            Ok(())
+        });
+        if res.is_ok() {
+            Ok(())
+        } else {
+            Err(t_error.err().unwrap_or(DbError::new(
+                DbErrorKind::TransactionFailed,
+                "Unknown error",
+            )))
+        }
+    } else {
+        Ok(())
+    }
 }
 
 /// Get simplified review points from a submission.
