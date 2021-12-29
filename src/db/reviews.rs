@@ -121,7 +121,7 @@ pub fn assign(
     }
     let reviews: Vec<Review> = reviews.unwrap();
 
-    // Create events that close reviews
+    /*// Create events that close reviews
     // See: https://docs.rs/chrono/0.4.0/chrono/naive/struct.NaiveDateTime.html#example-14
     // And: https://dev.mysql.com/doc/refman/8.0/en/create-event.html
     // And: https://stackoverflow.com/a/8763381/12347616
@@ -143,7 +143,7 @@ pub fn assign(
         ON SCHEDULE AT '{timestamp}'
         DO
           UPDATE reviews
-          SET done = 1, locked = 1, 
+          SET done = 1, locked = 1,
           error = CASE
             WHEN exists(select * from reviewpoints where review={id}) THEN 0
             ELSE 1
@@ -172,7 +172,7 @@ pub fn assign(
         ON SCHEDULE AT '{timestamp}'
         DO
           UPDATE submissions
-          SET reviewsdone = 1, locked = 1, 
+          SET reviewsdone = 1, locked = 1,
           error = CASE
             WHEN exists(select * from reviews where submission={id} and error=0) THEN 0
             ELSE 1
@@ -188,7 +188,7 @@ pub fn assign(
             DbErrorKind::EventCreateFailed,
             "Event Insert failed",
         ));
-    }
+    }*/
     /*
     select r.id, r.done, r.deadline, s.id, s.student, s.workshop
         from reviews r

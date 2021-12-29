@@ -3,6 +3,7 @@
 use crate::db;
 use crate::db::models::*;
 use crate::db::ReviewTimespan;
+use chrono::Local;
 
 use crate::db::error::{DbError, DbErrorKind};
 use crate::schema::criterion::dsl::{criterion as criterion_t, id as c_id};
@@ -428,21 +429,47 @@ pub fn get_student_workshop_submissions(
 
 // Calculate points of a submission.
 fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), DbError> {
-    let submission = submissions_t
-        .filter(
-            sub_id.eq(submission_id).and(
-                sub_reviews_done
-                    .eq(true)
-                    .and(sub_meanpoints.is_null().and(sub_error.eq(false))),
-            ),
-        )
-        .first(conn);
-
+    // let submission = submissions_t
+    //     .filter(
+    //         sub_id.eq(submission_id).and(
+    //             sub_reviews_done
+    //                 .eq(true)
+    //                 .and(sub_meanpoints.is_null().and(sub_error.eq(false))),
+    //         ),
+    //     )
+    //     .first(conn);
+    let submission = submissions_t.filter(sub_id.eq(submission_id)).first(conn);
     if submission.is_err() {
         // Submission points are already calculated or not finished yet
-        return Ok(());
+        return Err(DbError::new(
+            DbErrorKind::ReadFailed,
+            format!("Submission {} not found", submission_id),
+        ));
     }
     let mut submission: Submission = submission.unwrap();
+    // If past deadline lock submission
+    if Local::now().naive_local() > submission.date && !submission.locked {
+        let lock = db::submissions::lock(conn, submission_id);
+        if lock.is_err() {
+            return Err(DbError::new(
+                DbErrorKind::UpdateFailed,
+                "Submission Lock failed",
+            ));
+        }
+    }
+    // If review points are already calculated return safely
+    if submission.reviewsdone {
+        return Ok(());
+    }
+    // If not, first close all reviews and calculate points
+    // ---------------------------------------------------
+    let close = db::reviews::close_reviews(conn, submission_id);
+    if close.is_err() {
+        return Err(DbError::new(
+            DbErrorKind::UpdateFailed,
+            "Review Close failed",
+        ));
+    }
     // Get all reviews without errors
     let reviews = db::reviews::get_simple_review_points(conn, submission_id);
     if let Err(err) = reviews {
@@ -455,6 +482,7 @@ fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), Db
         // If there are no reviews, a submissions cannot be graded
         if reviews.len() == 0 {
             // Save error state
+            submission.reviewsdone = true;
             submission.error = true;
             let update = diesel::update(submissions_t.filter(sub_id.eq(submission.id)))
                 .set(&submission)
@@ -506,6 +534,7 @@ fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), Db
             }
             mean_points /= reviews.len() as f64;
             // Update submission
+            submission.reviewsdone = true;
             submission.maxpoint = Some(max_points);
             submission.meanpoints = Some(mean_points);
             let update = diesel::update(submissions_t.filter(sub_id.eq(submission.id)))
