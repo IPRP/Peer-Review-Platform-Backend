@@ -51,12 +51,12 @@ fn main() {
     .unwrap();
     // Launch Rocket
     rocket::ignite()
-        .attach(IprpDB::fairing())
-        .attach(AdHoc::on_attach("Database Migration", db::run_db_migration))
         .attach(AdHoc::on_attach(
             "Review Configuration",
             db::setup_review_timespan,
         ))
+        .attach(IprpDB::fairing())
+        .attach(AdHoc::on_attach("Database Migration", db::run_db_migration))
         .attach(cors)
         .mount(
             "/",

@@ -14,7 +14,11 @@ use rocket::Rocket;
 // Based on https://stackoverflow.com/a/61064269/12347616
 embed_migrations!();
 pub fn run_db_migration(rocket: Rocket) -> Result<Rocket, Rocket> {
-    let conn = IprpDB::get_one(&rocket).expect("database connection");
+    let conn = IprpDB::get_one(&rocket).expect("database connection not found");
+    let review_timespan = rocket
+        .state::<ReviewTimespan>()
+        .expect("review timespan state not found");
+    let review_timespan = review_timespan.in_minutes();
     match embedded_migrations::run(&*conn) {
         Ok(()) => {
             // "Clear" db
@@ -78,18 +82,18 @@ INSERT IGNORE INTO users values(default, "admin", "admin", "admin", "fb001dfcffd
                 .unwrap_or(false);
             if db_mock {
                 let res = conn.batch_execute(
-                    r#"
+                    &format!(r#"
 INSERT INTO users values(default, "t1", "John", "Doe", "1d6442ddcfd9db1ff81df77cbefcd5afcc8c7ca952ab3101ede17a84b866d3f3", "teacher", null);
 INSERT INTO users values(default, "t2", "John", "Doe II", "1d6442ddcfd9db1ff81df77cbefcd5afcc8c7ca952ab3101ede17a84b866d3f3", "teacher", null);
 INSERT INTO users values(default, "s1", "Max", "Mustermann", "1d6442ddcfd9db1ff81df77cbefcd5afcc8c7ca952ab3101ede17a84b866d3f3", "student", "4A");
 INSERT INTO users values(default, "s2", "Luke", "Skywalker", "1d6442ddcfd9db1ff81df77cbefcd5afcc8c7ca952ab3101ede17a84b866d3f3", "student", "4A");
 INSERT INTO users values(default, "s3", "Gordon", "Freeman", "1d6442ddcfd9db1ff81df77cbefcd5afcc8c7ca952ab3101ede17a84b866d3f3", "student", "4A");
 INSERT INTO users values(default, "s4", "Mario", "Mario", "1d6442ddcfd9db1ff81df77cbefcd5afcc8c7ca952ab3101ede17a84b866d3f3", "student", "4A");
-INSERT INTO `workshops` VALUES (1,'WS','Hey!','2023-07-31 16:26:00',1,10080);
+INSERT INTO `workshops` VALUES (1,'WS','Hey!','2023-07-31 16:26:00',1,{});
 INSERT INTO `workshoplist` VALUES (1,2,'teacher'),(1,4,'student'),(1,5,'student');
 INSERT INTO `criterion` VALUES (1,'Criterion','True/False',10,'truefalse'),(2,'Other Criterion','True/False',10,'truefalse');
 INSERT INTO `criteria` VALUES (1,1),(1,2);
-    "#,
+    "#, review_timespan),
                 );
                 match res {
                     Err(e) => {

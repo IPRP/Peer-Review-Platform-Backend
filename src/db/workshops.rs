@@ -79,13 +79,11 @@ pub fn create<'a>(
     criteria: Vec<NewCriterion>,
     attachments: Vec<u64>,
 ) -> Result<Workshop, ()> {
-    // TODO: timespan
-
     let new_workshop = NewWorkshop {
         title,
         content,
         end,
-        reviewtimespan: 24 * 60 * 7,
+        reviewtimespan: review_timespan,
         anonymous,
     };
     let ws = conn.transaction::<Workshop, _, _>(|| {
@@ -200,6 +198,7 @@ pub fn update(
     title: String,
     content: String,
     end: chrono::NaiveDateTime,
+    review_timespan: i64,
     teachers: Vec<u64>,
     students: Vec<u64>,
     criteria: Vec<NewCriterion>,
@@ -213,6 +212,7 @@ pub fn update(
     workshop.title = title;
     workshop.content = content;
     workshop.end = end;
+    workshop.reviewtimespan = review_timespan;
     let ws = conn.transaction::<Workshop, _, _>(|| {
         // Remove student & teachers
         let delete = diesel::delete(workshoplist_t.filter(wsl_ws.eq(workshop_id))).execute(conn);

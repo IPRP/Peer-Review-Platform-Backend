@@ -78,7 +78,9 @@ pub fn create_workshop(
         new_workshop.teachers.0.push(user.id);
     }
 
-    if !new_workshop.review_timespan.is_none() {
+    // Check if proper timespan was already given
+    // If not, use default value
+    if new_workshop.review_timespan.is_none() {
         new_workshop.review_timespan = Some(review_timespan.inner().in_minutes())
     }
 
@@ -115,6 +117,7 @@ pub fn update_workshop(
     conn: IprpDB,
     workshop_id: u64,
     mut update_workshop: RouteUpdateWorkshop,
+    review_timespan: State<ReviewTimespan>,
 ) -> Result<Json<JsonValue>, ApiResponse> {
     if user.role == Role::Student {
         return Err(ApiResponse::forbidden());
@@ -126,6 +129,12 @@ pub fn update_workshop(
         update_workshop.teachers.0.push(user.id);
     }
 
+    // Check if proper timespan was already given
+    // If not, use default value
+    if update_workshop.review_timespan.is_none() {
+        update_workshop.review_timespan = Some(review_timespan.inner().in_minutes())
+    }
+
     let workshop = db::workshops::update(
         &*conn,
         user.id,
@@ -133,6 +142,7 @@ pub fn update_workshop(
         update_workshop.title,
         update_workshop.content,
         update_workshop.end.0,
+        update_workshop.review_timespan.unwrap(),
         Vec::from(update_workshop.teachers),
         Vec::from(update_workshop.students),
         Vec::from(update_workshop.criteria),

@@ -197,6 +197,9 @@ pub struct RouteUpdateWorkshop {
     pub(crate) content: String,
     #[validate]
     pub(crate) end: Date,
+    #[serde(default)]
+    #[validate(custom = "validate_review_timespan")]
+    pub(crate) review_timespan: Option<i64>,
     pub(crate) teachers: NumberVec,
     pub(crate) students: NumberVec,
     #[validate]
@@ -663,6 +666,7 @@ mod tests {
             title: "Great Title".to_string(),
             content: "".to_string(),
             end: d,
+            review_timespan: None,
             teachers: Default::default(),
             students: Default::default(),
             criteria: rcv,
@@ -686,6 +690,7 @@ mod tests {
             title: "".to_string(),
             content: "".to_string(),
             end: d,
+            review_timespan: None,
             teachers: Default::default(),
             students: Default::default(),
             criteria: rcv,
@@ -704,6 +709,7 @@ mod tests {
             title: "Great Title".to_string(),
             content: "".to_string(),
             end: d,
+            review_timespan: None,
             teachers: Default::default(),
             students: Default::default(),
             criteria: rcv,
@@ -722,6 +728,7 @@ mod tests {
             title: "Great Title".to_string(),
             content: "".to_string(),
             end: d,
+            review_timespan: None,
             teachers: Default::default(),
             students: Default::default(),
             criteria: rcv,
