@@ -78,10 +78,13 @@ pub fn create<'a>(
     criteria: Vec<NewCriterion>,
     attachments: Vec<u64>,
 ) -> Result<Workshop, ()> {
+    // TODO: timespan
+
     let new_workshop = NewWorkshop {
         title,
         content,
         end,
+        reviewtimespan: 24 * 60 * 7,
         anonymous,
     };
     let ws = conn.transaction::<Workshop, _, _>(|| {

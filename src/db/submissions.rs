@@ -38,12 +38,15 @@ pub fn create<'a>(
         ));
     }
 
+    // TODO: query review_timespan from workshop
+
     let new_submission = NewSubmission {
         title,
         comment,
         student: student_id,
         workshop: workshop_id,
         date,
+        deadline: date, // TODO
         locked: false,
         reviewsdone: false,
         error: false,
