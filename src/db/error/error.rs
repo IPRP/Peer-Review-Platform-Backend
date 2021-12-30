@@ -78,11 +78,14 @@ impl AppError for DbError {
     fn description(&self) -> String {
         self.error.to_string()
     }
+
+    fn fmt_error(&self, f: &mut Formatter<'_>) -> Result<(), fmt::Error> {
+        write!(f, "DbError ({:?}): {:?}", self.kind, self.error)
+    }
 }
 
 impl fmt::Display for DbError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        crate::utils::error::fmt_source(self.source(), f);
-        write!(f, "DbError ({:?}): {:?}", self.kind, self.error)
+        self.fmt_stacktrace(f)
     }
 }
