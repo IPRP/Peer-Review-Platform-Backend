@@ -72,6 +72,7 @@ pub fn create<'a>(
     title: String,
     content: String,
     end: chrono::NaiveDateTime,
+    review_timespan: i64,
     anonymous: bool,
     teachers: Vec<u64>,
     students: Vec<u64>,

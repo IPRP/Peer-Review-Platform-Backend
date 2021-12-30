@@ -126,6 +126,11 @@ impl ReviewTimespan {
             + Duration::hours(self.hours)
             + Duration::minutes(self.minutes)
     }
+
+    /// Return timespan in minutes
+    pub fn in_minutes(&self) -> i64 {
+        self.days * 24 * 60 + self.hours * 60 + self.minutes
+    }
 }
 
 /// Setup review timespan from `Rocke.toml` configuration file.

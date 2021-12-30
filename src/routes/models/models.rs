@@ -166,6 +166,9 @@ pub struct RouteNewWorkshop {
     // See: https://serde.rs/string-or-struct.html
     #[validate]
     pub(crate) end: Date,
+    #[serde(default)]
+    #[validate(custom = "validate_review_timespan")]
+    pub(crate) review_timespan: Option<i64>,
     pub(crate) anonymous: bool,
     pub(crate) teachers: NumberVec,
     pub(crate) students: NumberVec,
@@ -175,6 +178,16 @@ pub struct RouteNewWorkshop {
     // See: https://serde.rs/attr-default.html
     #[serde(default)]
     pub(crate) attachments: NumberVec,
+}
+
+fn validate_review_timespan(review_timespan: i64) -> Result<(), ValidationError> {
+    if review_timespan > 0 {
+        Ok(())
+    } else {
+        Err(ValidationError::new(
+            "Review Timespan must be greater than 0",
+        ))
+    }
 }
 
 #[derive(FromForm, Deserialize, Validate, SimpleValidation)]
@@ -533,6 +546,7 @@ mod tests {
             title: "Great Title".to_string(),
             content: "".to_string(),
             end: d,
+            review_timespan: Some(24 * 60),
             anonymous: false,
             teachers: Default::default(),
             students: Default::default(),
@@ -557,6 +571,7 @@ mod tests {
             title: "".to_string(),
             content: "".to_string(),
             end: d,
+            review_timespan: None,
             anonymous: false,
             teachers: Default::default(),
             students: Default::default(),
@@ -576,6 +591,7 @@ mod tests {
             title: "Great Title".to_string(),
             content: "".to_string(),
             end: d,
+            review_timespan: None,
             anonymous: false,
             teachers: Default::default(),
             students: Default::default(),
@@ -595,6 +611,7 @@ mod tests {
             title: "Great Title".to_string(),
             content: "".to_string(),
             end: d,
+            review_timespan: None,
             anonymous: false,
             teachers: Default::default(),
             students: Default::default(),
@@ -604,6 +621,31 @@ mod tests {
         assert!(rnw.validate().is_err());
         assert!(rnw2.validate().is_err());
         assert!(rnw3.validate().is_err());
+    }
+
+    #[test]
+    fn route_new_workshop_review_timespan_not_ok() {
+        let future_date = Local::now().naive_local() + chrono::Duration::days(1);
+        let d = Date { 0: future_date };
+        let rc = RouteCriterion {
+            title: "Great Title".to_string(),
+            content: "".to_string(),
+            weight: 0.0,
+            kind: Kind::Point,
+        };
+        let rcv = RouteCriterionVec { 0: vec![rc] };
+        let rnw = RouteNewWorkshop {
+            title: "Great Title".to_string(),
+            content: "".to_string(),
+            end: d,
+            review_timespan: Some(-24),
+            anonymous: false,
+            teachers: Default::default(),
+            students: Default::default(),
+            criteria: rcv,
+            attachments: Default::default(),
+        };
+        assert!(rnw.validate().is_err());
     }
 
     #[test]

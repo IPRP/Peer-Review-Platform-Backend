@@ -4,11 +4,14 @@ use crate::routes::models::{
     RouteUpdateWorkshop, RouteWorkshopResponse,
 };
 use crate::{db, IprpDB};
+use diesel::types::IsSigned::Signed;
 
 use rocket::http::RawStr;
 use rocket::request::FromFormValue;
+use rocket::State;
 use validator::Validate;
 
+use crate::db::ReviewTimespan;
 use rocket_contrib::json::{Json, JsonValue};
 
 /// Get all workshops.
@@ -59,6 +62,7 @@ pub fn create_workshop(
     user: User,
     conn: IprpDB,
     mut new_workshop: RouteNewWorkshop,
+    review_timespan: State<ReviewTimespan>,
 ) -> Result<Json<JsonValue>, ApiResponse> {
     if user.role == Role::Student {
         return Err(ApiResponse::forbidden());
@@ -74,12 +78,17 @@ pub fn create_workshop(
         new_workshop.teachers.0.push(user.id);
     }
 
+    if !new_workshop.review_timespan.is_none() {
+        new_workshop.review_timespan = Some(review_timespan.inner().in_minutes())
+    }
+
     let workshop = db::workshops::create(
         &*conn,
         user.id,
         new_workshop.title,
         new_workshop.content,
         new_workshop.end.0,
+        new_workshop.review_timespan.unwrap(),
         new_workshop.anonymous,
         Vec::from(new_workshop.teachers),
         Vec::from(new_workshop.students),
