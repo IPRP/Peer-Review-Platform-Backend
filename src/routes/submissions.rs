@@ -6,6 +6,7 @@ use crate::{db, IprpDB};
 use chrono::Local;
 
 use crate::routes::error::{RouteError, RouteErrorKind};
+use crate::utils::error::AppError;
 use rocket::State;
 use rocket_contrib::json::{Json, JsonValue};
 
@@ -47,7 +48,8 @@ pub fn create_submission(
             "id": submission.id
         }))),
         Err(err) => {
-            println!("Error occurred {}", err);
+            //println!("Error occurred {}", err);
+            err.print_stacktrace();
             Err(ApiResponse::conflict_with_error(err))
         }
     }

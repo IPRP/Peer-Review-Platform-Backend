@@ -79,13 +79,13 @@ impl AppError for DbError {
         self.error.to_string()
     }
 
-    fn fmt_error(&self, f: &mut Formatter<'_>) -> Result<(), fmt::Error> {
-        write!(f, "DbError ({:?}): {:?}", self.kind, self.error)
+    fn get_error_msg(&self) -> String {
+        format!("DbError ({:?}): {:?}", self.kind, self.error)
     }
 }
 
 impl fmt::Display for DbError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        self.fmt_stacktrace(f)
+        write!(f, "{}", self.get_stacktrace())
     }
 }
