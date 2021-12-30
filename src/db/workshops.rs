@@ -1,6 +1,7 @@
 //! CRUD operations for workshops.
 
 use crate::db;
+use crate::db::error::{DbError, DbErrorKind};
 use crate::db::models::*;
 use crate::schema::criteria::dsl::{
     criteria as criteria_t, criterion as criteria_criterion, workshop as criteria_workshop,
@@ -17,7 +18,8 @@ use crate::schema::workshoplist::dsl::{
     role as wsl_role, user as wsl_user, workshop as wsl_ws, workshoplist as workshoplist_t,
 };
 use crate::schema::workshops::dsl::{
-    anonymous as ws_anonymous, id as ws_id, workshops as workshops_t,
+    anonymous as ws_anonymous, id as ws_id, reviewtimespan as ws_reviewtimespan,
+    workshops as workshops_t,
 };
 use diesel::prelude::*;
 use diesel::result::Error;
@@ -559,4 +561,23 @@ pub fn is_anonymous(conn: &MysqlConnection, workshop_id: u64) -> bool {
     }
     let anonymous = anonymous.unwrap();
     anonymous
+}
+
+/// Get review timespan
+pub fn get_review_timespan(
+    conn: &MysqlConnection,
+    workshop_id: u64,
+) -> Result<chrono::Duration, DbError> {
+    let minutes: QueryResult<i64> = workshops_t
+        .select(ws_reviewtimespan)
+        .filter(ws_id.eq(workshop_id))
+        .first(conn);
+    if minutes.is_err() {
+        return Err(DbError::new(
+            DbErrorKind::ReadFailed,
+            format!("Review Timespan for Workshop {} not found ", workshop_id),
+        ));
+    }
+    let review_timespan = chrono::Duration::minutes(minutes.unwrap());
+    Ok(review_timespan)
 }

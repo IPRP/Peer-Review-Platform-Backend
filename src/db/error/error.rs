@@ -89,3 +89,9 @@ impl fmt::Display for DbError {
         write!(f, "{}", self.get_stacktrace())
     }
 }
+
+impl fmt::Debug for DbError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.get_stacktrace())
+    }
+}

@@ -69,3 +69,9 @@ impl fmt::Display for RouteError {
         write!(f, "{}", self.get_stacktrace())
     }
 }
+
+impl fmt::Debug for RouteError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.get_stacktrace())
+    }
+}

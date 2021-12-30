@@ -3,7 +3,8 @@
 use crate::db;
 use crate::db::models::*;
 use crate::db::ReviewTimespan;
-use chrono::Local;
+use chrono::{Duration, Local};
+use std::ops::Add;
 
 use crate::db::error::{DbError, DbErrorKind};
 use crate::schema::criterion::dsl::{criterion as criterion_t, id as c_id};
@@ -22,7 +23,6 @@ use diesel::result::Error;
 /// Create a new submission for a workshop.
 pub fn create<'a>(
     conn: &MysqlConnection,
-    review_timespan: &ReviewTimespan,
     title: String,
     comment: String,
     attachments: Vec<u64>,
@@ -38,7 +38,13 @@ pub fn create<'a>(
         ));
     }
 
-    // TODO: query review_timespan from workshop
+    // Calculate deadline with review timespan from workshop
+    let review_timespan = crate::db::workshops::get_review_timespan(conn, workshop_id);
+    if let Err(err) = review_timespan {
+        return Err(err);
+    }
+    let review_timespan = review_timespan.unwrap();
+    let deadline = date.add(review_timespan);
 
     let new_submission = NewSubmission {
         title,
@@ -46,7 +52,7 @@ pub fn create<'a>(
         student: student_id,
         workshop: workshop_id,
         date,
-        deadline: date, // TODO
+        deadline,
         locked: false,
         reviewsdone: false,
         error: false,
@@ -125,14 +131,7 @@ pub fn create<'a>(
         }
 
         // Assign reviews
-        let assign = db::reviews::assign(
-            conn,
-            review_timespan,
-            date,
-            submission.id,
-            student_id,
-            workshop_id,
-        );
+        let assign = db::reviews::assign(conn, submission.id, student_id, workshop_id, deadline);
         if assign.is_err() {
             return DbError::assign_and_rollback(
                 &mut t_error,

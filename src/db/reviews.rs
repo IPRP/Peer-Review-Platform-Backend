@@ -40,15 +40,11 @@ use std::convert::TryInto;
 /// Assign reviews from a given submission.
 pub fn assign(
     conn: &MysqlConnection,
-    review_timespan: &ReviewTimespan,
-    date: chrono::NaiveDateTime,
     submission_id: u64,
     submission_student_id: u64,
     workshop_id: u64,
+    deadline: chrono::NaiveDateTime,
 ) -> Result<(), DbError> {
-    // Calculate deadline
-    let deadline = review_timespan.deadline(&date);
-
     // Get (at max) 3 users who have the least count of reviews for this particular workshop
     /* Based on: https://stackoverflow.com/a/2838527/12347616
            select user, count(reviewer)

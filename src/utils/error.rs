@@ -1,6 +1,6 @@
-use std::fmt::{Display, Formatter};
+use std::fmt::{Debug, Display};
 
-pub trait AppError: Display {
+pub trait AppError: Display + Debug {
     fn source(&self) -> Option<&(dyn AppError + 'static)>;
     fn description(&self) -> String;
 
@@ -28,19 +28,3 @@ pub fn inner_stacktrace_processing(error: Option<&(dyn AppError + 'static)>, buf
         buffer.push_str("\n");
     }
 }
-
-// impl Display for dyn AppError {
-//     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-//         stacktrace(self.source(), f);
-//         AppError::fmt_error(self, f);
-//         Ok(())
-//     }
-// }
-
-// pub fn stacktrace(error: Option<&(dyn AppError + 'static)>, f: &mut Formatter<'_>) {
-//     if let Some(inner_error) = error {
-//         stacktrace(inner_error.source(), f);
-//         let _ = writeln!(f);
-//         let _ = AppError::fmt_error(inner_error, f);
-//     }
-// }
