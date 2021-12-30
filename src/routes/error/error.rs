@@ -16,6 +16,7 @@ impl fmt::Display for RouteErrorKind {
 
 pub struct RouteError {
     kind: RouteErrorKind,
+    source: Option<Box<dyn AppError>>,
     error: Box<dyn Error + Send + Sync>,
 }
 
@@ -26,12 +27,34 @@ impl RouteError {
     {
         RouteError {
             kind,
+            source: None,
+            error: error.into(),
+        }
+    }
+
+    pub fn new_with_source<E, S>(kind: RouteErrorKind, error: E, source: S) -> RouteError
+    where
+        E: Into<Box<dyn Error + Send + Sync>>,
+        S: Into<Box<dyn AppError>>,
+    {
+        RouteError {
+            kind,
+            source: Some(source.into()),
             error: error.into(),
         }
     }
 }
 
 impl AppError for RouteError {
+    fn source(&self) -> Option<&(dyn AppError + 'static)> {
+        // See: https://stackoverflow.com/a/65659930/12347616
+        if let Some(source) = &self.source {
+            Some(&**source)
+        } else {
+            None
+        }
+    }
+
     fn description(&self) -> String {
         self.error.to_string()
     }
@@ -39,6 +62,7 @@ impl AppError for RouteError {
 
 impl fmt::Display for RouteError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        crate::utils::error::fmt_source(self.source(), f);
         write!(f, "DbError ({:?}): {:?}", self.kind, self.error)
     }
 }
