@@ -453,10 +453,7 @@ fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), Db
         .first(conn);
     if submission.is_err() {
         // Submission points are already calculated or not finished yet
-        return Err(DbError::new(
-            DbErrorKind::ReadFailed,
-            format!("Submission {} not found", submission_id),
-        ));
+        return Ok(());
     }
 
     // Submission was not processed yet

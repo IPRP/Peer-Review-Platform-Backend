@@ -30,7 +30,7 @@ use crate::schema::workshoplist::dsl::{
 use crate::schema::workshops::dsl::{id as ws_id, workshops as workshops_t};
 use chrono::{Duration, Local, TimeZone, Utc};
 use diesel::connection::SimpleConnection;
-use diesel::dsl::exists;
+use diesel::dsl::{exists, not};
 use diesel::prelude::*;
 use diesel::result::Error;
 use diesel::select;
@@ -364,9 +364,9 @@ pub(crate) fn close_reviews(conn: &MysqlConnection, submission_id: u64) -> Resul
                 // Check if review was done
                 // If not, mark as error case
                 // --------------------------
-                // exists(select * from reviewpoints where review={id})
-                let error =
-                    select(exists(reviewpoints_t.filter(rp_review.eq(review.id)))).get_result(conn);
+                // not(exists(select * from reviewpoints where review={id}))
+                let error = select(not(exists(reviewpoints_t.filter(rp_review.eq(review.id)))))
+                    .get_result(conn);
                 if error.is_err() {
                     return DbError::assign_and_rollback(
                         &mut t_error,
