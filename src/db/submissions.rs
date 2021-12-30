@@ -13,9 +13,9 @@ use crate::schema::submissioncriteria::dsl::{
     criterion as subcrit_crit, submission as subcrit_sub, submissioncriteria as subcrit_t,
 };
 use crate::schema::submissions::dsl::{
-    error as sub_error, id as sub_id, locked as sub_locked, meanpoints as sub_meanpoints,
-    reviewsdone as sub_reviews_done, student as sub_student, submissions as submissions_t,
-    workshop as sub_workshop,
+    deadline as sub_deadline, error as sub_error, id as sub_id, locked as sub_locked,
+    meanpoints as sub_meanpoints, reviewsdone as sub_reviews_done, student as sub_student,
+    submissions as submissions_t, workshop as sub_workshop,
 };
 use diesel::prelude::*;
 use diesel::result::Error;
@@ -429,7 +429,8 @@ pub fn get_student_workshop_submissions(
     get_workshop_submissions_internal(conn, workshop_id, student_id, false)
 }
 
-// Calculate points of a submission.
+/// Calculate points of a submission.
+/// Also closes all pending reviews.
 fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), DbError> {
     // let submission = submissions_t
     //     .filter(
@@ -440,7 +441,16 @@ fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), Db
     //         ),
     //     )
     //     .first(conn);
-    let submission = submissions_t.filter(sub_id.eq(submission_id)).first(conn);
+
+    // Get submission past deadline with no calculated points
+    let now = Local::now().naive_local();
+    let submission = submissions_t
+        .filter(
+            sub_id
+                .eq(submission_id)
+                .and(sub_reviews_done.eq(false).and(sub_deadline.lt(now))),
+        )
+        .first(conn);
     if submission.is_err() {
         // Submission points are already calculated or not finished yet
         return Err(DbError::new(
@@ -448,14 +458,12 @@ fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), Db
             format!("Submission {} not found", submission_id),
         ));
     }
+
+    // Submission was not processed yet
+    // --------------------------------
     let mut submission: Submission = submission.unwrap();
-    // If past deadline lock submission
-
-    // TODO: date shows creation date, not deadline!
-    let mut test = Local::now().naive_local();
-    test += chrono::Duration::minutes(20);
-
-    if Local::now().naive_local() > submission.date && !submission.locked {
+    // If not already locked, lock it now
+    if !submission.locked {
         let lock = db::submissions::lock(conn, submission_id);
         if lock.is_err() {
             return Err(DbError::new(
@@ -463,13 +471,11 @@ fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), Db
                 "Submission Lock failed",
             ));
         }
+        submission.locked = true;
     }
-    // If review points are already calculated return safely
-    if submission.reviewsdone {
-        return Ok(());
-    }
-    // If not, first close all reviews and calculate points
-    // ---------------------------------------------------
+
+    // Close all reviews
+    // -----------------
     let close = db::reviews::close_reviews(conn, submission_id);
     if close.is_err() {
         return Err(DbError::new(
@@ -482,8 +488,10 @@ fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), Db
     if let Err(err) = reviews {
         return Err(err);
     }
-    let reviews = reviews.ok().unwrap();
-    // Perform updates
+    let reviews = reviews.unwrap();
+
+    // Calculate points
+    // ----------------
     let mut t_error: Result<(), DbError> = Ok(());
     let res = conn.transaction::<_, _, _>(|| {
         // If there are no reviews, a submissions cannot be graded
@@ -504,8 +512,6 @@ fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), Db
                 );
             }
         } else {
-            // TODO Streamline Calculate points, because input is now validated/corrected
-
             // Calculate mean points and max points (based on criterion and weights)
             // Max points
             let point_range = 10.0;
@@ -521,15 +527,15 @@ fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), Db
                 let mut review_mean_points = 0.0;
                 for point in points {
                     let weighted_points = match point.kind {
-                        Kind::Point => (point.points % (point_range + 1.0)) * point.weight,
+                        Kind::Point => point.points * point.weight,
                         Kind::Grade => match point.points.round() as i64 {
-                            1 => point_range,
-                            2 => point_range * 0.8,
-                            3 => point_range * 0.6,
-                            4 => point_range * 0.5,
+                            1 => point_range * point.weight,
+                            2 => point_range * 0.8 * point.weight,
+                            3 => point_range * 0.6 * point.weight,
+                            4 => point_range * 0.5 * point.weight,
                             _ => 0.0,
                         },
-                        Kind::Percentage => ((point.points % 101.0) / point_range) * point.weight,
+                        Kind::Percentage => point.points * point.weight,
                         Kind::Truefalse => match point.points.round() as i64 {
                             1 => point_range * point.weight,
                             _ => 0.0,
