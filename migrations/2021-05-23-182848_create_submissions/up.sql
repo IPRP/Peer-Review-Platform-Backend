@@ -64,6 +64,6 @@ CREATE TABLE reviewpoints
     criterion BIGINT UNSIGNED NOT NULL,
     points    DOUBLE,
     PRIMARY KEY (review, criterion),
-    FOREIGN KEY (review) REFERENCES submissions (id) ON DELETE CASCADE,
+    FOREIGN KEY (review) REFERENCES reviews (id) ON DELETE CASCADE,
     FOREIGN KEY (criterion) REFERENCES criterion (id) ON DELETE CASCADE
 );

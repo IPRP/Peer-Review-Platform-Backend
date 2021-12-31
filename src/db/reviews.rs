@@ -309,6 +309,7 @@ pub fn update(
         // Drop already given review points
         let delete = diesel::delete(reviewpoints_t.filter(rp_review.eq(review_id))).execute(conn);
         if delete.is_err() {
+            // println!("E {}", delete.err().unwrap());
             return DbError::assign_and_rollback(
                 &mut t_error,
                 DbError::new(DbErrorKind::DeleteFailed, "Review Points Delete failed"),
@@ -320,6 +321,7 @@ pub fn update(
             .values(&review_points)
             .execute(conn);
         if insert.is_err() {
+            // println!("E {}", insert.err().unwrap());
             return DbError::assign_and_rollback(
                 &mut t_error,
                 DbError::new(DbErrorKind::CreateFailed, "Review Insert failed"),
