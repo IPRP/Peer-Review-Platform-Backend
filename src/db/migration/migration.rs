@@ -124,6 +124,7 @@ pub struct ReviewTimespan {
 
 impl ReviewTimespan {
     /// Calculate deadline for given date.
+    #[allow(dead_code)]
     pub fn deadline(&self, date: &chrono::NaiveDateTime) -> chrono::NaiveDateTime {
         *date
             + Duration::days(self.days)

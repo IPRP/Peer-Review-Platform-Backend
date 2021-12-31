@@ -32,6 +32,7 @@ impl RouteError {
         }
     }
 
+    #[allow(dead_code)]
     pub fn new_with_source<E, S>(kind: RouteErrorKind, error: E, source: S) -> RouteError
     where
         E: Into<Box<dyn Error + Send + Sync>>,

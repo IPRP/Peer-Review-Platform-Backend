@@ -21,6 +21,7 @@ use crate::schema::workshoplist::dsl::{
 use crate::schema::workshops::dsl::{
     end as ws_end, id as ws_id, title as ws_title, workshops as workshops_t,
 };
+use crate::utils::error::AppError;
 use chrono::Local;
 use diesel::dsl::exists;
 use diesel::dsl::not;
@@ -55,7 +56,13 @@ pub fn get(conn: &MysqlConnection, student_id: u64) -> Result<Todo, DbError> {
     let submissions_to_close = submissions_to_close.unwrap();
     // Process finished submissions
     for submission_id in submissions_to_close {
-        calculate_points(conn, submission_id);
+        if let Err(source_err) = calculate_points(conn, submission_id) {
+            return Err(DbError::new_with_source(
+                DbErrorKind::UpdateFailed,
+                "Could not process finished Submissions",
+                Box::new(source_err) as Box<dyn AppError>,
+            ));
+        }
     }
 
     // Query reviews that can still be updated (deadline not reached yet)

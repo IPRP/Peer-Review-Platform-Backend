@@ -1,10 +1,8 @@
 use crate::db::models::*;
 use crate::{db, IprpDB};
-use rocket::data::{FromDataSimple, Outcome};
 use rocket::http::{Cookie, Cookies, Status};
-use rocket::{Data, Request};
 
-use crate::routes::models::{ApiResponse, RouteCreateStudent, RouteCreateTeacher};
+use crate::routes::models::{RouteCreateStudent, RouteCreateTeacher};
 use rocket_contrib::json;
 use rocket_contrib::json::{Json, JsonValue};
 

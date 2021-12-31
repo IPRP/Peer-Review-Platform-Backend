@@ -1,24 +1,21 @@
 //! CRUD operations for submissions.
 
 use crate::db;
-use crate::db::models::*;
-use crate::db::ReviewTimespan;
-use chrono::{Duration, Local};
-use std::ops::Add;
-
 use crate::db::error::{DbError, DbErrorKind};
+use crate::db::models::*;
 use crate::schema::criterion::dsl::{criterion as criterion_t, id as c_id};
 use crate::schema::submissionattachments::dsl::submissionattachments as subatt_t;
 use crate::schema::submissioncriteria::dsl::{
     criterion as subcrit_crit, submission as subcrit_sub, submissioncriteria as subcrit_t,
 };
 use crate::schema::submissions::dsl::{
-    deadline as sub_deadline, error as sub_error, id as sub_id, locked as sub_locked,
-    meanpoints as sub_meanpoints, reviewsdone as sub_reviews_done, student as sub_student,
-    submissions as submissions_t, workshop as sub_workshop,
+    deadline as sub_deadline, id as sub_id, locked as sub_locked, reviewsdone as sub_reviews_done,
+    student as sub_student, submissions as submissions_t, workshop as sub_workshop,
 };
+use chrono::Local;
 use diesel::prelude::*;
 use diesel::result::Error;
+use std::ops::Add;
 
 /// Create a new submission for a workshop.
 pub fn create<'a>(

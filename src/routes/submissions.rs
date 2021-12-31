@@ -1,5 +1,4 @@
 use crate::db::models::*;
-use crate::db::ReviewTimespan;
 use crate::routes::models::{ApiResponse, RouteNewSubmission, RouteUpdateReview};
 use crate::utils;
 use crate::{db, IprpDB};
@@ -7,7 +6,6 @@ use chrono::Local;
 
 use crate::routes::error::{RouteError, RouteErrorKind};
 use crate::utils::error::AppError;
-use rocket::State;
 use rocket_contrib::json::{Json, JsonValue};
 
 /// Create new submission.

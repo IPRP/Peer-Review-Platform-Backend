@@ -3,7 +3,6 @@
 use crate::db;
 use crate::db::error::{DbError, DbErrorKind};
 use crate::db::models::*;
-use crate::db::ReviewTimespan;
 use crate::routes::models::RouteUpdateReview;
 use crate::schema::criterion::dsl::{
     content as c_content, criterion as criterion_t, id as c_id, kind as c_kind, title as c_title,
@@ -28,8 +27,7 @@ use crate::schema::workshoplist::dsl::{
     role as wsl_role, user as wsl_user, workshop as wsl_ws, workshoplist as workshoplist_t,
 };
 use crate::schema::workshops::dsl::{id as ws_id, workshops as workshops_t};
-use chrono::{Duration, Local, TimeZone, Utc};
-use diesel::connection::SimpleConnection;
+use chrono::Local;
 use diesel::dsl::{exists, not};
 use diesel::prelude::*;
 use diesel::result::Error;
@@ -115,7 +113,7 @@ pub fn assign(
             "Could not get reviews",
         ));
     }
-    let reviews: Vec<Review> = reviews.unwrap();
+    //let reviews: Vec<Review> = reviews.unwrap();
 
     /*// Create events that close reviews
     // See: https://docs.rs/chrono/0.4.0/chrono/naive/struct.NaiveDateTime.html#example-14

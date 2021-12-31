@@ -5,6 +5,7 @@ use std::fmt::{Debug, Formatter};
 
 // Inspired by https://doc.rust-lang.org/std/io/enum.ErrorKind.html
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum DbErrorKind {
     NotFound,
     PastDeadline,
