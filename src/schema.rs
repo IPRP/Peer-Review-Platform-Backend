@@ -100,6 +100,7 @@ table! {
         error -> Bool,
         meanpoints -> Nullable<Double>,
         maxpoint -> Nullable<Double>,
+        deadline -> Datetime,
     }
 }
 
@@ -149,6 +150,7 @@ table! {
         content -> Text,
         end -> Datetime,
         anonymous -> Bool,
+        reviewtimespan -> Bigint,
     }
 }
 

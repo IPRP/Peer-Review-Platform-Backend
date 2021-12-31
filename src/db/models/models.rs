@@ -182,6 +182,8 @@ pub struct TeacherWorkshop {
     pub title: String,
     pub content: String,
     pub end: chrono::NaiveDateTime,
+    #[serde(rename(serialize = "reviewTimespan"))]
+    pub review_timespan: i64,
     pub anonymous: bool,
     pub students: Vec<WorkshopUser>,
     pub teachers: Vec<WorkshopUser>,

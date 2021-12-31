@@ -1,14 +1,16 @@
 //! CRUD operations for submissions.
 
 use crate::db;
+use crate::db::error::{DbError, DbErrorKind};
 use crate::db::models::*;
+use crate::db::submissions::calculate_points;
 use crate::schema::reviews::dsl::{
     deadline as review_deadline, done as review_done, id as review_id, locked as review_locked,
     reviewer, reviews as reviews_t, submission as review_submission,
 };
 use crate::schema::submissions::dsl::{
-    id as sub_id, student as sub_student, submissions as submissions_t, title as sub_title,
-    workshop as sub_ws,
+    deadline as sub_deadline, id as sub_id, reviewsdone as sub_reviews_done,
+    student as sub_student, submissions as submissions_t, title as sub_title, workshop as sub_ws,
 };
 use crate::schema::users::dsl::{
     firstname as user_firstname, id as user_id, lastname as user_lastname, users as users_t,
@@ -19,13 +21,52 @@ use crate::schema::workshoplist::dsl::{
 use crate::schema::workshops::dsl::{
     end as ws_end, id as ws_id, title as ws_title, workshops as workshops_t,
 };
+use crate::utils::error::AppError;
 use chrono::Local;
 use diesel::dsl::exists;
 use diesel::dsl::not;
 use diesel::prelude::*;
 
 /// Get student T O D O.
-pub fn get(conn: &MysqlConnection, student_id: u64) -> Result<Todo, ()> {
+pub fn get(conn: &MysqlConnection, student_id: u64) -> Result<Todo, DbError> {
+    // Query Submission IDs to related Submissions/Reviews where points & reviews
+    // were not processed yet
+    // --------------------------------------------------------------------------
+    let now = Local::now().naive_local();
+    let submissions_to_close: QueryResult<Vec<u64>> = reviews_t
+        .inner_join(submissions_t.on(sub_id.eq(review_submission)))
+        .inner_join(workshops_t.on(ws_id.eq(sub_ws)))
+        .inner_join(users_t.on(user_id.nullable().eq(sub_student.nullable())))
+        .filter(
+            reviewer.eq(student_id).and(
+                review_locked
+                    .eq(false)
+                    .and(sub_reviews_done.eq(false).and(sub_deadline.lt(now))),
+            ),
+        )
+        .select(sub_id)
+        .get_results::<u64>(conn);
+
+    if submissions_to_close.is_err() {
+        return Err(DbError::new(
+            DbErrorKind::ReadFailed,
+            "Could not query done Submissions",
+        ));
+    }
+    let submissions_to_close = submissions_to_close.unwrap();
+    // Process finished submissions
+    for submission_id in submissions_to_close {
+        if let Err(source_err) = calculate_points(conn, submission_id) {
+            return Err(DbError::new_with_source(
+                DbErrorKind::UpdateFailed,
+                "Could not process finished Submissions",
+                Box::new(source_err) as Box<dyn AppError>,
+            ));
+        }
+    }
+
+    // Query reviews that can still be updated (deadline not reached yet)
+    // ------------------------------------------------------------------
     /*
     select r.id, r.done, r.deadline, s.id, u.firstname, u.lastname, w.title
          from reviews r
@@ -34,7 +75,6 @@ pub fn get(conn: &MysqlConnection, student_id: u64) -> Result<Todo, ()> {
          inner join users u on s.student=u.id
          where s.student=4;
      */
-
     let raw_reviews = reviews_t
         .inner_join(submissions_t.on(sub_id.eq(review_submission)))
         .inner_join(workshops_t.on(ws_id.eq(sub_ws)))
@@ -64,7 +104,10 @@ pub fn get(conn: &MysqlConnection, student_id: u64) -> Result<Todo, ()> {
         )>(conn);
 
     if raw_reviews.is_err() {
-        return Err(());
+        return Err(DbError::new(
+            DbErrorKind::ReadFailed,
+            "Could not query Reviews",
+        ));
     }
     let raw_reviews = raw_reviews.unwrap();
 
@@ -90,9 +133,9 @@ pub fn get(conn: &MysqlConnection, student_id: u64) -> Result<Todo, ()> {
         })
         .collect();
 
-    // Filter only current workshops
-    let date = Local::now().naive_local();
-
+    // Get Workshops where no Submissions were placed yet
+    // Also filter only current workshops
+    // --------------------------------------------------
     let raw_submissions = workshops_t
         .left_outer_join(workshoplist_t.on(ws_id.eq(wsl_ws)))
         .left_outer_join(users_t.on(user_id.eq(wsl_user)))
@@ -102,13 +145,16 @@ pub fn get(conn: &MysqlConnection, student_id: u64) -> Result<Todo, ()> {
                 .and(not(exists(
                     submissions_t.filter(sub_student.eq(student_id).and(sub_ws.eq(ws_id))),
                 )))
-                .and(ws_end.ge(date)),
+                .and(ws_end.ge(now)),
         )
         .select((ws_id, ws_title))
         .get_results::<(u64, String)>(conn);
 
     if raw_submissions.is_err() {
-        return Err(());
+        return Err(DbError::new(
+            DbErrorKind::ReadFailed,
+            "Could not query Submissions",
+        ));
     }
     let raw_submissions = raw_submissions.unwrap();
 

@@ -1,12 +1,11 @@
 use crate::db::models::*;
-use crate::db::ReviewTimespan;
 use crate::routes::models::{ApiResponse, RouteNewSubmission, RouteUpdateReview};
 use crate::utils;
 use crate::{db, IprpDB};
 use chrono::Local;
 
 use crate::routes::error::{RouteError, RouteErrorKind};
-use rocket::State;
+use crate::utils::error::AppError;
 use rocket_contrib::json::{Json, JsonValue};
 
 /// Create new submission.
@@ -18,7 +17,6 @@ use rocket_contrib::json::{Json, JsonValue};
 pub fn create_submission(
     user: User,
     conn: IprpDB,
-    review_timespan: State<ReviewTimespan>,
     workshop_id: u64,
     new_submission: RouteNewSubmission,
 ) -> Result<Json<JsonValue>, ApiResponse> {
@@ -32,7 +30,6 @@ pub fn create_submission(
 
     let submission = db::submissions::create(
         &*conn,
-        review_timespan.inner(),
         new_submission.title,
         new_submission.comment,
         Vec::from(new_submission.attachments),
@@ -47,7 +44,8 @@ pub fn create_submission(
             "id": submission.id
         }))),
         Err(err) => {
-            println!("Error occurred {}", err);
+            //println!("Error occurred {}", err);
+            err.print_stacktrace();
             Err(ApiResponse::conflict_with_error(err))
         }
     }

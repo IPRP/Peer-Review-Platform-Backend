@@ -1,27 +1,25 @@
 //! CRUD operations for submissions.
 
 use crate::db;
-use crate::db::models::*;
-use crate::db::ReviewTimespan;
-
 use crate::db::error::{DbError, DbErrorKind};
+use crate::db::models::*;
 use crate::schema::criterion::dsl::{criterion as criterion_t, id as c_id};
 use crate::schema::submissionattachments::dsl::submissionattachments as subatt_t;
 use crate::schema::submissioncriteria::dsl::{
     criterion as subcrit_crit, submission as subcrit_sub, submissioncriteria as subcrit_t,
 };
 use crate::schema::submissions::dsl::{
-    error as sub_error, id as sub_id, locked as sub_locked, meanpoints as sub_meanpoints,
-    reviewsdone as sub_reviews_done, student as sub_student, submissions as submissions_t,
-    workshop as sub_workshop,
+    deadline as sub_deadline, id as sub_id, locked as sub_locked, reviewsdone as sub_reviews_done,
+    student as sub_student, submissions as submissions_t, workshop as sub_workshop,
 };
+use chrono::Local;
 use diesel::prelude::*;
 use diesel::result::Error;
+use std::ops::Add;
 
 /// Create a new submission for a workshop.
 pub fn create<'a>(
     conn: &MysqlConnection,
-    review_timespan: &ReviewTimespan,
     title: String,
     comment: String,
     attachments: Vec<u64>,
@@ -37,12 +35,21 @@ pub fn create<'a>(
         ));
     }
 
+    // Calculate deadline with review timespan from workshop
+    let review_timespan = crate::db::workshops::get_review_timespan(conn, workshop_id);
+    if let Err(err) = review_timespan {
+        return Err(err);
+    }
+    let review_timespan = review_timespan.unwrap();
+    let deadline = date.add(review_timespan);
+
     let new_submission = NewSubmission {
         title,
         comment,
         student: student_id,
         workshop: workshop_id,
         date,
+        deadline,
         locked: false,
         reviewsdone: false,
         error: false,
@@ -121,14 +128,7 @@ pub fn create<'a>(
         }
 
         // Assign reviews
-        let assign = db::reviews::assign(
-            conn,
-            review_timespan,
-            date,
-            submission.id,
-            student_id,
-            workshop_id,
-        );
+        let assign = db::reviews::assign(conn, submission.id, student_id, workshop_id, deadline);
         if assign.is_err() {
             return DbError::assign_and_rollback(
                 &mut t_error,
@@ -426,35 +426,72 @@ pub fn get_student_workshop_submissions(
     get_workshop_submissions_internal(conn, workshop_id, student_id, false)
 }
 
-// Calculate points of a submission.
-fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), DbError> {
+/// Calculate points of a submission.
+/// Also closes all pending reviews.
+pub(crate) fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), DbError> {
+    // let submission = submissions_t
+    //     .filter(
+    //         sub_id.eq(submission_id).and(
+    //             sub_reviews_done
+    //                 .eq(true)
+    //                 .and(sub_meanpoints.is_null().and(sub_error.eq(false))),
+    //         ),
+    //     )
+    //     .first(conn);
+
+    // Get submission past deadline with no calculated points
+    let now = Local::now().naive_local();
     let submission = submissions_t
         .filter(
-            sub_id.eq(submission_id).and(
-                sub_reviews_done
-                    .eq(true)
-                    .and(sub_meanpoints.is_null().and(sub_error.eq(false))),
-            ),
+            sub_id
+                .eq(submission_id)
+                .and(sub_reviews_done.eq(false).and(sub_deadline.lt(now))),
         )
         .first(conn);
-
     if submission.is_err() {
         // Submission points are already calculated or not finished yet
         return Ok(());
     }
+
+    // Submission was not processed yet
+    // --------------------------------
     let mut submission: Submission = submission.unwrap();
+    // If not already locked, lock it now
+    if !submission.locked {
+        let lock = db::submissions::lock(conn, submission_id);
+        if lock.is_err() {
+            return Err(DbError::new(
+                DbErrorKind::UpdateFailed,
+                "Submission Lock failed",
+            ));
+        }
+        submission.locked = true;
+    }
+
+    // Close all reviews
+    // -----------------
+    let close = db::reviews::close_reviews(conn, submission_id);
+    if close.is_err() {
+        return Err(DbError::new(
+            DbErrorKind::UpdateFailed,
+            "Review Close failed",
+        ));
+    }
     // Get all reviews without errors
     let reviews = db::reviews::get_simple_review_points(conn, submission_id);
     if let Err(err) = reviews {
         return Err(err);
     }
-    let reviews = reviews.ok().unwrap();
-    // Perform updates
+    let reviews = reviews.unwrap();
+
+    // Calculate points
+    // ----------------
     let mut t_error: Result<(), DbError> = Ok(());
     let res = conn.transaction::<_, _, _>(|| {
         // If there are no reviews, a submissions cannot be graded
         if reviews.len() == 0 {
             // Save error state
+            submission.reviewsdone = true;
             submission.error = true;
             let update = diesel::update(submissions_t.filter(sub_id.eq(submission.id)))
                 .set(&submission)
@@ -469,8 +506,6 @@ fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), Db
                 );
             }
         } else {
-            // TODO Streamline Calculate points, because input is now validated/corrected
-
             // Calculate mean points and max points (based on criterion and weights)
             // Max points
             let point_range = 10.0;
@@ -486,15 +521,15 @@ fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), Db
                 let mut review_mean_points = 0.0;
                 for point in points {
                     let weighted_points = match point.kind {
-                        Kind::Point => (point.points % (point_range + 1.0)) * point.weight,
+                        Kind::Point => point.points * point.weight,
                         Kind::Grade => match point.points.round() as i64 {
-                            1 => point_range,
-                            2 => point_range * 0.8,
-                            3 => point_range * 0.6,
-                            4 => point_range * 0.5,
+                            1 => point_range * point.weight,
+                            2 => point_range * 0.8 * point.weight,
+                            3 => point_range * 0.6 * point.weight,
+                            4 => point_range * 0.5 * point.weight,
                             _ => 0.0,
                         },
-                        Kind::Percentage => ((point.points % 101.0) / point_range) * point.weight,
+                        Kind::Percentage => point.points * point.weight,
                         Kind::Truefalse => match point.points.round() as i64 {
                             1 => point_range * point.weight,
                             _ => 0.0,
@@ -506,6 +541,7 @@ fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), Db
             }
             mean_points /= reviews.len() as f64;
             // Update submission
+            submission.reviewsdone = true;
             submission.maxpoint = Some(max_points);
             submission.meanpoints = Some(mean_points);
             let update = diesel::update(submissions_t.filter(sub_id.eq(submission.id)))

@@ -1,10 +1,8 @@
 use crate::db::models::*;
 use crate::{db, IprpDB};
-use rocket::data::{FromDataSimple, Outcome};
 use rocket::http::{Cookie, Cookies, Status};
-use rocket::{Data, Request};
 
-use crate::routes::models::{ApiResponse, RouteCreateStudent, RouteCreateTeacher};
+use crate::routes::models::{RouteCreateStudent, RouteCreateTeacher};
 use rocket_contrib::json;
 use rocket_contrib::json::{Json, JsonValue};
 
@@ -75,7 +73,7 @@ pub fn create_teacher(
     };
 }
 
-// See: https://github.com/Keats/validator
+/*// See: https://github.com/Keats/validator
 use crate::routes::validation::SimpleValidation;
 use validator::{Validate, ValidationError, ValidationErrors};
 
@@ -170,4 +168,4 @@ mod tests {
         };
         assert!(vt.validate().is_err());
     }
-}
+}*/

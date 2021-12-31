@@ -51,12 +51,12 @@ fn main() {
     .unwrap();
     // Launch Rocket
     rocket::ignite()
-        .attach(IprpDB::fairing())
-        .attach(AdHoc::on_attach("Database Migration", db::run_db_migration))
         .attach(AdHoc::on_attach(
             "Review Configuration",
             db::setup_review_timespan,
         ))
+        .attach(IprpDB::fairing())
+        .attach(AdHoc::on_attach("Database Migration", db::run_db_migration))
         .attach(cors)
         .mount(
             "/",
@@ -81,8 +81,6 @@ fn main() {
                 routes::submissions::get_submission,
                 routes::submissions::update_review,
                 routes::submissions::get_review,
-                routes::users::validation_test,
-                routes::users::validation_test2
             ],
         )
         .register(catchers![routes::validation::catcher::unprocessable_entity,])

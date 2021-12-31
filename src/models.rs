@@ -85,6 +85,7 @@ impl NewTeacher {
     }
 }
 
+// TODO add field deadline
 #[derive(Queryable, AsChangeset, Clone)]
 pub struct Workshop {
     pub id: u64,
@@ -92,8 +93,10 @@ pub struct Workshop {
     pub content: String,
     pub end: chrono::NaiveDateTime,
     pub anonymous: bool,
+    pub reviewtimespan: i64,
 }
 
+// TODO add field review_timespan: days, hours, minutes => convert to minutes => minutes (i64)
 #[derive(Insertable)]
 #[table_name = "workshops"]
 pub struct NewWorkshop {
@@ -101,6 +104,7 @@ pub struct NewWorkshop {
     pub content: String,
     pub end: chrono::NaiveDateTime,
     pub anonymous: bool,
+    pub reviewtimespan: i64,
 }
 
 #[derive(Insertable, Queryable, Clone)]
@@ -241,6 +245,7 @@ pub struct Submission {
     pub error: bool,
     pub meanpoints: Option<f64>,
     pub maxpoint: Option<f64>,
+    pub deadline: chrono::NaiveDateTime,
 }
 
 #[derive(Insertable, Queryable, Clone)]
@@ -251,6 +256,7 @@ pub struct NewSubmission {
     pub student: u64,
     pub workshop: u64,
     pub date: chrono::NaiveDateTime,
+    pub deadline: chrono::NaiveDateTime,
     pub locked: bool,
     pub reviewsdone: bool,
     pub error: bool,

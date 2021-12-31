@@ -3,7 +3,6 @@
 use crate::db;
 use crate::db::error::{DbError, DbErrorKind};
 use crate::db::models::*;
-use crate::db::ReviewTimespan;
 use crate::routes::models::RouteUpdateReview;
 use crate::schema::criterion::dsl::{
     content as c_content, criterion as criterion_t, id as c_id, kind as c_kind, title as c_title,
@@ -28,25 +27,22 @@ use crate::schema::workshoplist::dsl::{
     role as wsl_role, user as wsl_user, workshop as wsl_ws, workshoplist as workshoplist_t,
 };
 use crate::schema::workshops::dsl::{id as ws_id, workshops as workshops_t};
-use chrono::{Duration, Local, TimeZone, Utc};
-use diesel::connection::SimpleConnection;
+use chrono::Local;
+use diesel::dsl::{exists, not};
 use diesel::prelude::*;
 use diesel::result::Error;
+use diesel::select;
 use diesel::sql_types::BigInt;
 use std::convert::TryInto;
 
 /// Assign reviews from a given submission.
 pub fn assign(
     conn: &MysqlConnection,
-    review_timespan: &ReviewTimespan,
-    date: chrono::NaiveDateTime,
     submission_id: u64,
     submission_student_id: u64,
     workshop_id: u64,
+    deadline: chrono::NaiveDateTime,
 ) -> Result<(), DbError> {
-    // Calculate deadline
-    let deadline = review_timespan.deadline(&date);
-
     // Get (at max) 3 users who have the least count of reviews for this particular workshop
     /* Based on: https://stackoverflow.com/a/2838527/12347616
            select user, count(reviewer)
@@ -117,9 +113,9 @@ pub fn assign(
             "Could not get reviews",
         ));
     }
-    let reviews: Vec<Review> = reviews.unwrap();
+    //let reviews: Vec<Review> = reviews.unwrap();
 
-    // Create events that close reviews
+    /*// Create events that close reviews
     // See: https://docs.rs/chrono/0.4.0/chrono/naive/struct.NaiveDateTime.html#example-14
     // And: https://dev.mysql.com/doc/refman/8.0/en/create-event.html
     // And: https://stackoverflow.com/a/8763381/12347616
@@ -141,7 +137,7 @@ pub fn assign(
         ON SCHEDULE AT '{timestamp}'
         DO
           UPDATE reviews
-          SET done = 1, locked = 1, 
+          SET done = 1, locked = 1,
           error = CASE
             WHEN exists(select * from reviewpoints where review={id}) THEN 0
             ELSE 1
@@ -170,7 +166,7 @@ pub fn assign(
         ON SCHEDULE AT '{timestamp}'
         DO
           UPDATE submissions
-          SET reviewsdone = 1, locked = 1, 
+          SET reviewsdone = 1, locked = 1,
           error = CASE
             WHEN exists(select * from reviews where submission={id} and error=0) THEN 0
             ELSE 1
@@ -186,7 +182,7 @@ pub fn assign(
             DbErrorKind::EventCreateFailed,
             "Event Insert failed",
         ));
-    }
+    }*/
     /*
     select r.id, r.done, r.deadline, s.id, s.student, s.workshop
         from reviews r
@@ -311,6 +307,7 @@ pub fn update(
         // Drop already given review points
         let delete = diesel::delete(reviewpoints_t.filter(rp_review.eq(review_id))).execute(conn);
         if delete.is_err() {
+            // println!("E {}", delete.err().unwrap());
             return DbError::assign_and_rollback(
                 &mut t_error,
                 DbError::new(DbErrorKind::DeleteFailed, "Review Points Delete failed"),
@@ -322,6 +319,7 @@ pub fn update(
             .values(&review_points)
             .execute(conn);
         if insert.is_err() {
+            // println!("E {}", insert.err().unwrap());
             return DbError::assign_and_rollback(
                 &mut t_error,
                 DbError::new(DbErrorKind::CreateFailed, "Review Insert failed"),
@@ -339,6 +337,66 @@ pub fn update(
             DbErrorKind::TransactionFailed,
             "Unknown error",
         )))
+    }
+}
+
+pub(crate) fn close_reviews(conn: &MysqlConnection, submission_id: u64) -> Result<(), DbError> {
+    // Get all reviews
+    let reviews = reviews_t
+        .filter(reviews_sub.eq(submission_id))
+        .get_results::<Review>(conn);
+    if reviews.is_err() {
+        return Err(DbError::new(
+            DbErrorKind::ReadFailed,
+            format!("No Reviews for Submission {} found", submission_id),
+        ));
+    }
+    // Check if reviews are present
+    let reviews: Vec<Review> = reviews.unwrap();
+    if reviews.len() > 0 {
+        let mut t_error: Result<(), DbError> = Ok(());
+        let res = conn.transaction::<_, _, _>(|| {
+            // Iterate over found reviews
+            for mut review in reviews {
+                // Mark them as finished
+                review.done = true;
+                review.locked = true;
+                // Check if review was done
+                // If not, mark as error case
+                // --------------------------
+                // not(exists(select * from reviewpoints where review={id}))
+                let error = select(not(exists(reviewpoints_t.filter(rp_review.eq(review.id)))))
+                    .get_result(conn);
+                if error.is_err() {
+                    return DbError::assign_and_rollback(
+                        &mut t_error,
+                        DbError::new(DbErrorKind::ReadFailed, "Could not get Review state"),
+                    );
+                }
+                review.error = error.unwrap();
+                // Update review
+                let review_update = diesel::update(reviews_t.filter(reviews_id.eq(review.id)))
+                    .set(&review)
+                    .execute(conn);
+                if review_update.is_err() {
+                    return DbError::assign_and_rollback(
+                        &mut t_error,
+                        DbError::new(DbErrorKind::UpdateFailed, "Review Update failed"),
+                    );
+                }
+            }
+            Ok(())
+        });
+        if res.is_ok() {
+            Ok(())
+        } else {
+            Err(t_error.err().unwrap_or(DbError::new(
+                DbErrorKind::TransactionFailed,
+                "Unknown error",
+            )))
+        }
+    } else {
+        Ok(())
     }
 }
 

@@ -7,8 +7,10 @@ use crate::{db, IprpDB};
 
 use rocket::http::RawStr;
 use rocket::request::FromFormValue;
+use rocket::State;
 use validator::Validate;
 
+use crate::db::ReviewTimespan;
 use rocket_contrib::json::{Json, JsonValue};
 
 /// Get all workshops.
@@ -59,6 +61,7 @@ pub fn create_workshop(
     user: User,
     conn: IprpDB,
     mut new_workshop: RouteNewWorkshop,
+    review_timespan: State<ReviewTimespan>,
 ) -> Result<Json<JsonValue>, ApiResponse> {
     if user.role == Role::Student {
         return Err(ApiResponse::forbidden());
@@ -74,12 +77,19 @@ pub fn create_workshop(
         new_workshop.teachers.0.push(user.id);
     }
 
+    // Check if proper timespan was already given
+    // If not, use default value
+    if new_workshop.review_timespan.is_none() {
+        new_workshop.review_timespan = Some(review_timespan.inner().in_minutes())
+    }
+
     let workshop = db::workshops::create(
         &*conn,
         user.id,
         new_workshop.title,
         new_workshop.content,
         new_workshop.end.0,
+        new_workshop.review_timespan.unwrap(),
         new_workshop.anonymous,
         Vec::from(new_workshop.teachers),
         Vec::from(new_workshop.students),
@@ -106,6 +116,7 @@ pub fn update_workshop(
     conn: IprpDB,
     workshop_id: u64,
     mut update_workshop: RouteUpdateWorkshop,
+    review_timespan: State<ReviewTimespan>,
 ) -> Result<Json<JsonValue>, ApiResponse> {
     if user.role == Role::Student {
         return Err(ApiResponse::forbidden());
@@ -117,6 +128,12 @@ pub fn update_workshop(
         update_workshop.teachers.0.push(user.id);
     }
 
+    // Check if proper timespan was already given
+    // If not, use default value
+    if update_workshop.review_timespan.is_none() {
+        update_workshop.review_timespan = Some(review_timespan.inner().in_minutes())
+    }
+
     let workshop = db::workshops::update(
         &*conn,
         user.id,
@@ -124,6 +141,7 @@ pub fn update_workshop(
         update_workshop.title,
         update_workshop.content,
         update_workshop.end.0,
+        update_workshop.review_timespan.unwrap(),
         Vec::from(update_workshop.teachers),
         Vec::from(update_workshop.students),
         Vec::from(update_workshop.criteria),
