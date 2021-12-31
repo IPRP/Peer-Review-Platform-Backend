@@ -431,7 +431,7 @@ pub fn get_student_workshop_submissions(
 
 /// Calculate points of a submission.
 /// Also closes all pending reviews.
-fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), DbError> {
+pub(crate) fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), DbError> {
     // let submission = submissions_t
     //     .filter(
     //         sub_id.eq(submission_id).and(
