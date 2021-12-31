@@ -90,7 +90,7 @@ INSERT INTO users values(default, "s2", "Luke", "Skywalker", "1d6442ddcfd9db1ff8
 INSERT INTO users values(default, "s3", "Gordon", "Freeman", "1d6442ddcfd9db1ff81df77cbefcd5afcc8c7ca952ab3101ede17a84b866d3f3", "student", "4A");
 INSERT INTO users values(default, "s4", "Mario", "Mario", "1d6442ddcfd9db1ff81df77cbefcd5afcc8c7ca952ab3101ede17a84b866d3f3", "student", "4A");
 INSERT INTO `workshops` VALUES (1,'WS','Hey!','2023-07-31 16:26:00',1,{});
-INSERT INTO `workshoplist` VALUES (1,2,'teacher'),(1,4,'student'),(1,5,'student');
+INSERT INTO `workshoplist` VALUES (1,1,'teacher'),(1,2,'teacher'),(1,4,'student'),(1,5,'student');
 INSERT INTO `criterion` VALUES (1,'Criterion','True/False',10,'truefalse'),(2,'Other Criterion','True/False',10,'truefalse');
 INSERT INTO `criteria` VALUES (1,1),(1,2);
     "#, review_timespan),

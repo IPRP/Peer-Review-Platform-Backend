@@ -166,6 +166,7 @@ pub struct RouteNewWorkshop {
     // See: https://serde.rs/string-or-struct.html
     #[validate]
     pub(crate) end: Date,
+    #[serde(rename = "reviewTimespan")]
     #[serde(default)]
     #[validate(custom = "validate_review_timespan")]
     pub(crate) review_timespan: Option<i64>,
@@ -197,6 +198,7 @@ pub struct RouteUpdateWorkshop {
     pub(crate) content: String,
     #[validate]
     pub(crate) end: Date,
+    #[serde(rename = "reviewTimespan")]
     #[serde(default)]
     #[validate(custom = "validate_review_timespan")]
     pub(crate) review_timespan: Option<i64>,

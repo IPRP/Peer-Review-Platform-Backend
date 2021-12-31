@@ -485,6 +485,7 @@ pub fn get_teacher_workshop(
         title: workshop.title,
         content: workshop.content,
         end: workshop.end,
+        review_timespan: workshop.reviewtimespan,
         anonymous: workshop.anonymous,
         students,
         teachers,

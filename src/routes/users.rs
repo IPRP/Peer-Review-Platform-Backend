@@ -75,7 +75,7 @@ pub fn create_teacher(
     };
 }
 
-// See: https://github.com/Keats/validator
+/*// See: https://github.com/Keats/validator
 use crate::routes::validation::SimpleValidation;
 use validator::{Validate, ValidationError, ValidationErrors};
 
@@ -170,4 +170,4 @@ mod tests {
         };
         assert!(vt.validate().is_err());
     }
-}
+}*/
