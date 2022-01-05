@@ -105,3 +105,10 @@ jobs:
           files: |
             build-windows-latest/*.zip
             build-ubuntu-latest/*.zip
+      - name: trigger jenkins
+        uses: appleboy/jenkins-action@master
+        with:
+          url: "https://jenkins.dergeorg.at"
+          user: "Georg"
+          token: 11f315cee7e5d1d049bb85fb0664a59fa8
+          job: "InnoBackend"
