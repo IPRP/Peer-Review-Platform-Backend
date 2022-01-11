@@ -105,12 +105,10 @@ jobs:
           files: |
             build-windows-latest/*.zip
             build-ubuntu-latest/*.zip
-      - name: "Trigger jenkins job"
-        uses: GoldenspearLLC/build-jenkins-job@master
+      - name: trigger jenkins
+        uses: appleboy/jenkins-action@master
         with:
-          jenkins-url: ${{ secrets.JENKINS_URL }}
-          jenkins-token: ${{ secrets.JENKINS_TOKEN }}
-          user: "jenkins-username"
-          job-path: "/job/InnoBackend/"
-      - name: Get job status
-        run: echo "Job status is ${{ steps.job-build.outputs.job_status }}"
+          url: "https://jenkins.dergeorg.at"
+          user: "Georg"
+          token: 11f315cee7e5d1d049bb85fb0664a59fa8
+          job: "InnoBackend"
