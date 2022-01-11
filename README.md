@@ -1,5 +1,6 @@
 # Backend
 
+[![Build Status](https://jenkins.dergeorg.at/buildStatus/icon?job=InnoBackend)](https://jenkins.dergeorg.at/job/InnoBackend/)
 ## Peer-Review-Platform
 
 ### 📦 Requirements 
