@@ -609,3 +609,22 @@ pub fn lock(conn: &MysqlConnection, submission_id: u64) -> Result<(), ()> {
 pub fn get_by_id(conn: &MysqlConnection, submission_id: u64) -> Result<Submission, Error> {
     submissions_t.filter(sub_id.eq(submission_id)).first(conn)
 }
+
+/// Update submission.
+pub fn update<'a>(
+    conn: &MysqlConnection,
+    submission_id: u64,
+    student_id: u64,
+    title: String,
+    comment: String,
+    attachments: Vec<u64>,
+) -> Result<(), DbError> {
+    if !is_owner(conn, submission_id, student_id) {
+        return Err(DbError::new(
+            DbErrorKind::ReadFailed,
+            "Submission does not exist and/or Student is not owner of submission",
+        ));
+    }
+
+    Ok(())
+}

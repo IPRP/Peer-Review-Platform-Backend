@@ -137,31 +137,23 @@ pub fn update_submission(
     if user.role == Role::Teacher {
         return Err(ApiResponse::forbidden());
     }
-    // Get current date
-    // See: https://stackoverflow.com/a/48237707/12347616
-    // And: https://stackoverflow.com/q/28747694/12347616
-    let date = Local::now().naive_local();
 
-    // TODO: db update function
-    let submission = db::submissions::create(
+    let update = db::submissions::update(
         &*conn,
+        submission_id,
+        user.id,
         new_submission.title,
         new_submission.comment,
         Vec::from(new_submission.attachments),
-        date,
-        user.id,
-        submission_id,
     );
 
-    match submission {
-        Ok(submission) => Ok(Json(json!({
+    match update {
+        Ok(_) => Ok(Json(json!({
             "ok": true,
-            "id": submission.id
         }))),
         Err(err) => {
-            //println!("Error occurred {}", err);
             err.print_stacktrace();
-            Err(ApiResponse::conflict_with_error(err))
+            Err(ApiResponse::bad_request_with_error(err))
         }
     }
 }
