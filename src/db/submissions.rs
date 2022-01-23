@@ -624,7 +624,7 @@ pub fn update<'a>(
     if !is_owner(conn, submission_id, student_id) {
         return Err(DbError::new(
             DbErrorKind::ReadFailed,
-            "Submission does not exist and/or Student is not owner of submission",
+            "Submission does not exist and/or Student is not Owner of Submission",
         ));
     }
 

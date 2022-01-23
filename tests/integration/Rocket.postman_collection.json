@@ -416,7 +416,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\r\n    \"title\": \"Updated Workshop\",\r\n    \"content\": \"All new!\",\r\n    \"end\": \"2021-07-31T16:26:00\",\r\n    \"students\": [4, 5],\r\n    \"teachers\": [1],\r\n    \"criteria\": [{\r\n        \"title\": \"Grade\", \r\n        \"content\": \".\",\r\n        \"type\": \"grade\",\r\n        \"weight\": 10.0\r\n    }, {\r\n        \"title\": \"Points\", \r\n        \"content\": \".\",\r\n        \"type\": \"point\",\r\n        \"weight\": 10.0\r\n    }]\r\n}",
+					"raw": "{\r\n    \"title\": \"Updated Workshop\",\r\n    \"content\": \"All new!\",\r\n    \"end\": \"2023-07-31T16:26:00\",\r\n    \"reviewTimespan\": 10,\r\n    \"students\": [4, 5],\r\n    \"teachers\": [1],\r\n    \"criteria\": [{\r\n        \"title\": \"Grade\", \r\n        \"content\": \".\",\r\n        \"type\": \"grade\",\r\n        \"weight\": 10.0\r\n    }, {\r\n        \"title\": \"Points\", \r\n        \"content\": \".\",\r\n        \"type\": \"point\",\r\n        \"weight\": 10.0\r\n    }]\r\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -446,7 +446,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\r\n    \"title\": \"Updated Workshop\",\r\n    \"content\": \"All new!\",\r\n    \"end\": \"2021-07-31T16:26:00\",\r\n    \"students\": [4, 5],\r\n    \"teachers\": [1],\r\n    \"criteria\": [{\r\n        \"title\": \"Grade\", \r\n        \"content\": \".\",\r\n        \"type\": \"grade\",\r\n        \"weight\": 10.0\r\n    }, {\r\n        \"title\": \"Points\", \r\n        \"content\": \".\",\r\n        \"type\": \"point\",\r\n        \"weight\": 10.0\r\n    }],\r\n    \"attachments\": [2]\r\n}",
+					"raw": "{\r\n    \"title\": \"Updated Workshop\",\r\n    \"content\": \"All new!\",\r\n    \"end\": \"2023-07-31T16:26:00\",\r\n    \"students\": [4, 5],\r\n    \"teachers\": [1],\r\n    \"criteria\": [{\r\n        \"title\": \"Grade\", \r\n        \"content\": \".\",\r\n        \"type\": \"grade\",\r\n        \"weight\": 10.0\r\n    }, {\r\n        \"title\": \"Points\", \r\n        \"content\": \".\",\r\n        \"type\": \"point\",\r\n        \"weight\": 10.0\r\n    }],\r\n    \"attachments\": [2]\r\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -648,14 +648,9 @@
 						{
 							"key": "file",
 							"type": "file",
-							"src": "/C:/Arbeit/INN1/Peer-Review/Backend/src/test/kotlin/com/iprp/backend/Integration/Hi.txt"
+							"src": "/C:/Arbeit/INN1/Peer-Review/Backend-V2/tests/integration/Sample.txt"
 						}
-					],
-					"options": {
-						"raw": {
-							"language": "json"
-						}
-					}
+					]
 				},
 				"url": {
 					"raw": "http://localhost:8000/submission/upload",
@@ -677,6 +672,49 @@
 			"request": {
 				"auth": {
 					"type": "noauth"
+				},
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"type": "text",
+						"value": "",
+						"disabled": true
+					}
+				],
+				"url": {
+					"raw": "http://localhost:8000/submission/download/1",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"submission",
+						"download",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Download Attachment s2",
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "1234",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "s2",
+							"type": "string"
+						}
+					]
 				},
 				"method": "GET",
 				"header": [
@@ -774,6 +812,35 @@
 				"body": {
 					"mode": "raw",
 					"raw": "{\r\n    \"title\": \"WS-Sub\",\r\n    \"comment\": \"Hey!\",\r\n    \"attachments\": [1]\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8000/submission/1",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"submission",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/submission/",
+			"request": {
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"title\": \"WS-Sub\",\r\n    \"comment\": \"Hey!\",\r\n    \"attachments\": [2]\r\n}",
 					"options": {
 						"raw": {
 							"language": "json"

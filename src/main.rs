@@ -79,6 +79,7 @@ fn main() {
                 routes::students::todos,
                 routes::submissions::create_submission,
                 routes::submissions::get_submission,
+                routes::submissions::update_submission,
                 routes::submissions::update_review,
                 routes::submissions::get_review,
             ],
