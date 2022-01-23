@@ -122,6 +122,50 @@ pub fn get_submission(
     }
 }
 
+/// Update existing submission.
+#[put(
+    "/submission/<submission_id>",
+    format = "json",
+    data = "<new_submission>"
+)]
+pub fn update_submission(
+    user: User,
+    conn: IprpDB,
+    submission_id: u64,
+    new_submission: RouteNewSubmission,
+) -> Result<Json<JsonValue>, ApiResponse> {
+    if user.role == Role::Teacher {
+        return Err(ApiResponse::forbidden());
+    }
+    // Get current date
+    // See: https://stackoverflow.com/a/48237707/12347616
+    // And: https://stackoverflow.com/q/28747694/12347616
+    let date = Local::now().naive_local();
+
+    // TODO: db update function
+    let submission = db::submissions::create(
+        &*conn,
+        new_submission.title,
+        new_submission.comment,
+        Vec::from(new_submission.attachments),
+        date,
+        user.id,
+        submission_id,
+    );
+
+    match submission {
+        Ok(submission) => Ok(Json(json!({
+            "ok": true,
+            "id": submission.id
+        }))),
+        Err(err) => {
+            //println!("Error occurred {}", err);
+            err.print_stacktrace();
+            Err(ApiResponse::conflict_with_error(err))
+        }
+    }
+}
+
 /// Update existing review.
 #[put("/review/<review_id>", format = "json", data = "<update_review>")]
 pub fn update_review(
