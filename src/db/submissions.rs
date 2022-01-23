@@ -4,7 +4,9 @@ use crate::db;
 use crate::db::error::{DbError, DbErrorKind};
 use crate::db::models::*;
 use crate::schema::criterion::dsl::{criterion as criterion_t, id as c_id};
-use crate::schema::submissionattachments::dsl::submissionattachments as subatt_t;
+use crate::schema::submissionattachments::dsl::{
+    submission as subatt_sub, submissionattachments as subatt_t,
+};
 use crate::schema::submissioncriteria::dsl::{
     criterion as subcrit_crit, submission as subcrit_sub, submissioncriteria as subcrit_t,
 };
@@ -626,5 +628,86 @@ pub fn update<'a>(
         ));
     }
 
-    Ok(())
+    let submission: Result<Submission, _> =
+        submissions_t.filter(sub_id.eq(submission_id)).first(conn);
+    if submission.is_err() {
+        return Err(DbError::new(
+            DbErrorKind::ReadFailed,
+            "Submission does not exist",
+        ));
+    }
+    let mut submission = submission.unwrap();
+
+    if submission.locked {
+        return Err(DbError::new(
+            DbErrorKind::PastDeadline,
+            "Locked Submissions cannot be updated",
+        ));
+    }
+    submission.title = title;
+    submission.comment = comment;
+
+    let mut t_error: Result<(), DbError> = Ok(());
+    let update = conn.transaction::<(), Error, _>(|| {
+        // Update submission
+        let update = diesel::update(submissions_t.filter(sub_id.eq(submission_id)))
+            .set(&submission)
+            .execute(conn);
+        if update.is_err() {
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::DeleteFailed, "Submission Update failed"),
+            );
+        }
+
+        // Remove attachments
+        let delete = diesel::delete(subatt_t.filter(subatt_sub.eq(submission_id))).execute(conn);
+        if delete.is_err() {
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::DeleteFailed, "Attachment Delete failed"),
+            );
+        }
+
+        // Relate attachments to submission
+        let all_student_attachments = db::attachments::get_ids_by_user_id(conn, student_id);
+        if all_student_attachments.is_err() {
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::ReadFailed, "Student attachments not found"),
+            );
+        }
+        let all_student_attachments = all_student_attachments.unwrap();
+        let submission_attachments: Vec<Submissionattachment> = attachments
+            .into_iter()
+            .filter_map(|att_id| {
+                if all_student_attachments.contains(&att_id) {
+                    Some(Submissionattachment {
+                        submission: submission.id,
+                        attachment: att_id,
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect();
+        let attachment_insert = diesel::insert_into(subatt_t)
+            .values(&submission_attachments)
+            .execute(conn);
+        if attachment_insert.is_err() {
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::CreateFailed, "Attachment Insert failed"),
+            );
+        }
+        Ok(())
+    });
+
+    match update {
+        Ok(_) => Ok(()),
+        Err(_) => Err(t_error.err().unwrap_or(DbError::new(
+            DbErrorKind::TransactionFailed,
+            "Unknown error",
+        ))),
+    }
 }
