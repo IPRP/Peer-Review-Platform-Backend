@@ -188,6 +188,7 @@ pub struct TeacherWorkshop {
     pub students: Vec<WorkshopUser>,
     pub teachers: Vec<WorkshopUser>,
     pub criteria: Vec<Criterion>,
+    pub attachments: Vec<SimpleAttachment>,
 }
 
 /// Student representation of a workshop.
@@ -201,4 +202,5 @@ pub struct StudentWorkshop {
     pub teachers: Vec<WorkshopUser>,
     pub submissions: Vec<WorkshopSubmission>,
     pub reviews: Vec<WorkshopReview>,
+    pub attachments: Vec<SimpleAttachment>,
 }

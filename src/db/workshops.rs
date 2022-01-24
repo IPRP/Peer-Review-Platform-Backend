@@ -554,6 +554,12 @@ pub fn get_teacher_workshop(
     }
     let criteria = criteria.unwrap();
 
+    let attachments = db::attachments::get_by_workshop_id(conn, workshop_id);
+    if attachments.is_err() {
+        return Err(());
+    }
+    let attachments = attachments.unwrap();
+
     Ok(TeacherWorkshop {
         title: workshop.title,
         content: workshop.content,
@@ -563,6 +569,7 @@ pub fn get_teacher_workshop(
         students,
         teachers,
         criteria,
+        attachments,
     })
 }
 
@@ -604,6 +611,12 @@ pub fn get_student_workshop(
     }
     let reviews = reviews.unwrap();
 
+    let attachments = db::attachments::get_by_workshop_id(conn, workshop_id);
+    if attachments.is_err() {
+        return Err(());
+    }
+    let attachments = attachments.unwrap();
+
     Ok(StudentWorkshop {
         title: workshop.title,
         content: workshop.content,
@@ -613,6 +626,7 @@ pub fn get_student_workshop(
         teachers,
         submissions,
         reviews,
+        attachments,
     })
 }
 
