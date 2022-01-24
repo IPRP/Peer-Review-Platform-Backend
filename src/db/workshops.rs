@@ -80,7 +80,7 @@ pub fn create<'a>(
     students: Vec<u64>,
     criteria: Vec<NewCriterion>,
     attachments: Vec<u64>,
-) -> Result<Workshop, ()> {
+) -> Result<Workshop, DbError> {
     let new_workshop = NewWorkshop {
         title,
         content,
@@ -88,30 +88,39 @@ pub fn create<'a>(
         reviewtimespan: review_timespan,
         anonymous,
     };
+
+    let mut t_error: Result<(), DbError> = Ok(());
     let ws = conn.transaction::<Workshop, _, _>(|| {
         // Filter students & teachers
         let students = users_t
             .filter(u_role.eq(Role::Student).and(u_id.eq_any(students)))
             .get_results::<User>(conn);
         if students.is_err() {
-            return Err(Error::RollbackTransaction);
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::ReadFailed, "Could not determine Students"),
+            );
         }
         let students = students.unwrap();
-        println!("{:?}", students);
         let teachers = users_t
             .filter(u_role.eq(Role::Teacher).and(u_id.eq_any(teachers)))
             .get_results::<User>(conn);
         if teachers.is_err() {
-            return Err(Error::RollbackTransaction);
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::ReadFailed, "Could not determine Teachers"),
+            );
         }
         let mut teachers = teachers.unwrap();
-        println!("{:?}", teachers);
         // Insert criteria
         let criterion_insert = diesel::insert_into(criterion_t)
             .values(&criteria)
             .execute(conn);
         if criterion_insert.is_err() {
-            return Err(Error::RollbackTransaction);
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::CreateFailed, "Could not insert Criteria"),
+            );
         }
         let mut last_criterion_id = criterion_t
             .select(c_id)
@@ -121,12 +130,16 @@ pub fn create<'a>(
         last_criterion_id += 1;
         let first_criterion_id = last_criterion_id - criteria.len() as u64;
         let criterion_ids: Vec<u64> = (first_criterion_id..last_criterion_id).collect();
-        println!("{:?}", criterion_ids);
         // Insert workshop
-        diesel::insert_into(workshops_t)
+        let insert = diesel::insert_into(workshops_t)
             .values(&new_workshop)
-            .execute(conn)
-            .expect("Error saving new workshop");
+            .execute(conn);
+        if insert.is_err() {
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::CreateFailed, "Could not insert Workshop"),
+            );
+        }
         let workshop: Workshop = workshops_t.order(ws_id.desc()).first(conn).unwrap();
         // Assign students & teachers to workshop
         let mut new_workshoplist = students;
@@ -143,7 +156,10 @@ pub fn create<'a>(
             .values(&new_workshoplist)
             .execute(conn);
         if workshop_insert.is_err() {
-            return Err(Error::RollbackTransaction);
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::CreateFailed, "Could not insert Workshoplist"),
+            );
         }
         // Assign criteria to workshop
         let new_criteria = criterion_ids
@@ -157,12 +173,21 @@ pub fn create<'a>(
             .values(&new_criteria)
             .execute(conn);
         if criteria_insert.is_err() {
-            return Err(Error::RollbackTransaction);
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(
+                    DbErrorKind::CreateFailed,
+                    "Could not insert Workshop-Criteria",
+                ),
+            );
         }
         // Relate attachments to workshop
         let all_teacher_attachments = db::attachments::get_ids_by_user_id(conn, teacher_id);
         if all_teacher_attachments.is_err() {
-            return Err(Error::RollbackTransaction);
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::ReadFailed, "Could not get Attachments"),
+            );
         }
         let all_teacher_attachments = all_teacher_attachments.unwrap();
         let workshop_attachments: Vec<Workshopattachment> = attachments
@@ -182,13 +207,19 @@ pub fn create<'a>(
             .values(&workshop_attachments)
             .execute(conn);
         if attachment_insert.is_err() {
-            return Err(Error::RollbackTransaction);
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::ReadFailed, "Could not insert Attachments"),
+            );
         }
         Ok(workshop)
     });
     match ws {
         Ok(ws) => Ok(ws),
-        Err(_) => Err(()),
+        Err(_) => Err(t_error.err().unwrap_or(DbError::new(
+            DbErrorKind::TransactionFailed,
+            "Unknown error",
+        ))),
     }
 }
 
