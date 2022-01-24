@@ -52,7 +52,10 @@ pub fn workshop(
             "ok": true,
             "workshop": workshop
         }))),
-        Err(_) => Err(ApiResponse::not_found()),
+        Err(err) => {
+            err.print_stacktrace();
+            Err(ApiResponse::not_found_with_error(err))
+        }
     }
 }
 

@@ -520,21 +520,21 @@ pub fn teachers_in_workshop(
 pub fn get_teacher_workshop(
     conn: &MysqlConnection,
     workshop_id: u64,
-) -> Result<TeacherWorkshop, ()> {
+) -> Result<TeacherWorkshop, DbError> {
     let workshop: Result<Workshop, diesel::result::Error> =
         workshops_t.filter(ws_id.eq(workshop_id)).first(conn);
     if workshop.is_err() {
-        return Err(());
+        return Err(DbError::new(DbErrorKind::ReadFailed, "Workshop not found"));
     }
     let workshop = workshop.unwrap();
     let students = roles_in_workshop(conn, workshop_id, Role::Student, true);
     if students.is_err() {
-        return Err(());
+        return Err(DbError::new(DbErrorKind::ReadFailed, "Students not found"));
     }
     let students = students.unwrap();
     let teachers = roles_in_workshop(conn, workshop_id, Role::Teacher, true);
     if teachers.is_err() {
-        return Err(());
+        return Err(DbError::new(DbErrorKind::ReadFailed, "Teachers not found"));
     }
     let teachers = teachers.unwrap();
 
@@ -543,20 +543,26 @@ pub fn get_teacher_workshop(
         .select(criteria_criterion)
         .get_results(conn);
     if criteria.is_err() {
-        return Err(());
+        return Err(DbError::new(
+            DbErrorKind::ReadFailed,
+            "Workshop Criteria not found",
+        ));
     }
     let criteria = criteria.unwrap();
 
     let criteria: Result<Vec<Criterion>, _> =
         criterion_t.filter(c_id.eq_any(criteria)).get_results(conn);
     if criteria.is_err() {
-        return Err(());
+        return Err(DbError::new(DbErrorKind::ReadFailed, "Criteria not found"));
     }
     let criteria = criteria.unwrap();
 
     let attachments = db::attachments::get_by_workshop_id(conn, workshop_id);
     if attachments.is_err() {
-        return Err(());
+        return Err(DbError::new(
+            DbErrorKind::ReadFailed,
+            "Attachments not found",
+        ));
     }
     let attachments = attachments.unwrap();
 
@@ -578,42 +584,51 @@ pub fn get_student_workshop(
     conn: &MysqlConnection,
     workshop_id: u64,
     student_id: u64,
-) -> Result<StudentWorkshop, ()> {
+) -> Result<StudentWorkshop, DbError> {
     if !student_in_workshop(conn, student_id, workshop_id) {
-        return Err(());
+        return Err(DbError::new(
+            DbErrorKind::ReadFailed,
+            "Student not part of Workshop",
+        ));
     }
 
     let workshop: Result<Workshop, diesel::result::Error> =
         workshops_t.filter(ws_id.eq(workshop_id)).first(conn);
     if workshop.is_err() {
-        return Err(());
+        return Err(DbError::new(DbErrorKind::ReadFailed, "Workshop not found"));
     }
     let workshop = workshop.unwrap();
     let students = roles_in_workshop(conn, workshop_id, Role::Student, false);
     if students.is_err() {
-        return Err(());
+        return Err(DbError::new(DbErrorKind::ReadFailed, "Students not found"));
     }
     let students = students.unwrap();
     let teachers = roles_in_workshop(conn, workshop_id, Role::Teacher, false);
     if teachers.is_err() {
-        return Err(());
+        return Err(DbError::new(DbErrorKind::ReadFailed, "Teachers not found"));
     }
     let teachers = teachers.unwrap();
     let submissions =
         db::submissions::get_student_workshop_submissions(conn, workshop_id, student_id);
     if submissions.is_err() {
-        return Err(());
+        return Err(DbError::new(
+            DbErrorKind::ReadFailed,
+            "Submissions not found",
+        ));
     }
     let submissions = submissions.unwrap();
     let reviews = db::reviews::get_student_workshop_reviews(conn, workshop_id, student_id);
     if reviews.is_err() {
-        return Err(());
+        return Err(DbError::new(DbErrorKind::ReadFailed, "Reviews not found"));
     }
     let reviews = reviews.unwrap();
 
     let attachments = db::attachments::get_by_workshop_id(conn, workshop_id);
     if attachments.is_err() {
-        return Err(());
+        return Err(DbError::new(
+            DbErrorKind::ReadFailed,
+            "Attachments not found",
+        ));
     }
     let attachments = attachments.unwrap();
 

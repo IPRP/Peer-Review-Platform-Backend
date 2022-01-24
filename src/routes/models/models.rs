@@ -347,6 +347,15 @@ impl ApiResponse {
         ApiResponse { json, status }
     }
 
+    pub fn not_found_with_error(error: impl AppError) -> Self {
+        let json = json!({
+            "ok": false,
+            "error": error.description()
+        });
+        let status = Status::NotFound;
+        ApiResponse { json, status }
+    }
+
     pub fn unprocessable_entity(validation_errors: &ValidationErrors) -> Self {
         let validation_errors = validation_errs_to_str_vec(&validation_errors, None);
         let json = json!(validation_errors);

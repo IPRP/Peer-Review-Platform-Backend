@@ -85,7 +85,6 @@ impl NewTeacher {
     }
 }
 
-// TODO add field deadline
 #[derive(Queryable, AsChangeset, Clone)]
 pub struct Workshop {
     pub id: u64,
@@ -96,7 +95,6 @@ pub struct Workshop {
     pub reviewtimespan: i64,
 }
 
-// TODO add field review_timespan: days, hours, minutes => convert to minutes => minutes (i64)
 #[derive(Insertable)]
 #[table_name = "workshops"]
 pub struct NewWorkshop {
