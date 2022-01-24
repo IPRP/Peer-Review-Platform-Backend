@@ -7,13 +7,18 @@ use chrono::Duration;
 use rocket::logger::error;
 use rocket::Rocket;
 
-/// Run database migration.
-/// Can be configured via `Rocket.toml`.
+// Run database migration.
+// Can be configured via `Rocket.toml`.
+// ===
 // Perform migrations automatically without CLI
 // Based on https://stackoverflow.com/a/61064269/12347616
 embed_migrations!();
 pub fn run_db_migration(rocket: Rocket) -> Result<Rocket, Rocket> {
-    let conn = IprpDB::get_one(&rocket).expect("database connection");
+    let conn = IprpDB::get_one(&rocket).expect("database connection not found");
+    let review_timespan = rocket
+        .state::<ReviewTimespan>()
+        .expect("review timespan state not found");
+    let review_timespan = review_timespan.in_minutes();
     match embedded_migrations::run(&*conn) {
         Ok(()) => {
             // "Clear" db
@@ -36,6 +41,7 @@ truncate submissioncriteria;
 truncate submissionattachments;
 truncate reviews;
 truncate reviewpoints;
+truncate workshopattachments;
 SET FOREIGN_KEY_CHECKS = 1;
                     "#,
                 );
@@ -76,18 +82,18 @@ INSERT IGNORE INTO users values(default, "admin", "admin", "admin", "fb001dfcffd
                 .unwrap_or(false);
             if db_mock {
                 let res = conn.batch_execute(
-                    r#"
+                    &format!(r#"
 INSERT INTO users values(default, "t1", "John", "Doe", "1d6442ddcfd9db1ff81df77cbefcd5afcc8c7ca952ab3101ede17a84b866d3f3", "teacher", null);
 INSERT INTO users values(default, "t2", "John", "Doe II", "1d6442ddcfd9db1ff81df77cbefcd5afcc8c7ca952ab3101ede17a84b866d3f3", "teacher", null);
 INSERT INTO users values(default, "s1", "Max", "Mustermann", "1d6442ddcfd9db1ff81df77cbefcd5afcc8c7ca952ab3101ede17a84b866d3f3", "student", "4A");
 INSERT INTO users values(default, "s2", "Luke", "Skywalker", "1d6442ddcfd9db1ff81df77cbefcd5afcc8c7ca952ab3101ede17a84b866d3f3", "student", "4A");
 INSERT INTO users values(default, "s3", "Gordon", "Freeman", "1d6442ddcfd9db1ff81df77cbefcd5afcc8c7ca952ab3101ede17a84b866d3f3", "student", "4A");
 INSERT INTO users values(default, "s4", "Mario", "Mario", "1d6442ddcfd9db1ff81df77cbefcd5afcc8c7ca952ab3101ede17a84b866d3f3", "student", "4A");
-INSERT INTO `workshops` VALUES (1,'WS','Hey!','2021-07-31 16:26:00',1);
-INSERT INTO `workshoplist` VALUES (1,1,'teacher'),(1,4,'student'),(1,5,'student');
+INSERT INTO `workshops` VALUES (1,'WS','Hey!','2023-07-31 16:26:00',1,{});
+INSERT INTO `workshoplist` VALUES (1,1,'teacher'),(1,2,'teacher'),(1,4,'student'),(1,5,'student'),(1,6,'student'),(1,7,'student');
 INSERT INTO `criterion` VALUES (1,'Criterion','True/False',10,'truefalse'),(2,'Other Criterion','True/False',10,'truefalse');
 INSERT INTO `criteria` VALUES (1,1),(1,2);
-    "#,
+    "#, review_timespan),
                 );
                 match res {
                     Err(e) => {
@@ -118,11 +124,17 @@ pub struct ReviewTimespan {
 
 impl ReviewTimespan {
     /// Calculate deadline for given date.
+    #[allow(dead_code)]
     pub fn deadline(&self, date: &chrono::NaiveDateTime) -> chrono::NaiveDateTime {
         *date
             + Duration::days(self.days)
             + Duration::hours(self.hours)
             + Duration::minutes(self.minutes)
+    }
+
+    /// Return timespan in minutes
+    pub fn in_minutes(&self) -> i64 {
+        self.days * 24 * 60 + self.hours * 60 + self.minutes
     }
 }
 

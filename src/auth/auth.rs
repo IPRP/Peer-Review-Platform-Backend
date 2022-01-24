@@ -1,13 +1,11 @@
 //! Authentication handling for Rocket.
 
-use crate::models::{Role, User};
+use crate::models::User;
 use crate::IprpDB;
-use base64::DecodeError;
-use diesel::result::Error;
+
 use rocket::http::Status;
 use rocket::request::{FromRequest, Outcome};
 use rocket::Request;
-use std::string::FromUtf8Error;
 
 #[derive(Debug)]
 pub enum LoginError {
@@ -50,11 +48,13 @@ impl<'a, 'r> FromRequest<'a, 'r> for User {
                         });
                     match auth_result {
                         Ok(user) => Outcome::Success(user.clone()),
-                        Err(_) => Outcome::Failure((Status::BadRequest, LoginError::WrongPassword)),
+                        Err(_) => {
+                            Outcome::Failure((Status::Unauthorized, LoginError::WrongPassword))
+                        }
                     }
                 }
                 Err(_) => {
-                    return Outcome::Failure((Status::BadRequest, LoginError::InvalidData));
+                    return Outcome::Failure((Status::Unauthorized, LoginError::InvalidData));
                 }
             }
         }
@@ -73,12 +73,12 @@ impl<'a, 'r> FromRequest<'a, 'r> for User {
             });
             match auth_result {
                 Ok(user) => Outcome::Success(user.clone()),
-                Err(_) => Outcome::Failure((Status::BadRequest, LoginError::UserDoesNotExist)),
+                Err(_) => Outcome::Failure((Status::Unauthorized, LoginError::UserDoesNotExist)),
             }
         }
         // Bad request
         else {
-            Outcome::Failure((Status::BadRequest, LoginError::InvalidData))
+            Outcome::Failure((Status::Unauthorized, LoginError::InvalidData))
         }
     }
 }

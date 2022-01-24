@@ -1,0 +1,6 @@
+-- Your SQL goes here
+ALTER TABLE workshops
+    ADD reviewtimespan BIGINT NOT NULL DEFAULT 10080;
+
+ALTER TABLE submissions
+    ADD deadline DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP;

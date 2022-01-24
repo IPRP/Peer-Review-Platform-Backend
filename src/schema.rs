@@ -1,3 +1,7 @@
+// schema.rs is is auto generated, some table! macros need
+// the use crate::models::* import, some do not
+#![allow(unused_imports)]
+
 table! {
     use diesel::sql_types::*;
     use crate::models::*;
@@ -96,6 +100,7 @@ table! {
         error -> Bool,
         meanpoints -> Nullable<Double>,
         maxpoint -> Nullable<Double>,
+        deadline -> Datetime,
     }
 }
 
@@ -111,6 +116,16 @@ table! {
         password -> Varchar,
         role -> RoleMapping,
         unit -> Nullable<Varchar>,
+    }
+}
+
+table! {
+    use diesel::sql_types::*;
+    use crate::models::*;
+
+    workshopattachments (workshop, attachment) {
+        workshop -> Unsigned<Bigint>,
+        attachment -> Unsigned<Bigint>,
     }
 }
 
@@ -135,6 +150,7 @@ table! {
         content -> Text,
         end -> Datetime,
         anonymous -> Bool,
+        reviewtimespan -> Bigint,
     }
 }
 
@@ -152,6 +168,8 @@ joinable!(submissioncriteria -> criterion (criterion));
 joinable!(submissioncriteria -> submissions (submission));
 joinable!(submissions -> users (student));
 joinable!(submissions -> workshops (workshop));
+joinable!(workshopattachments -> attachments (attachment));
+joinable!(workshopattachments -> workshops (workshop));
 joinable!(workshoplist -> users (user));
 joinable!(workshoplist -> workshops (workshop));
 
@@ -165,6 +183,7 @@ allow_tables_to_appear_in_same_query!(
     submissioncriteria,
     submissions,
     users,
+    workshopattachments,
     workshoplist,
     workshops,
 );

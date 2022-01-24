@@ -1,4 +1,5 @@
 #![feature(proc_macro_hygiene, decl_macro)]
+#![feature(associated_type_defaults)]
 
 #[macro_use]
 extern crate rocket;
@@ -18,7 +19,7 @@ extern crate base64;
 extern crate crypto;
 
 use rocket::fairing::AdHoc;
-use rocket_cors::{AllowedMethods, AllowedOrigins, CorsOptions};
+use rocket_cors::CorsOptions;
 
 // Import database operations
 mod db;
@@ -50,12 +51,12 @@ fn main() {
     .unwrap();
     // Launch Rocket
     rocket::ignite()
-        .attach(IprpDB::fairing())
-        .attach(AdHoc::on_attach("Database Migration", db::run_db_migration))
         .attach(AdHoc::on_attach(
             "Review Configuration",
             db::setup_review_timespan,
         ))
+        .attach(IprpDB::fairing())
+        .attach(AdHoc::on_attach("Database Migration", db::run_db_migration))
         .attach(cors)
         .mount(
             "/",
@@ -78,9 +79,11 @@ fn main() {
                 routes::students::todos,
                 routes::submissions::create_submission,
                 routes::submissions::get_submission,
+                routes::submissions::update_submission,
                 routes::submissions::update_review,
                 routes::submissions::get_review,
             ],
         )
+        .register(catchers![routes::validation::catcher::unprocessable_entity,])
         .launch();
 }

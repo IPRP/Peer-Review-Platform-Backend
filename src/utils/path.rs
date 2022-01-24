@@ -5,6 +5,7 @@ use std::path::PathBuf;
 ///
 /// The resources folder should be placed in the same directory
 /// as the executable.
+#[allow(dead_code)]
 pub fn res_path() -> PathBuf {
     // Get exe path
     // See: https://doc.rust-lang.org/std/env/fn.current_exe.html

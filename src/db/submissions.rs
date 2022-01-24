@@ -1,25 +1,20 @@
 //! CRUD operations for submissions.
 
 use crate::db;
-use crate::db::reviews::FullReview;
-use crate::db::ReviewTimespan;
-use crate::models::{
-    Criterion, Kind, NewSubmission, Role, SimpleAttachment, Submission, Submissionattachment,
-    Submissioncriteria,
-};
-use crate::schema::criteria::dsl::workshop;
+use crate::db::error::{DbError, DbErrorKind};
+use crate::db::models::*;
 use crate::schema::criterion::dsl::{criterion as criterion_t, id as c_id};
 use crate::schema::submissionattachments::dsl::{
-    attachment as subatt_att, submission as subatt_sub, submissionattachments as subatt_t,
+    submission as subatt_sub, submissionattachments as subatt_t,
 };
 use crate::schema::submissioncriteria::dsl::{
     criterion as subcrit_crit, submission as subcrit_sub, submissioncriteria as subcrit_t,
 };
 use crate::schema::submissions::dsl::{
-    error as sub_error, id as sub_id, locked as sub_locked, meanpoints as sub_meanpoints,
-    reviewsdone as sub_reviews_done, student as sub_student, submissions as submissions_t,
-    workshop as sub_workshop,
+    deadline as sub_deadline, id as sub_id, locked as sub_locked, reviewsdone as sub_reviews_done,
+    student as sub_student, submissions as submissions_t, workshop as sub_workshop,
 };
+use chrono::Local;
 use diesel::prelude::*;
 use diesel::result::Error;
 use std::ops::Add;
@@ -27,18 +22,28 @@ use std::ops::Add;
 /// Create a new submission for a workshop.
 pub fn create<'a>(
     conn: &MysqlConnection,
-    review_timespan: &ReviewTimespan,
     title: String,
     comment: String,
     attachments: Vec<u64>,
     date: chrono::NaiveDateTime,
     student_id: u64,
     workshop_id: u64,
-) -> Result<Submission, ()> {
+) -> Result<Submission, DbError> {
     // Check if student is part of the workshop
     if !db::workshops::student_in_workshop(conn, student_id, workshop_id) {
-        return Err(());
+        return Err(DbError::new(
+            DbErrorKind::NotFound,
+            format!("Student {} not in Workshop {}", student_id, workshop_id),
+        ));
     }
+
+    // Calculate deadline with review timespan from workshop
+    let review_timespan = crate::db::workshops::get_review_timespan(conn, workshop_id);
+    if let Err(err) = review_timespan {
+        return Err(err);
+    }
+    let review_timespan = review_timespan.unwrap();
+    let deadline = date.add(review_timespan);
 
     let new_submission = NewSubmission {
         title,
@@ -46,22 +51,33 @@ pub fn create<'a>(
         student: student_id,
         workshop: workshop_id,
         date,
+        deadline,
         locked: false,
         reviewsdone: false,
         error: false,
     };
 
+    let mut t_error: Result<(), DbError> = Ok(());
     let submission = conn.transaction::<Submission, Error, _>(|| {
         // Insert submission
-        diesel::insert_into(submissions_t)
+        let submission_insert = diesel::insert_into(submissions_t)
             .values(&new_submission)
             .execute(conn);
+        if submission_insert.is_err() {
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::CreateFailed, "Submission Insert failed"),
+            );
+        }
         let submission: Submission = submissions_t.order(sub_id.desc()).first(conn).unwrap();
 
         // Relate attachments to submission
         let all_student_attachments = db::attachments::get_ids_by_user_id(conn, student_id);
         if all_student_attachments.is_err() {
-            return Err(Error::RollbackTransaction);
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::ReadFailed, "Student attachments not found"),
+            );
         }
         let all_student_attachments = all_student_attachments.unwrap();
         let submission_attachments: Vec<Submissionattachment> = attachments
@@ -77,14 +93,23 @@ pub fn create<'a>(
                 }
             })
             .collect();
-        diesel::insert_into(subatt_t)
+        let attachment_insert = diesel::insert_into(subatt_t)
             .values(&submission_attachments)
             .execute(conn);
+        if attachment_insert.is_err() {
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::CreateFailed, "Attachment Insert failed"),
+            );
+        }
 
         // Relate criteria to submission
         let workshop_criteria = db::workshops::get_criteria(conn, workshop_id);
         if workshop_criteria.is_err() {
-            return Err(Error::RollbackTransaction);
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::ReadFailed, "Workshop Criteria not found"),
+            );
         }
         let workshop_criteria = workshop_criteria.unwrap();
         let submission_criteria: Vec<Submissioncriteria> = workshop_criteria
@@ -94,21 +119,26 @@ pub fn create<'a>(
                 criterion,
             })
             .collect();
-        diesel::insert_into(subcrit_t)
+        let criteria_insert = diesel::insert_into(subcrit_t)
             .values(&submission_criteria)
             .execute(conn);
+        if criteria_insert.is_err() {
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::CreateFailed, "Criteria Insert failed"),
+            );
+        }
 
         // Assign reviews
-        let assign = db::reviews::assign(
-            conn,
-            review_timespan,
-            date,
-            submission.id,
-            student_id,
-            workshop_id,
-        );
+        let assign = db::reviews::assign(conn, submission.id, student_id, workshop_id, deadline);
         if assign.is_err() {
-            return Err(Error::RollbackTransaction);
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                assign.err().unwrap_or(DbError::new(
+                    DbErrorKind::TransactionFailed,
+                    "Review Assignment failed",
+                )),
+            );
         }
 
         Ok(submission)
@@ -116,7 +146,10 @@ pub fn create<'a>(
 
     match submission {
         Ok(submission) => Ok(submission),
-        Err(_) => Err(()),
+        Err(_) => Err(t_error.err().unwrap_or(DbError::new(
+            DbErrorKind::TransactionFailed,
+            "Unknown error",
+        ))),
     }
 }
 
@@ -132,49 +165,31 @@ pub fn is_owner(conn: &MysqlConnection, submission_id: u64, student_id: u64) -> 
     }
 }
 
-/// Representation of a submission for owner.
-#[derive(Serialize)]
-pub struct OwnSubmission {
-    pub title: String,
-    pub comment: String,
-    pub attachments: Vec<SimpleAttachment>,
-    pub locked: bool,
-    pub date: chrono::NaiveDateTime,
-    #[serde(rename(serialize = "reviewsDone"))]
-    pub reviews_done: bool,
-    #[serde(rename(serialize = "noReviews"))]
-    pub no_reviews: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub points: Option<f64>,
-    #[serde(rename(serialize = "maxPoints"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub max_points: Option<f64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub firstname: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub lastname: Option<String>,
-    pub reviews: Vec<FullReview>,
-}
-
 // Get detailed submission from submission id.
 fn get_full_submission(
     conn: &MysqlConnection,
     submission_id: u64,
     is_teacher: bool,
-) -> Result<OwnSubmission, ()> {
+) -> Result<OwnSubmission, DbError> {
     let points_calculation = calculate_points(conn, submission_id);
-    if points_calculation.is_err() {
-        return Err(());
+    if let Err(err) = points_calculation {
+        return Err(err);
     }
     let attachments = db::attachments::get_by_submission_id(conn, submission_id);
     if attachments.is_err() {
-        return Err(());
+        return Err(DbError::new(
+            DbErrorKind::NotFound,
+            format!("No Attachments for Submission {} found", submission_id),
+        ));
     }
     let attachments = attachments.unwrap();
     let submission: Result<Submission, _> =
         submissions_t.filter(sub_id.eq(submission_id)).first(conn);
     if submission.is_err() {
-        return Err(());
+        return Err(DbError::new(
+            DbErrorKind::NotFound,
+            format!("Submission {} not found", submission_id),
+        ));
     }
     let submission = submission.unwrap();
 
@@ -212,6 +227,20 @@ fn get_full_submission(
         Vec::new()
     };
 
+    let missing_reviews = if submission.reviewsdone {
+        if is_teacher {
+            if let Ok(missing_reviews) = db::reviews::get_missing_reviews(conn, submission_id) {
+                Some(missing_reviews)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
     Ok(OwnSubmission {
         title: submission.title,
         comment: submission.comment,
@@ -225,11 +254,15 @@ fn get_full_submission(
         firstname,
         lastname,
         reviews,
+        missing_reviews,
     })
 }
 
 /// Get detailed submission from submission id.
-pub fn get_own_submission(conn: &MysqlConnection, submission_id: u64) -> Result<OwnSubmission, ()> {
+pub fn get_own_submission(
+    conn: &MysqlConnection,
+    submission_id: u64,
+) -> Result<OwnSubmission, DbError> {
     get_full_submission(conn, submission_id, false)
 }
 
@@ -237,17 +270,8 @@ pub fn get_own_submission(conn: &MysqlConnection, submission_id: u64) -> Result<
 pub fn get_teacher_submission(
     conn: &MysqlConnection,
     submission_id: u64,
-) -> Result<OwnSubmission, ()> {
+) -> Result<OwnSubmission, DbError> {
     get_full_submission(conn, submission_id, true)
-}
-
-/// Representation of a submission for other students like reviewers.
-#[derive(Serialize)]
-pub struct OtherSubmission {
-    pub title: String,
-    pub comment: String,
-    pub attachments: Vec<SimpleAttachment>,
-    pub criteria: Vec<Criterion>,
 }
 
 /// Get simplified submission from submission id.
@@ -256,22 +280,25 @@ pub fn get_student_submission(
     conn: &MysqlConnection,
     submission_id: u64,
     _user_id: u64,
-) -> Result<OtherSubmission, ()> {
+) -> Result<OtherSubmission, DbError> {
     let points_calculation = calculate_points(conn, submission_id);
-    if points_calculation.is_err() {
-        return Err(());
+    if let Err(err) = points_calculation {
+        return Err(err);
     }
     let attachments =
         db::attachments::get_by_submission_id_and_lock_submission(conn, submission_id);
-    if attachments.is_err() {
-        return Err(());
+    if let Err(err) = attachments {
+        return Err(err);
     }
-    let attachments = attachments.unwrap();
+    let attachments = attachments.ok().unwrap();
 
     let submission: Result<Submission, _> =
         submissions_t.filter(sub_id.eq(submission_id)).first(conn);
     if submission.is_err() {
-        return Err(());
+        return Err(DbError::new(
+            DbErrorKind::ReadFailed,
+            format!("Submission {} not found", submission_id),
+        ));
     }
     let submission = submission.unwrap();
 
@@ -280,7 +307,10 @@ pub fn get_student_submission(
         .select(subcrit_crit)
         .get_results(conn);
     if submission_criteria.is_err() {
-        return Err(());
+        return Err(DbError::new(
+            DbErrorKind::ReadFailed,
+            format!("Criteria for Submission {} not found", submission_id),
+        ));
     }
     let submission_criteria = submission_criteria.unwrap();
 
@@ -288,7 +318,10 @@ pub fn get_student_submission(
         .filter(c_id.eq_any(submission_criteria))
         .get_results(conn);
     if submission_criteria.is_err() {
-        return Err(());
+        return Err(DbError::new(
+            DbErrorKind::ReadFailed,
+            format!("Criteria Data for Submission {} not found", submission_id),
+        ));
     }
     let submission_criteria = submission_criteria.unwrap();
 
@@ -298,28 +331,6 @@ pub fn get_student_submission(
         attachments,
         criteria: submission_criteria,
     })
-}
-
-/// Workshop representation of a submission.
-#[derive(Serialize)]
-pub struct WorkshopSubmission {
-    pub id: u64,
-    pub title: String,
-    pub date: chrono::NaiveDateTime,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub locked: Option<bool>,
-    #[serde(rename(serialize = "studentid"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub student_id: Option<u64>,
-    #[serde(rename(serialize = "reviewsDone"))]
-    pub reviews_done: bool,
-    #[serde(rename(serialize = "noReviews"))]
-    pub no_reviews: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub points: Option<f64>,
-    #[serde(rename(serialize = "maxPoints"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub max_points: Option<f64>,
 }
 
 // Get all workshop submissions.
@@ -338,7 +349,9 @@ fn get_workshop_submissions_internal(
     }
     let submissions = submissions.unwrap();
     for submission_id in submissions {
-        calculate_points(conn, submission_id);
+        if calculate_points(conn, submission_id).is_err() {
+            return Err(());
+        }
     }
     let submissions: Result<Vec<Submission>, _> = submissions_t
         .filter(sub_workshop.eq(workshop_id).and(sub_student.eq(student_id)))
@@ -415,40 +428,84 @@ pub fn get_student_workshop_submissions(
     get_workshop_submissions_internal(conn, workshop_id, student_id, false)
 }
 
-// Calculate points of a submission.
-fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), ()> {
+/// Calculate points of a submission.
+/// Also closes all pending reviews.
+pub(crate) fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), DbError> {
+    // let submission = submissions_t
+    //     .filter(
+    //         sub_id.eq(submission_id).and(
+    //             sub_reviews_done
+    //                 .eq(true)
+    //                 .and(sub_meanpoints.is_null().and(sub_error.eq(false))),
+    //         ),
+    //     )
+    //     .first(conn);
+
+    // Get submission past deadline with no calculated points
+    let now = Local::now().naive_local();
     let submission = submissions_t
         .filter(
-            sub_id.eq(submission_id).and(
-                sub_reviews_done
-                    .eq(true)
-                    .and(sub_meanpoints.is_null().and(sub_error.eq(false))),
-            ),
+            sub_id
+                .eq(submission_id)
+                .and(sub_reviews_done.eq(false).and(sub_deadline.lt(now))),
         )
         .first(conn);
-
     if submission.is_err() {
         // Submission points are already calculated or not finished yet
         return Ok(());
     }
+
+    // Submission was not processed yet
+    // --------------------------------
     let mut submission: Submission = submission.unwrap();
+    // If not already locked, lock it now
+    if !submission.locked {
+        let lock = db::submissions::lock(conn, submission_id);
+        if lock.is_err() {
+            return Err(DbError::new(
+                DbErrorKind::UpdateFailed,
+                "Submission Lock failed",
+            ));
+        }
+        submission.locked = true;
+    }
+
+    // Close all reviews
+    // -----------------
+    let close = db::reviews::close_reviews(conn, submission_id);
+    if close.is_err() {
+        return Err(DbError::new(
+            DbErrorKind::UpdateFailed,
+            "Review Close failed",
+        ));
+    }
     // Get all reviews without errors
     let reviews = db::reviews::get_simple_review_points(conn, submission_id);
-    if reviews.is_err() {
-        return Err(());
+    if let Err(err) = reviews {
+        return Err(err);
     }
     let reviews = reviews.unwrap();
-    // Perform updates
+
+    // Calculate points
+    // ----------------
+    let mut t_error: Result<(), DbError> = Ok(());
     let res = conn.transaction::<_, _, _>(|| {
         // If there are no reviews, a submissions cannot be graded
         if reviews.len() == 0 {
             // Save error state
+            submission.reviewsdone = true;
             submission.error = true;
             let update = diesel::update(submissions_t.filter(sub_id.eq(submission.id)))
                 .set(&submission)
                 .execute(conn);
             if update.is_err() {
-                return Err(Error::RollbackTransaction);
+                return DbError::assign_and_rollback(
+                    &mut t_error,
+                    DbError::new(
+                        DbErrorKind::UpdateFailed,
+                        "Submission Error State Update failed",
+                    ),
+                );
             }
         } else {
             // Calculate mean points and max points (based on criterion and weights)
@@ -466,17 +523,17 @@ fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), ()
                 let mut review_mean_points = 0.0;
                 for point in points {
                     let weighted_points = match point.kind {
-                        Kind::Point => (point.points % point_range) * point.weight,
-                        Kind::Grade => match point.points {
-                            1.0 => point_range,
-                            2.0 => point_range * 0.8,
-                            3.0 => point_range * 0.6,
-                            4.0 => point_range * 0.5,
+                        Kind::Point => point.points * point.weight,
+                        Kind::Grade => match point.points.round() as i64 {
+                            1 => point_range * point.weight,
+                            2 => point_range * 0.8 * point.weight,
+                            3 => point_range * 0.6 * point.weight,
+                            4 => point_range * 0.5 * point.weight,
                             _ => 0.0,
                         },
-                        Kind::Percentage => ((point.points % 100.0) / point_range) * point.weight,
-                        Kind::Truefalse => match point.points {
-                            1.0 => point_range * point.weight,
+                        Kind::Percentage => point.points * point.weight,
+                        Kind::Truefalse => match point.points.round() as i64 {
+                            1 => point_range * point.weight,
                             _ => 0.0,
                         },
                     };
@@ -486,20 +543,29 @@ fn calculate_points(conn: &MysqlConnection, submission_id: u64) -> Result<(), ()
             }
             mean_points /= reviews.len() as f64;
             // Update submission
+            submission.reviewsdone = true;
             submission.maxpoint = Some(max_points);
             submission.meanpoints = Some(mean_points);
             let update = diesel::update(submissions_t.filter(sub_id.eq(submission.id)))
                 .set(&submission)
                 .execute(conn);
             if update.is_err() {
-                return Err(Error::RollbackTransaction);
+                return DbError::assign_and_rollback(
+                    &mut t_error,
+                    DbError::new(DbErrorKind::UpdateFailed, "Submission Update failed"),
+                );
             }
         }
         Ok(())
     });
-    match res {
-        Ok(_) => Ok(()),
-        Err(_) => Err(()),
+
+    if res.is_ok() {
+        Ok(())
+    } else {
+        Err(t_error.err().unwrap_or(DbError::new(
+            DbErrorKind::TransactionFailed,
+            "Unknown error",
+        )))
     }
 }
 
@@ -544,4 +610,104 @@ pub fn lock(conn: &MysqlConnection, submission_id: u64) -> Result<(), ()> {
 /// Get submission by submission id.
 pub fn get_by_id(conn: &MysqlConnection, submission_id: u64) -> Result<Submission, Error> {
     submissions_t.filter(sub_id.eq(submission_id)).first(conn)
+}
+
+/// Update submission.
+pub fn update<'a>(
+    conn: &MysqlConnection,
+    submission_id: u64,
+    student_id: u64,
+    title: String,
+    comment: String,
+    attachments: Vec<u64>,
+) -> Result<(), DbError> {
+    if !is_owner(conn, submission_id, student_id) {
+        return Err(DbError::new(
+            DbErrorKind::ReadFailed,
+            "Submission does not exist and/or Student is not Owner of Submission",
+        ));
+    }
+
+    let submission: Result<Submission, _> =
+        submissions_t.filter(sub_id.eq(submission_id)).first(conn);
+    if submission.is_err() {
+        return Err(DbError::new(
+            DbErrorKind::ReadFailed,
+            "Submission does not exist",
+        ));
+    }
+    let mut submission = submission.unwrap();
+
+    if submission.locked {
+        return Err(DbError::new(
+            DbErrorKind::PastDeadline,
+            "Locked Submissions cannot be updated",
+        ));
+    }
+    submission.title = title;
+    submission.comment = comment;
+
+    let mut t_error: Result<(), DbError> = Ok(());
+    let update = conn.transaction::<(), Error, _>(|| {
+        // Update submission
+        let update = diesel::update(submissions_t.filter(sub_id.eq(submission_id)))
+            .set(&submission)
+            .execute(conn);
+        if update.is_err() {
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::DeleteFailed, "Submission Update failed"),
+            );
+        }
+
+        // Remove attachments
+        let delete = diesel::delete(subatt_t.filter(subatt_sub.eq(submission_id))).execute(conn);
+        if delete.is_err() {
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::DeleteFailed, "Attachment Delete failed"),
+            );
+        }
+
+        // Relate attachments to submission
+        let all_student_attachments = db::attachments::get_ids_by_user_id(conn, student_id);
+        if all_student_attachments.is_err() {
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::ReadFailed, "Student attachments not found"),
+            );
+        }
+        let all_student_attachments = all_student_attachments.unwrap();
+        let submission_attachments: Vec<Submissionattachment> = attachments
+            .into_iter()
+            .filter_map(|att_id| {
+                if all_student_attachments.contains(&att_id) {
+                    Some(Submissionattachment {
+                        submission: submission.id,
+                        attachment: att_id,
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect();
+        let attachment_insert = diesel::insert_into(subatt_t)
+            .values(&submission_attachments)
+            .execute(conn);
+        if attachment_insert.is_err() {
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::CreateFailed, "Attachment Insert failed"),
+            );
+        }
+        Ok(())
+    });
+
+    match update {
+        Ok(_) => Ok(()),
+        Err(_) => Err(t_error.err().unwrap_or(DbError::new(
+            DbErrorKind::TransactionFailed,
+            "Unknown error",
+        ))),
+    }
 }

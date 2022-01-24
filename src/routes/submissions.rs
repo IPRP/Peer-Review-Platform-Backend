@@ -1,28 +1,12 @@
-use crate::db::ReviewTimespan;
-use crate::models::{Kind, NewCriterion, Role, User};
-use crate::routes::models::{ApiResponse, NumberVec, WorkshopResponse};
+use crate::db::models::*;
+use crate::routes::models::{ApiResponse, RouteNewSubmission, RouteUpdateReview};
 use crate::utils;
 use crate::{db, IprpDB};
-use chrono::{Local, Utc};
-use diesel::result::Error;
-use rocket::http::{RawStr, Status};
-use rocket::request::FromFormValue;
-use rocket::response::content;
-use rocket::State;
-use rocket_contrib::json::{Json, JsonValue};
-use serde::{de, Deserialize, Deserializer};
-use serde_json::Value;
-use std::fmt::Display;
-use std::fs::read;
-use std::num::{ParseFloatError, ParseIntError};
-use std::str::FromStr;
+use chrono::Local;
 
-#[derive(FromForm, Deserialize)]
-pub struct NewSubmission {
-    title: String,
-    comment: String,
-    attachments: NumberVec,
-}
+use crate::routes::error::{RouteError, RouteErrorKind};
+use crate::utils::error::AppError;
+use rocket_contrib::json::{Json, JsonValue};
 
 /// Create new submission.
 #[post(
@@ -33,9 +17,8 @@ pub struct NewSubmission {
 pub fn create_submission(
     user: User,
     conn: IprpDB,
-    review_timespan: State<ReviewTimespan>,
     workshop_id: u64,
-    new_submission: Json<NewSubmission>,
+    new_submission: RouteNewSubmission,
 ) -> Result<Json<JsonValue>, ApiResponse> {
     if user.role == Role::Teacher {
         return Err(ApiResponse::forbidden());
@@ -47,10 +30,9 @@ pub fn create_submission(
 
     let submission = db::submissions::create(
         &*conn,
-        review_timespan.inner(),
-        new_submission.0.title,
-        new_submission.0.comment,
-        Vec::from(new_submission.0.attachments),
+        new_submission.title,
+        new_submission.comment,
+        Vec::from(new_submission.attachments),
         date,
         user.id,
         workshop_id,
@@ -61,7 +43,11 @@ pub fn create_submission(
             "ok": true,
             "id": submission.id
         }))),
-        Err(_) => Err(ApiResponse::conflict()),
+        Err(err) => {
+            //println!("Error occurred {}", err);
+            err.print_stacktrace();
+            Err(ApiResponse::conflict_with_error(err))
+        }
     }
 }
 
@@ -83,7 +69,10 @@ pub fn get_submission(
                 utils::json::merge(&mut json_response, &*json_additional_info);
                 Ok(Json(JsonValue::from(json_response)))
             }
-            Err(_) => Err(ApiResponse::forbidden()),
+            Err(err) => {
+                println!("Error occurred {}", err);
+                Err(ApiResponse::forbidden_with_error(err))
+            }
         }
     } else if db::submissions::is_owner(&*conn, submission_id, user.id) {
         let submission = db::submissions::get_own_submission(&*conn, submission_id);
@@ -96,7 +85,10 @@ pub fn get_submission(
                 utils::json::merge(&mut json_response, &*json_additional_info);
                 Ok(Json(JsonValue::from(json_response)))
             }
-            Err(_) => Err(ApiResponse::forbidden()),
+            Err(err) => {
+                println!("Error occurred {}", err);
+                Err(ApiResponse::forbidden_with_error(err))
+            }
         }
     } else {
         if db::reviews::is_reviewer(&*conn, submission_id, user.id) {
@@ -111,24 +103,59 @@ pub fn get_submission(
                     utils::json::merge(&mut json_response, &*json_additional_info);
                     Ok(Json(JsonValue::from(json_response)))
                 }
-                Err(_) => Err(ApiResponse::forbidden()),
+                Err(err) => {
+                    println!("Error occurred {}", err);
+                    Err(ApiResponse::forbidden_with_error(err))
+                }
             }
         } else {
-            Err(ApiResponse::bad_request())
+            let err = RouteError::new(
+                RouteErrorKind::BadRequest,
+                format!(
+                    "User {} is not a teacher, owner or reviewer for Submission {}",
+                    user.id, submission_id
+                ),
+            );
+            println!("Error occurred {}", err);
+            Err(ApiResponse::bad_request_with_error(err))
         }
     }
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct UpdateReview {
-    pub feedback: String,
-    pub points: Vec<UpdatePoints>,
-}
+/// Update existing submission.
+#[put(
+    "/submission/<submission_id>",
+    format = "json",
+    data = "<new_submission>"
+)]
+pub fn update_submission(
+    user: User,
+    conn: IprpDB,
+    submission_id: u64,
+    new_submission: RouteNewSubmission,
+) -> Result<Json<JsonValue>, ApiResponse> {
+    if user.role == Role::Teacher {
+        return Err(ApiResponse::forbidden());
+    }
 
-#[derive(Serialize, Deserialize)]
-pub struct UpdatePoints {
-    pub id: u64,
-    pub points: f64,
+    let update = db::submissions::update(
+        &*conn,
+        submission_id,
+        user.id,
+        new_submission.title,
+        new_submission.comment,
+        Vec::from(new_submission.attachments),
+    );
+
+    match update {
+        Ok(_) => Ok(Json(json!({
+            "ok": true,
+        }))),
+        Err(err) => {
+            err.print_stacktrace();
+            Err(ApiResponse::bad_request_with_error(err))
+        }
+    }
 }
 
 /// Update existing review.
@@ -137,19 +164,22 @@ pub fn update_review(
     user: User,
     conn: IprpDB,
     review_id: u64,
-    update_review: Json<UpdateReview>,
+    update_review: RouteUpdateReview,
 ) -> Result<Json<JsonValue>, ApiResponse> {
     if user.role == Role::Teacher {
         return Err(ApiResponse::forbidden());
     }
 
-    let res = db::reviews::update(&*conn, update_review.0, review_id, user.id);
+    let res = db::reviews::update(&*conn, update_review, review_id, user.id);
 
     match res {
-        true => Ok(Json(json!({
+        Ok(_) => Ok(Json(json!({
             "ok": true
         }))),
-        false => Err(ApiResponse::forbidden()),
+        Err(err) => {
+            println!("Error occurred {}", err);
+            Err(ApiResponse::forbidden_with_error(err))
+        }
     }
 }
 

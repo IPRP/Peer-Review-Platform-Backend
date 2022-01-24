@@ -92,6 +92,7 @@ pub struct Workshop {
     pub content: String,
     pub end: chrono::NaiveDateTime,
     pub anonymous: bool,
+    pub reviewtimespan: i64,
 }
 
 #[derive(Insertable)]
@@ -101,6 +102,7 @@ pub struct NewWorkshop {
     pub content: String,
     pub end: chrono::NaiveDateTime,
     pub anonymous: bool,
+    pub reviewtimespan: i64,
 }
 
 #[derive(Insertable, Queryable, Clone)]
@@ -133,6 +135,15 @@ impl Kind {
         } else {
             Err(String::new())
         }
+    }
+
+    pub fn max_points(&self) -> f64 {
+        (match *self {
+            Kind::Point => 10,
+            Kind::Grade => 5,
+            Kind::Percentage => 100,
+            Kind::Truefalse => 1,
+        }) as f64
     }
 }
 
@@ -232,6 +243,7 @@ pub struct Submission {
     pub error: bool,
     pub meanpoints: Option<f64>,
     pub maxpoint: Option<f64>,
+    pub deadline: chrono::NaiveDateTime,
 }
 
 #[derive(Insertable, Queryable, Clone)]
@@ -242,6 +254,7 @@ pub struct NewSubmission {
     pub student: u64,
     pub workshop: u64,
     pub date: chrono::NaiveDateTime,
+    pub deadline: chrono::NaiveDateTime,
     pub locked: bool,
     pub reviewsdone: bool,
     pub error: bool,
@@ -251,6 +264,13 @@ pub struct NewSubmission {
 #[table_name = "submissionattachments"]
 pub struct Submissionattachment {
     pub submission: u64,
+    pub attachment: u64,
+}
+
+#[derive(Insertable, Queryable, Clone)]
+#[table_name = "workshopattachments"]
+pub struct Workshopattachment {
+    pub workshop: u64,
     pub attachment: u64,
 }
 

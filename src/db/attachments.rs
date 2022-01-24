@@ -1,12 +1,16 @@
 //! CRUD operations for attachments.
 
 use crate::db;
-use crate::models::{Attachment, NewAttachment, SimpleAttachment};
+use crate::db::error::{DbError, DbErrorKind};
+use crate::db::models::*;
 use crate::schema::attachments::dsl::{
     attachments as attachments_t, id as att_id, owner as att_owner, title as att_title,
 };
 use crate::schema::submissionattachments::dsl::{
     attachment as subatt_att, submission as subatt_sub, submissionattachments as subatt_t,
+};
+use crate::schema::workshopattachments::dsl::{
+    attachment as wsatt_att, workshop as wsatt_ws, workshopattachments as wsatt_t,
 };
 use diesel::prelude::*;
 use diesel::result::Error;
@@ -16,9 +20,12 @@ pub fn create<'a>(conn: &MysqlConnection, title: String, owner: u64) -> Result<A
     let new_attachment = NewAttachment { title, owner };
 
     let att = conn.transaction::<Attachment, Error, _>(|| {
-        diesel::insert_into(attachments_t)
+        let attachment_insert = diesel::insert_into(attachments_t)
             .values(&new_attachment)
             .execute(conn);
+        if let Err(error) = attachment_insert {
+            return Err(error);
+        }
         let attachment: Attachment = attachments_t.order(att_id.desc()).first(conn).unwrap();
         Ok(attachment)
     });
@@ -68,6 +75,7 @@ pub fn get_by_id(conn: &MysqlConnection, id: u64) -> Result<Attachment, Error> {
 }
 
 /// Get all attachments from an user by its id.
+#[allow(dead_code)]
 pub fn get_by_user_id(conn: &MysqlConnection, user_id: u64) -> Result<Vec<Attachment>, Error> {
     attachments_t
         .filter(att_owner.eq(user_id))
@@ -113,10 +121,31 @@ pub fn get_by_submission_id(
 pub fn get_by_submission_id_and_lock_submission(
     conn: &MysqlConnection,
     submission_id: u64,
-) -> Result<Vec<SimpleAttachment>, Error> {
+) -> Result<Vec<SimpleAttachment>, DbError> {
     let lock = db::submissions::lock(conn, submission_id);
     if lock.is_err() {
-        return Err(Error::NotFound);
+        return Err(DbError::new(
+            DbErrorKind::UpdateFailed,
+            "Submission Lock failed",
+        ));
     }
-    get_by_submission_id_internal(conn, submission_id)
+    let submission = get_by_submission_id_internal(conn, submission_id);
+    match submission {
+        Ok(submission) => Ok(submission),
+        Err(_) => Err(DbError::new(
+            DbErrorKind::ReadFailed,
+            format!("Attachments for submission {} not found", submission_id),
+        )),
+    }
+}
+
+pub fn get_by_workshop_id(
+    conn: &MysqlConnection,
+    workshop_id: u64,
+) -> Result<Vec<SimpleAttachment>, Error> {
+    attachments_t
+        .inner_join(wsatt_t.on(wsatt_att.eq(att_id)))
+        .filter(wsatt_ws.eq(workshop_id))
+        .select((att_id, att_title))
+        .get_results::<SimpleAttachment>(conn)
 }

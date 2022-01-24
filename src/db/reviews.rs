@@ -1,9 +1,9 @@
 //! CRUD operations for reviews.
 
 use crate::db;
-use crate::db::ReviewTimespan;
-use crate::models::{Kind, NewReview, Review, ReviewPoints, Role};
-use crate::routes::submissions::UpdateReview;
+use crate::db::error::{DbError, DbErrorKind};
+use crate::db::models::*;
+use crate::routes::models::RouteUpdateReview;
 use crate::schema::criterion::dsl::{
     content as c_content, criterion as criterion_t, id as c_id, kind as c_kind, title as c_title,
     weight as c_weight,
@@ -26,28 +26,23 @@ use crate::schema::users::dsl::{
 use crate::schema::workshoplist::dsl::{
     role as wsl_role, user as wsl_user, workshop as wsl_ws, workshoplist as workshoplist_t,
 };
-use crate::schema::workshops::dsl::{id as ws_id, title as ws_title, workshops as workshops_t};
-use chrono::{DateTime, Duration, Local, NaiveDateTime, TimeZone, Utc};
-use diesel::connection::SimpleConnection;
-use diesel::dsl::count;
+use crate::schema::workshops::dsl::{id as ws_id, workshops as workshops_t};
+use chrono::Local;
+use diesel::dsl::{exists, not};
 use diesel::prelude::*;
 use diesel::result::Error;
+use diesel::select;
 use diesel::sql_types::BigInt;
 use std::convert::TryInto;
-use std::ops::Add;
 
 /// Assign reviews from a given submission.
 pub fn assign(
     conn: &MysqlConnection,
-    review_timespan: &ReviewTimespan,
-    date: chrono::NaiveDateTime,
     submission_id: u64,
     submission_student_id: u64,
     workshop_id: u64,
-) -> Result<(), ()> {
-    // Calculate deadline
-    let deadline = review_timespan.deadline(&date);
-
+    deadline: chrono::NaiveDateTime,
+) -> Result<(), DbError> {
     // Get (at max) 3 users who have the least count of reviews for this particular workshop
     /* Based on: https://stackoverflow.com/a/2838527/12347616
            select user, count(reviewer)
@@ -75,7 +70,10 @@ pub fn assign(
         .limit(3)
         .get_results::<(u64, u64)>(conn);
     if reviews.is_err() {
-        return Err(());
+        return Err(DbError::new(
+            DbErrorKind::ReadFailed,
+            "Could not get reviewers",
+        ));
     }
     let reviews: Vec<(u64, u64)> = reviews.unwrap();
     let review_count = reviews.len();
@@ -95,19 +93,29 @@ pub fn assign(
             error: false,
         })
         .collect();
-    diesel::insert_into(reviews_t)
+    let review_insert = diesel::insert_into(reviews_t)
         .values(&reviews)
         .execute(conn);
+    if review_insert.is_err() {
+        return Err(DbError::new(
+            DbErrorKind::CreateFailed,
+            "Review Insert failed",
+        ));
+    }
+
     let reviews = reviews_t
         .order(reviews_id.desc())
         .limit(review_count.try_into().unwrap())
         .get_results::<Review>(conn);
     if reviews.is_err() {
-        return Err(());
+        return Err(DbError::new(
+            DbErrorKind::ReadFailed,
+            "Could not get reviews",
+        ));
     }
-    let reviews: Vec<Review> = reviews.unwrap();
+    //let reviews: Vec<Review> = reviews.unwrap();
 
-    // Create events that close reviews
+    /*// Create events that close reviews
     // See: https://docs.rs/chrono/0.4.0/chrono/naive/struct.NaiveDateTime.html#example-14
     // And: https://dev.mysql.com/doc/refman/8.0/en/create-event.html
     // And: https://stackoverflow.com/a/8763381/12347616
@@ -129,7 +137,7 @@ pub fn assign(
         ON SCHEDULE AT '{timestamp}'
         DO
           UPDATE reviews
-          SET done = 1, locked = 1, 
+          SET done = 1, locked = 1,
           error = CASE
             WHEN exists(select * from reviewpoints where review={id}) THEN 0
             ELSE 1
@@ -141,7 +149,10 @@ pub fn assign(
         ));
         if res.is_err() {
             println!("{}", res.err().unwrap());
-            return Err(());
+            return Err(DbError::new(
+                DbErrorKind::EventCreateFailed,
+                "Event Insert failed",
+            ));
         }
     }
 
@@ -155,7 +166,7 @@ pub fn assign(
         ON SCHEDULE AT '{timestamp}'
         DO
           UPDATE submissions
-          SET reviewsdone = 1, locked = 1, 
+          SET reviewsdone = 1, locked = 1,
           error = CASE
             WHEN exists(select * from reviews where submission={id} and error=0) THEN 0
             ELSE 1
@@ -167,8 +178,11 @@ pub fn assign(
     ));
     if res.is_err() {
         println!("{}", res.err().unwrap());
-        return Err(());
-    }
+        return Err(DbError::new(
+            DbErrorKind::EventCreateFailed,
+            "Event Insert failed",
+        ));
+    }*/
     /*
     select r.id, r.done, r.deadline, s.id, s.student, s.workshop
         from reviews r
@@ -202,29 +216,36 @@ pub fn assign(
 /// Can be performed multiple times until review is locked on deadline.
 pub fn update(
     conn: &MysqlConnection,
-    update_review: UpdateReview,
+    update_review: RouteUpdateReview,
     review_id: u64,
     user_id: u64,
-) -> bool {
+) -> Result<(), DbError> {
     // Get review
     let review: Result<Review, _> = reviews_t
         .filter(reviews_id.eq(review_id).and(reviewer.eq(user_id)))
         .first(conn);
     if review.is_err() {
         // No matching review
-        return false;
+        return Err(DbError::new(DbErrorKind::ReadFailed, "No matching Review"));
     }
     let mut review = review.unwrap();
     if Local::now().naive_local() > review.deadline {
         // Update past deadline
-        return false;
+        return Err(DbError::new(
+            DbErrorKind::PastDeadline,
+            "Update past deadline",
+        ));
     }
     // Update review
+    let mut t_error: Result<(), DbError> = Ok(());
     let res = conn.transaction::<_, _, _>(|| {
         // Check if all point criteria were given for update
         let criteria = db::submissions::get_criteria(conn, review.submission);
         if criteria.is_err() {
-            return Err(Error::RollbackTransaction);
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::ReadFailed, "Criteria for Review not found"),
+            );
         }
         let criteria = criteria.unwrap();
         let update_ids: Vec<u64> = update_review
@@ -232,35 +253,65 @@ pub fn update(
             .iter()
             .map(|update_points| update_points.id)
             .collect();
-        for criterion in criteria {
+        for criterion in &criteria {
             if !update_ids.contains(&criterion.id) {
-                return Err(Error::RollbackTransaction);
+                return DbError::assign_and_rollback(
+                    &mut t_error,
+                    DbError::new(
+                        DbErrorKind::Mismatch,
+                        format!("Criterion Id {} is missing in Update", &criterion.id),
+                    ),
+                );
             }
         }
 
         // Update review
         review.feedback = update_review.feedback;
         review.done = true;
-        diesel::update(reviews_t.filter(reviews_id.eq(review.id)))
+        let review_update = diesel::update(reviews_t.filter(reviews_id.eq(review.id)))
             .set(&review)
             .execute(conn);
+        if review_update.is_err() {
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::UpdateFailed, "Review Update failed"),
+            );
+        }
 
         // Update review points
         // First `update_review` needs to be changed into a insertable form
         let review_points: Vec<ReviewPoints> = update_review
             .points
             .into_iter()
-            .map(|update_points| ReviewPoints {
-                review: review_id,
-                criterion: update_points.id,
-                points: update_points.points,
+            .map(|update_points| {
+                // Validate & Correct points
+                let criterion = criteria
+                    .iter()
+                    .filter(|c| c.id == update_points.id)
+                    .next()
+                    .unwrap();
+                let max_points = criterion.kind.max_points();
+                let points = if update_points.points > max_points {
+                    max_points
+                } else {
+                    update_points.points
+                };
+                ReviewPoints {
+                    review: review_id,
+                    criterion: update_points.id,
+                    points,
+                }
             })
             .collect();
 
         // Drop already given review points
         let delete = diesel::delete(reviewpoints_t.filter(rp_review.eq(review_id))).execute(conn);
         if delete.is_err() {
-            return Err(Error::RollbackTransaction);
+            // println!("E {}", delete.err().unwrap());
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::DeleteFailed, "Review Points Delete failed"),
+            );
         }
 
         // Insert new review points
@@ -268,37 +319,101 @@ pub fn update(
             .values(&review_points)
             .execute(conn);
         if insert.is_err() {
-            return Err(Error::RollbackTransaction);
+            // println!("E {}", insert.err().unwrap());
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::CreateFailed, "Review Insert failed"),
+            );
         }
-
         Ok(())
     });
 
-    match res {
-        Ok(_) => true,
-        Err(_) => false,
+    if res.is_ok() {
+        Ok(())
+    } else {
+        // Transaction error should have custom DbError, use it
+        // If not, return general error message
+        Err(t_error.err().unwrap_or(DbError::new(
+            DbErrorKind::TransactionFailed,
+            "Unknown error",
+        )))
     }
 }
 
-/// Simplified representation of review points.
-#[derive(Serialize)]
-pub struct SimpleReviewPoints {
-    pub weight: f64,
-    pub kind: Kind,
-    pub points: f64,
+pub(crate) fn close_reviews(conn: &MysqlConnection, submission_id: u64) -> Result<(), DbError> {
+    // Get all reviews
+    let reviews = reviews_t
+        .filter(reviews_sub.eq(submission_id))
+        .get_results::<Review>(conn);
+    if reviews.is_err() {
+        return Err(DbError::new(
+            DbErrorKind::ReadFailed,
+            format!("No Reviews for Submission {} found", submission_id),
+        ));
+    }
+    // Check if reviews are present
+    let reviews: Vec<Review> = reviews.unwrap();
+    if reviews.len() > 0 {
+        let mut t_error: Result<(), DbError> = Ok(());
+        let res = conn.transaction::<_, _, _>(|| {
+            // Iterate over found reviews
+            for mut review in reviews {
+                // Mark them as finished
+                review.done = true;
+                review.locked = true;
+                // Check if review was done
+                // If not, mark as error case
+                // --------------------------
+                // not(exists(select * from reviewpoints where review={id}))
+                let error = select(not(exists(reviewpoints_t.filter(rp_review.eq(review.id)))))
+                    .get_result(conn);
+                if error.is_err() {
+                    return DbError::assign_and_rollback(
+                        &mut t_error,
+                        DbError::new(DbErrorKind::ReadFailed, "Could not get Review state"),
+                    );
+                }
+                review.error = error.unwrap();
+                // Update review
+                let review_update = diesel::update(reviews_t.filter(reviews_id.eq(review.id)))
+                    .set(&review)
+                    .execute(conn);
+                if review_update.is_err() {
+                    return DbError::assign_and_rollback(
+                        &mut t_error,
+                        DbError::new(DbErrorKind::UpdateFailed, "Review Update failed"),
+                    );
+                }
+            }
+            Ok(())
+        });
+        if res.is_ok() {
+            Ok(())
+        } else {
+            Err(t_error.err().unwrap_or(DbError::new(
+                DbErrorKind::TransactionFailed,
+                "Unknown error",
+            )))
+        }
+    } else {
+        Ok(())
+    }
 }
 
 /// Get simplified review points from a submission.
 pub fn get_simple_review_points(
     conn: &MysqlConnection,
     submission_id: u64,
-) -> Result<Vec<Vec<SimpleReviewPoints>>, ()> {
+) -> Result<Vec<Vec<SimpleReviewPoints>>, DbError> {
     let reviews = reviews_t
         .filter(reviews_sub.eq(submission_id).and(reviews_error.eq(false)))
         .select(reviews_id)
         .get_results::<u64>(conn);
     if reviews.is_err() {
-        return Err(());
+        return Err(DbError::new(
+            DbErrorKind::ReadFailed,
+            format!("No Reviews for Submission {} found", submission_id),
+        ));
     }
     let reviews: Vec<u64> = reviews.unwrap();
 
@@ -310,7 +425,10 @@ pub fn get_simple_review_points(
             .select((c_weight, c_kind, rp_points))
             .get_results::<(f64, Kind, Option<f64>)>(conn);
         if points.is_err() {
-            return Err(());
+            return Err(DbError::new(
+                DbErrorKind::ReadFailed,
+                format!("No Points for Review {} found", review),
+            ));
         }
         let points: Vec<(f64, Kind, Option<f64>)> = points.unwrap();
         let points: Vec<SimpleReviewPoints> = points
@@ -324,34 +442,6 @@ pub fn get_simple_review_points(
         simple_reviews.push(points);
     }
     Ok(simple_reviews)
-}
-
-/// Detailed representation of a review.
-#[derive(Serialize)]
-pub struct FullReview {
-    pub id: u64,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub firstname: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub lastname: Option<String>,
-    pub feedback: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "notSubmitted")]
-    pub not_submitted: Option<bool>,
-    pub points: Vec<FullReviewPoints>,
-}
-
-/// Detailed representation of review points.
-#[derive(Debug, Serialize)]
-pub struct FullReviewPoints {
-    #[serde(rename = "id")]
-    pub criterion_id: u64,
-    pub title: String,
-    pub content: String,
-    pub weight: f64,
-    #[serde(rename = "type")]
-    pub kind: Kind,
-    pub points: f64,
 }
 
 // Get all detailed reviews from a submission.
@@ -515,6 +605,42 @@ pub fn get_full_review_with_names(
     get_full_review_internal(conn, review_id, true)
 }
 
+/// Get missing reviews with names
+/// (Only needed for teachers)
+pub fn get_missing_reviews(
+    conn: &MysqlConnection,
+    submission_id: u64,
+) -> Result<Vec<MissingReview>, ()> {
+    let reviews = reviews_t
+        .filter(reviews_sub.eq(submission_id).and(reviews_error.eq(true)))
+        .get_results::<Review>(conn);
+    if reviews.is_err() {
+        return Err(());
+    }
+    let reviews: Vec<Review> = reviews.unwrap();
+
+    let mut missing_reviews: Vec<MissingReview> = Vec::new();
+    for review in reviews.iter() {
+        let (firstname, lastname) = if review.reviewer.is_some() {
+            let user = db::users::get_by_id(conn, review.reviewer.unwrap());
+            if user.is_ok() {
+                let user = user.unwrap();
+                (Some(user.firstname), Some(user.lastname))
+            } else {
+                (None, None)
+            }
+        } else {
+            (None, None)
+        };
+        missing_reviews.push(MissingReview {
+            id: review.id,
+            firstname,
+            lastname,
+        });
+    }
+    Ok(missing_reviews)
+}
+
 /// Check if student is review for a given submission.
 pub fn is_reviewer(conn: &MysqlConnection, submission_id: u64, student_id: u64) -> bool {
     let exists: Result<Review, diesel::result::Error> = reviews_t
@@ -562,21 +688,9 @@ pub fn is_submission_owner(conn: &MysqlConnection, review_id: u64, student_id: u
 }
 
 /// Get review by review id.
+#[allow(dead_code)]
 pub fn get_by_id(conn: &MysqlConnection, review_id: u64) -> Result<Review, Error> {
     reviews_t.filter(reviews_id.eq(review_id)).first(conn)
-}
-
-/// Workshop representation of a review.
-#[derive(Serialize)]
-pub struct WorkshopReview {
-    pub id: u64,
-    pub done: bool,
-    pub deadline: chrono::NaiveDateTime,
-    pub title: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub firstname: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub lastname: Option<String>,
 }
 
 /// Get all reviews from a student in one workshop.
