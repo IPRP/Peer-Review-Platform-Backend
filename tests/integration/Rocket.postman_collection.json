@@ -352,6 +352,42 @@
 			"response": []
 		},
 		{
+			"name": "Get Workshop 2",
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "admin",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "admin",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8000/teacher/workshop/2",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"teacher",
+						"workshop",
+						"2"
+					]
+				}
+			},
+			"response": []
+		},
+		{
 			"name": "/teacher/workshop",
 			"request": {
 				"method": "POST",

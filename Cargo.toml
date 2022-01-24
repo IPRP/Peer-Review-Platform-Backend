@@ -1,6 +1,6 @@
 [package]
 name = "iprp-backend"
-version = "0.1.0"
+version = "1.0.0"
 authors = ["Kacper Urbaniec <at.kacper.urbaniec@gmail.com>"]
 edition = "2018"
 
