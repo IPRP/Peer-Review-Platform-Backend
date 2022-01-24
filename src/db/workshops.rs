@@ -236,46 +236,69 @@ pub fn update(
     students: Vec<u64>,
     criteria: Vec<NewCriterion>,
     attachments: Vec<u64>,
-) -> Result<Workshop, ()> {
+) -> Result<Workshop, DbError> {
     let workshop = workshops_t.filter(ws_id.eq(workshop_id)).first(conn);
     if workshop.is_err() {
-        return Err(());
+        return Err(DbError::new(
+            DbErrorKind::ReadFailed,
+            format!("Could not find Workshop with Id {}", workshop_id),
+        ));
     }
     let mut workshop: Workshop = workshop.unwrap();
     workshop.title = title;
     workshop.content = content;
     workshop.end = end;
     workshop.reviewtimespan = review_timespan;
+
+    let mut t_error: Result<(), DbError> = Ok(());
     let ws = conn.transaction::<Workshop, _, _>(|| {
         // Remove student & teachers
         let delete = diesel::delete(workshoplist_t.filter(wsl_ws.eq(workshop_id))).execute(conn);
         if delete.is_err() {
-            return Err(Error::RollbackTransaction);
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(
+                    DbErrorKind::DeleteFailed,
+                    "Could not delete Students & Teachers",
+                ),
+            );
         }
         // Remove criteria
         let delete =
             diesel::delete(criteria_t.filter(criteria_workshop.eq(workshop_id))).execute(conn);
         if delete.is_err() {
-            return Err(Error::RollbackTransaction);
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::DeleteFailed, "Could not delete Criteria"),
+            );
         }
         // Remove attachments
         let delete = diesel::delete(wsatt_t.filter(wsatt_ws.eq(workshop_id))).execute(conn);
         if delete.is_err() {
-            return Err(Error::RollbackTransaction);
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::DeleteFailed, "Could not delete Attachments"),
+            );
         }
         // Filter students & teachers
         let students = users_t
             .filter(u_role.eq(Role::Student).and(u_id.eq_any(students)))
             .get_results::<User>(conn);
         if students.is_err() {
-            return Err(Error::RollbackTransaction);
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::ReadFailed, "Could not determine Students"),
+            );
         }
         let students = students.unwrap();
         let teachers = users_t
             .filter(u_role.eq(Role::Teacher).and(u_id.eq_any(teachers)))
             .get_results::<User>(conn);
         if teachers.is_err() {
-            return Err(Error::RollbackTransaction);
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::ReadFailed, "Could not determine Teachers"),
+            );
         }
         let mut teachers = teachers.unwrap();
 
@@ -284,7 +307,10 @@ pub fn update(
             .values(&criteria)
             .execute(conn);
         if insert.is_err() {
-            return Err(Error::RollbackTransaction);
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::CreateFailed, "Could not insert Criteria"),
+            );
         }
 
         let mut last_criterion_id = criterion_t
@@ -297,12 +323,14 @@ pub fn update(
         let criterion_ids: Vec<u64> = (first_criterion_id..last_criterion_id).collect();
 
         // Update workshop
-        // diesel::update(reviews_t).set(&review).execute(conn);
         let update = diesel::update(workshops_t.filter(ws_id.eq(workshop.id)))
             .set(&workshop)
             .execute(conn);
         if update.is_err() {
-            return Err(Error::RollbackTransaction);
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::UpdateFailed, "Could not update Workshop"),
+            );
         }
 
         // Assign students & teachers to workshop
@@ -320,7 +348,10 @@ pub fn update(
             .values(&new_workshoplist)
             .execute(conn);
         if insert.is_err() {
-            return Err(Error::RollbackTransaction);
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::CreateFailed, "Could not insert Workshoplist"),
+            );
         }
 
         // Assign criteria to workshop
@@ -335,7 +366,13 @@ pub fn update(
             .values(&new_criteria)
             .execute(conn);
         if insert.is_err() {
-            return Err(Error::RollbackTransaction);
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(
+                    DbErrorKind::CreateFailed,
+                    "Could not insert Workshop-Criteria",
+                ),
+            );
         }
 
         // Relate attachments to workshop
@@ -361,15 +398,20 @@ pub fn update(
             .values(&workshop_attachments)
             .execute(conn);
         if attachment_insert.is_err() {
-            return Err(Error::RollbackTransaction);
+            return DbError::assign_and_rollback(
+                &mut t_error,
+                DbError::new(DbErrorKind::ReadFailed, "Could not insert Attachments"),
+            );
         }
-
         Ok(workshop)
     });
 
     match ws {
         Ok(ws) => Ok(ws),
-        Err(_) => Err(()),
+        Err(_) => Err(t_error.err().unwrap_or(DbError::new(
+            DbErrorKind::TransactionFailed,
+            "Unknown error",
+        ))),
     }
 }
 

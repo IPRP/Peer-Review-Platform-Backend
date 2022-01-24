@@ -151,7 +151,10 @@ pub fn update_workshop(
         Ok(_) => Ok(Json(json!({
             "ok": true,
         }))),
-        Err(_) => Err(ApiResponse::conflict()),
+        Err(err) => {
+            err.print_stacktrace();
+            Err(ApiResponse::conflict_with_error(err))
+        }
     }
 }
 

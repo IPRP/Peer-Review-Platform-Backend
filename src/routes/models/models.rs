@@ -304,6 +304,7 @@ impl ApiResponse {
         ApiResponse { json, status }
     }
 
+    #[allow(dead_code)]
     pub fn conflict() -> Self {
         let json = json!({
             "ok": false
