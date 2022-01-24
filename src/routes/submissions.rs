@@ -122,6 +122,42 @@ pub fn get_submission(
     }
 }
 
+/// Update existing submission.
+#[put(
+    "/submission/<submission_id>",
+    format = "json",
+    data = "<new_submission>"
+)]
+pub fn update_submission(
+    user: User,
+    conn: IprpDB,
+    submission_id: u64,
+    new_submission: RouteNewSubmission,
+) -> Result<Json<JsonValue>, ApiResponse> {
+    if user.role == Role::Teacher {
+        return Err(ApiResponse::forbidden());
+    }
+
+    let update = db::submissions::update(
+        &*conn,
+        submission_id,
+        user.id,
+        new_submission.title,
+        new_submission.comment,
+        Vec::from(new_submission.attachments),
+    );
+
+    match update {
+        Ok(_) => Ok(Json(json!({
+            "ok": true,
+        }))),
+        Err(err) => {
+            err.print_stacktrace();
+            Err(ApiResponse::bad_request_with_error(err))
+        }
+    }
+}
+
 /// Update existing review.
 #[put("/review/<review_id>", format = "json", data = "<update_review>")]
 pub fn update_review(

@@ -304,6 +304,7 @@ impl ApiResponse {
         ApiResponse { json, status }
     }
 
+    #[allow(dead_code)]
     pub fn conflict() -> Self {
         let json = json!({
             "ok": false
@@ -341,6 +342,15 @@ impl ApiResponse {
     pub fn not_found() -> Self {
         let json = json!({
             "ok": false
+        });
+        let status = Status::NotFound;
+        ApiResponse { json, status }
+    }
+
+    pub fn not_found_with_error(error: impl AppError) -> Self {
+        let json = json!({
+            "ok": false,
+            "error": error.description()
         });
         let status = Status::NotFound;
         ApiResponse { json, status }

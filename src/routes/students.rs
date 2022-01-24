@@ -2,6 +2,7 @@ use crate::db::models::*;
 use crate::routes::models::{ApiResponse, RouteWorkshopResponse};
 use crate::{db, IprpDB};
 
+use crate::utils::error::AppError;
 use rocket_contrib::json::{Json, JsonValue};
 
 /// Get all workshops.
@@ -42,7 +43,10 @@ pub fn workshop(
             "ok": true,
             "workshop": workshop
         }))),
-        Err(_) => Err(ApiResponse::not_found()),
+        Err(err) => {
+            err.print_stacktrace();
+            Err(ApiResponse::not_found_with_error(err))
+        }
     }
 }
 

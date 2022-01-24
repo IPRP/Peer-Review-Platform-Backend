@@ -11,6 +11,7 @@ use rocket::State;
 use validator::Validate;
 
 use crate::db::ReviewTimespan;
+use crate::utils::error::AppError;
 use rocket_contrib::json::{Json, JsonValue};
 
 /// Get all workshops.
@@ -51,7 +52,10 @@ pub fn workshop(
             "ok": true,
             "workshop": workshop
         }))),
-        Err(_) => Err(ApiResponse::not_found()),
+        Err(err) => {
+            err.print_stacktrace();
+            Err(ApiResponse::not_found_with_error(err))
+        }
     }
 }
 
@@ -66,10 +70,6 @@ pub fn create_workshop(
     if user.role == Role::Student {
         return Err(ApiResponse::forbidden());
     }
-
-    println!("{:?}", new_workshop.end.0);
-    println!("{:?}", new_workshop.students.0);
-    println!("{:?}", new_workshop.criteria.0);
 
     // Add teacher, who wants to create the workshop, to the teachers list
     // if not already present
@@ -101,7 +101,10 @@ pub fn create_workshop(
             "ok": true,
             "id": workshop.id
         }))),
-        Err(_) => Err(ApiResponse::conflict()),
+        Err(err) => {
+            err.print_stacktrace();
+            Err(ApiResponse::conflict_with_error(err))
+        }
     }
 }
 
@@ -151,7 +154,10 @@ pub fn update_workshop(
         Ok(_) => Ok(Json(json!({
             "ok": true,
         }))),
-        Err(_) => Err(ApiResponse::conflict()),
+        Err(err) => {
+            err.print_stacktrace();
+            Err(ApiResponse::conflict_with_error(err))
+        }
     }
 }
 

@@ -9,6 +9,9 @@ use crate::schema::attachments::dsl::{
 use crate::schema::submissionattachments::dsl::{
     attachment as subatt_att, submission as subatt_sub, submissionattachments as subatt_t,
 };
+use crate::schema::workshopattachments::dsl::{
+    attachment as wsatt_att, workshop as wsatt_ws, workshopattachments as wsatt_t,
+};
 use diesel::prelude::*;
 use diesel::result::Error;
 
@@ -134,4 +137,15 @@ pub fn get_by_submission_id_and_lock_submission(
             format!("Attachments for submission {} not found", submission_id),
         )),
     }
+}
+
+pub fn get_by_workshop_id(
+    conn: &MysqlConnection,
+    workshop_id: u64,
+) -> Result<Vec<SimpleAttachment>, Error> {
+    attachments_t
+        .inner_join(wsatt_t.on(wsatt_att.eq(att_id)))
+        .filter(wsatt_ws.eq(workshop_id))
+        .select((att_id, att_title))
+        .get_results::<SimpleAttachment>(conn)
 }
